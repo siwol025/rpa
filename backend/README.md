@@ -50,6 +50,12 @@ uv run pytest                     # 전체
 uv run pytest -m "not integration"   # Docker 없이 실행 가능한 테스트만
 ```
 
+통합 테스트(`integration` 마커)의 DB는 다음 순서로 고른다. 스키마는 `alembic upgrade head`로 만든다.
+
+1. `TEST_DATABASE_URL` 환경 변수 (예: `postgresql+psycopg://callcenter:callcenter@localhost:5433/callcenter_test`) — **테스트 전용 DB**여야 한다. 시작 시 `alembic downgrade base`로 모든 테이블을 지운다.
+2. 없으면 testcontainers로 `postgres:16` 컨테이너 (Docker 필요)
+3. 둘 다 불가하면 skip
+
 ### OpenAPI 갱신
 
 요청·응답 스키마나 라우트를 바꾸면 다시 생성해 같은 커밋에 포함한다(최신이 아니면 `pytest`가 실패한다).

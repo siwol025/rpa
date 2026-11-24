@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     docs_enabled: bool = True
+    # 개발용 기본값(.env.example과 같음). 운영은 .env의 DATABASE_URL로 덮는다.
+    database_url: str = "postgresql+psycopg://callcenter:callcenter@localhost:5433/callcenter"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

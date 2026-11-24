@@ -107,6 +107,7 @@ backend/
 │   ├── main.py                  # FastAPI 앱 생성, 라우터·미들웨어 등록
 │   ├── core/
 │   │   ├── config.py            # pydantic-settings (환경 변수)
+│   │   ├── db.py                # 엔진·세션 팩토리
 │   │   ├── logging.py           # JSON 구조화 로그, request_id
 │   │   ├── errors.py            # 공통 예외 → 에러 응답 매핑
 │   │   └── security.py          # 로봇 API Key 검증
