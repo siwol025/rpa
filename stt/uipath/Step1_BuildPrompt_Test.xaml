@@ -1,0 +1,64 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Step1_BuildPrompt_Test" VisualBasic.Settings="{x:Null}" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib" xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System.Activities</x:String>
+      <x:String>System.Activities.Statements</x:String>
+      <x:String>System.Activities.Expressions</x:String>
+      <x:String>System.Activities.Validation</x:String>
+      <x:String>System.Activities.XamlIntegration</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+      <x:String>Microsoft.VisualBasic.Activities</x:String>
+      <x:String>System</x:String>
+      <x:String>System.Collections</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Collections.ObjectModel</x:String>
+      <x:String>System.Data</x:String>
+      <x:String>System.Diagnostics</x:String>
+      <x:String>System.Drawing</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>System.Net.Mail</x:String>
+      <x:String>System.Xml</x:String>
+      <x:String>System.Xml.Linq</x:String>
+      <x:String>UiPath.Core</x:String>
+      <x:String>UiPath.Core.Activities</x:String>
+      <x:String>System.Windows.Markup</x:String>
+      <x:String>GlobalVariablesNamespace</x:String>
+      <x:String>GlobalConstantsNamespace</x:String>
+          <x:String>Newtonsoft.Json</x:String>
+      <x:String>Newtonsoft.Json.Linq</x:String>
+      <x:String>System.Text.RegularExpressions</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>System.Private.CoreLib</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Data</AssemblyReference>
+      <AssemblyReference>System</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>System.Data.Common</AssemblyReference>
+      <AssemblyReference>System.Drawing</AssemblyReference>
+      <AssemblyReference>System.Drawing.Primitives</AssemblyReference>
+      <AssemblyReference>System.Drawing.Common</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Xml</AssemblyReference>
+      <AssemblyReference>System.Xml.Linq</AssemblyReference>
+      <AssemblyReference>PresentationFramework</AssemblyReference>
+      <AssemblyReference>WindowsBase</AssemblyReference>
+      <AssemblyReference>PresentationCore</AssemblyReference>
+      <AssemblyReference>System.Xaml</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+      <AssemblyReference>UiPath.UiAutomation.Activities</AssemblyReference>
+      <AssemblyReference>System.Data.DataSetExtensions</AssemblyReference>
+      <AssemblyReference>System.Net.Mail</AssemblyReference>
+      <AssemblyReference>System.ObjectModel</AssemblyReference>
+      <AssemblyReference>System.ComponentModel.TypeConverter</AssemblyReference>
+          <AssemblyReference>Newtonsoft.Json</AssemblyReference>
+      <AssemblyReference>System.Text.RegularExpressions</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="Step1 프롬프트 조립 테스트"><Sequence.Variables><Variable x:TypeArguments="x:String" Default="[System.IO.Path.Combine(System.Environment.CurrentDirectory, &quot;test_data&quot;)]" Name="testDir" /><Variable x:TypeArguments="x:String" Default="[System.IO.Path.Combine(System.Environment.CurrentDirectory, &quot;test_data_out&quot;)]" Name="outDir" /><Variable x:TypeArguments="scg:List(x:String)" Default="[New System.Collections.Generic.List(Of String) From {&quot;S00007727&quot;, &quot;S00007728&quot;, &quot;S00007729&quot;, &quot;S00007730&quot;, &quot;S00007731&quot;, &quot;BADPROMPT&quot;}]" Name="cases" /></Sequence.Variables><ui:ForEach x:TypeArguments="x:String" CurrentIndex="{x:Null}" DisplayName="케이스별 반복" Values="[cases]"><ui:ForEach.Body><ActivityAction x:TypeArguments="x:String"><ActivityAction.Argument><DelegateInArgument x:TypeArguments="x:String" Name="caseName" /></ActivityAction.Argument><Sequence DisplayName="한 건 처리"><Sequence.Variables><Variable x:TypeArguments="x:String" Name="promptText" /><Variable x:TypeArguments="x:String" Name="transcriptText" /><Variable x:TypeArguments="x:String" Name="systemPrompt" /><Variable x:TypeArguments="x:String" Name="userPrompt" /><Variable x:TypeArguments="x:String" Name="buildError" /></Sequence.Variables><ui:ReadTextFile File="{x:Null}" Content="[promptText]" DisplayName="프롬프트 템플릿 읽기" Encoding="utf-8" FileName="[System.IO.Path.Combine(testDir, &quot;step1&quot;, caseName, &quot;prompt.txt&quot;)]" /><ui:ReadTextFile File="{x:Null}" Content="[transcriptText]" DisplayName="전사본 읽기" Encoding="utf-8" FileName="[System.IO.Path.Combine(testDir, &quot;step1&quot;, caseName, &quot;transcript.txt&quot;)]" /><ui:InvokeCode DisplayName="프롬프트 조립 (Invoke Code)" Language="VBNet" Code="' Step1: 프롬프트 조립  (Python: analyze.build_prompt)&#xA;' In : promptText(String) 프롬프트 파일 전체, transcriptText(String) 마스킹된 전사본&#xA;' Out: systemPrompt, userPrompt, buildError(String, 성공이면 빈 문자열)&#xA;buildError = &quot;&quot;&#xA;systemPrompt = &quot;&quot;&#xA;userPrompt = &quot;&quot;&#xA;Dim keptLines As New System.Collections.Generic.List(Of String)&#xA;For Each rawLine As String In System.Text.RegularExpressions.Regex.Split(If(promptText, &quot;&quot;), &quot;\r\n|\n|\r&quot;)&#xA;    ' 설명용 '#' 줄 제외 (Python: not l.lstrip().startswith(&quot;#&quot;))&#xA;    If Not rawLine.TrimStart().StartsWith(&quot;#&quot;, System.StringComparison.Ordinal) Then keptLines.Add(rawLine)&#xA;Next&#xA;Dim promptBody As String = String.Join(vbLf, keptLines)&#xA;Dim blockMatch As System.Text.RegularExpressions.Match = System.Text.RegularExpressions.Regex.Match(promptBody, &quot;\[SYSTEM\](.*?)\[USER TEMPLATE\](.*)&quot;, System.Text.RegularExpressions.RegexOptions.Singleline)&#xA;If Not blockMatch.Success Then&#xA;    buildError = &quot;prompt 파일에 [SYSTEM]/[USER TEMPLATE] 블록이 없음&quot;&#xA;Else&#xA;    systemPrompt = blockMatch.Groups(1).Value.Trim()&#xA;    userPrompt = blockMatch.Groups(2).Value.Trim().Replace(&quot;{{TRANSCRIPT}}&quot;, If(transcriptText, &quot;&quot;))&#xA;End If"><ui:InvokeCode.Arguments><scg:Dictionary x:TypeArguments="x:String, Argument"><InArgument x:TypeArguments="x:String" x:Key="promptText">[promptText]</InArgument><InArgument x:TypeArguments="x:String" x:Key="transcriptText">[transcriptText]</InArgument><OutArgument x:TypeArguments="x:String" x:Key="systemPrompt">[systemPrompt]</OutArgument><OutArgument x:TypeArguments="x:String" x:Key="userPrompt">[userPrompt]</OutArgument><OutArgument x:TypeArguments="x:String" x:Key="buildError">[buildError]</OutArgument></scg:Dictionary></ui:InvokeCode.Arguments></ui:InvokeCode><ui:CreateDirectory DisplayName="결과 폴더 만들기" Output="{x:Null}" Path="[System.IO.Path.Combine(outDir, &quot;step1&quot;, caseName)]" /><ui:WriteTextFile File="{x:Null}" Output="{x:Null}" DisplayName="system.txt 저장" Encoding="utf-8" FileName="[System.IO.Path.Combine(outDir, &quot;step1&quot;, caseName, &quot;system.txt&quot;)]" Text="[systemPrompt]" /><ui:WriteTextFile File="{x:Null}" Output="{x:Null}" DisplayName="user.txt 저장" Encoding="utf-8" FileName="[System.IO.Path.Combine(outDir, &quot;step1&quot;, caseName, &quot;user.txt&quot;)]" Text="[userPrompt]" /><ui:WriteTextFile File="{x:Null}" Output="{x:Null}" DisplayName="error.txt 저장" Encoding="utf-8" FileName="[System.IO.Path.Combine(outDir, &quot;step1&quot;, caseName, &quot;error.txt&quot;)]" Text="[buildError]" /><ui:LogMessage DisplayName="로그" Level="Info" Message="[caseName &amp; &quot; 프롬프트 조립 완료 (system &quot; &amp; systemPrompt.Length.ToString() &amp; &quot;자, user &quot; &amp; userPrompt.Length.ToString() &amp; &quot;자, 오류: &quot; &amp; buildError &amp; &quot;)&quot;]" /></Sequence></ActivityAction></ui:ForEach.Body></ui:ForEach></Sequence>
+</Activity>
