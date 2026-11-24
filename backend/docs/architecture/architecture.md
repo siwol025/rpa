@@ -400,6 +400,9 @@ erDiagram
 | `UNAUTHORIZED` | 401 | 로봇 API Key 오류 |
 | `FORBIDDEN_IP` | 403 | `/api/robot/*`를 허용되지 않은 IP에서 호출 |
 | `INBOX_UNAVAILABLE` | 503 | 웹 업로드 시 Drive 업로드 실패 (API 오류·권한·할당량) |
+| `BAD_REQUEST` | 400 | 요청 본문 파싱 실패 (multipart 깨짐 등) |
+| `METHOD_NOT_ALLOWED` | 405 | 경로가 지원하지 않는 HTTP 메서드 |
+| `INTERNAL_ERROR` | 500 | 처리되지 않은 서버 오류 |
 
 - 시간은 모두 `TIMESTAMPTZ` 저장, API는 ISO 8601(+09:00) 반환
 - 모든 응답에 `X-Request-Id` 포함, 로봇은 이 값과 `call_id`를 UiPath 로그에 남김
@@ -512,12 +515,13 @@ flowchart TB
 | `DRIVE_INBOX_FOLDER_ID` / `INBOX_LOCAL_PATH` | 웹 업로드 대상 (Drive 폴더 ID / 로컬 경로) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | 서비스 계정 키 파일 경로 |
 | `ROBOT_API_KEYS` | 로봇 API 키 (쉼표 구분, 교체 기간 중 2개 허용) |
-| `MAX_UPLOAD_MB` | 업로드 최대 크기 (기본 100), 앱에서 검사 |
+| `MAX_UPLOAD_MB` | 요청 전체 크기 한도(MiB, 기본 100), 모든 API 공통, 앱에서 검사 |
 | `ROBOT_ALLOWED_IPS` | `/api/robot/*` 호출 허용 IP (로봇 PC) |
 | `ALLOWED_EXTENSIONS` | `wav,mp3` |
 | `REVIEW_CONFIDENCE_THRESHOLD` | 검토 필요 임계값 |
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
 | `CORS_ORIGINS` | 프론트 주소 |
+| `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |
 
 ---
 
