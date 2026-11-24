@@ -31,7 +31,7 @@ def make_call(session: Session, **overrides: Any) -> CallRecord:
 
 def make_transcript(session: Session, call: CallRecord, **overrides: Any) -> Transcript:
     values: dict[str, Any] = {
-        "segments": [{"speaker": "AGENT", "start": 0.0, "end": 1.5, "text": "안녕하세요"}],
+        "segments": [{"speaker": "AGENT", "start_sec": 0.0, "end_sec": 1.5, "text": "안녕하세요"}],
         **overrides,
     }
     transcript = Transcript(call_id=call.id, **values)

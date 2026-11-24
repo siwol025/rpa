@@ -1745,8 +1745,8 @@ TEST_DATABASE_URL=postgresql+psycopg://callcenter:callcenter@localhost:5433/call
 | # | 항목 | 이 계획의 가정 |
 |---|---|---|
 | G1 | **`corrected_text`가 비어 있을 수 있음** | 교정(STT-05, P1)이 없으면 NULL → 전사 내용이 키워드 검색에 걸리지 않음. 대안(적재 시 `segments` 텍스트를 이어 붙인 검색용 컬럼, 또는 교정 없을 때 원문을 `corrected_text`에 저장)은 별도 합의 |
-| G2 | `segments` 항목 구조 | `{speaker, start, end, text}` 가정, 응답은 `list[dict]`. 확정 후 `Segment` 모델로 좁힘(OpenAPI 변경) |
-| G3 | `entities` 형태 | 객체(`dict`) 또는 null 가정. 배열이 오면 응답 검증 실패(500) |
+| G2 | `segments` 항목 구조 | STT 출력 스키마에 맞춰 `{speaker(AGENT·CUSTOMER·UNKNOWN), start_sec, end_sec, text}`로 확정, 응답은 `SegmentOut` 모델(OpenAPI 변경) |
+| G3 | `entities` 형태 | STT 출력 스키마(`stt/schema/call_schema.json`)에 맞춰 `[{type, value}]` 배열 또는 null로 변경(`EntityOut`). `type`은 문자열로 받아 값이 추가돼도 500이 나지 않게 함. 적재 시 배열 그대로 저장 필요(ORM 타입 힌트 `dict`는 A 소관) |
 | G4 | GenAI 유형 출력 값 | 현재 DB 저장 값이 한글이므로 GenAI 결과 → DB는 한글 그대로일 수 있음. A1 결정에 따라 R-07의 변환 위치가 정해짐 |
 
 ### 9.3 프론트 (공지·확인)

@@ -281,7 +281,7 @@ stateDiagram-v2
 - **메타데이터 누락은 상태가 아니다.** `metadata_incomplete` 표시로 별도 관리하며 처리 흐름을 막지 않는다 (`NEEDS_REVIEW`는 AI 신뢰도 전용)
 - 동시성: 상태 변경 시 `SELECT ... FOR UPDATE`로 행 잠금
 - 재전송(같은 상태로의 재적재)은 덮어쓰기로 처리 → 멱등
-- 신뢰도 임계값: 환경 변수 `REVIEW_CONFIDENCE_THRESHOLD` (기본 0.7 **[가정]**)
+- 검토 필요(`NEEDS_REVIEW`) 판정: STT·GenAI 파이프라인의 판정(분류 신뢰도 0.6 미만 또는 화자 구분 불확실, `stt/schema/call_schema.json`의 `status`)을 그대로 따른다. 백엔드는 임계값으로 다시 판정하지 않는다
 
 ---
 
@@ -523,7 +523,6 @@ flowchart TB
 | `MAX_UPLOAD_MB` | 요청 전체 크기 한도(MiB, 기본 100), 모든 API 공통, 앱에서 검사 |
 | `ROBOT_ALLOWED_IPS` | `/api/robot/*` 호출 허용 IP (로봇 PC) |
 | `ALLOWED_EXTENSIONS` | `wav,mp3` |
-| `REVIEW_CONFIDENCE_THRESHOLD` | 검토 필요 임계값 |
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
 | `CORS_ORIGINS` | 프론트 주소 |
 | `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |

@@ -49,8 +49,10 @@
           "entities": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "items": {
+                  "$ref": "#/components/schemas/EntityOut"
+                },
+                "type": "array"
               },
               {
                 "type": "null"
@@ -387,6 +389,24 @@
         "title": "Category",
         "type": "string"
       },
+      "EntityOut": {
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "EntityOut",
+        "type": "object"
+      },
       "ErrorCode": {
         "enum": [
           "VALIDATION_ERROR",
@@ -523,6 +543,33 @@
         "title": "ProcessingLogOut",
         "type": "object"
       },
+      "SegmentOut": {
+        "properties": {
+          "end_sec": {
+            "title": "End Sec",
+            "type": "number"
+          },
+          "speaker": {
+            "$ref": "#/components/schemas/Speaker"
+          },
+          "start_sec": {
+            "title": "Start Sec",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker",
+          "start_sec",
+          "end_sec",
+          "text"
+        ],
+        "title": "SegmentOut",
+        "type": "object"
+      },
       "SourceType": {
         "enum": [
           "DRIVE",
@@ -531,12 +578,20 @@
         "title": "SourceType",
         "type": "string"
       },
+      "Speaker": {
+        "enum": [
+          "AGENT",
+          "CUSTOMER",
+          "UNKNOWN"
+        ],
+        "title": "Speaker",
+        "type": "string"
+      },
       "TranscriptOut": {
         "properties": {
           "segments": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/SegmentOut"
             },
             "title": "Segments",
             "type": "array"
