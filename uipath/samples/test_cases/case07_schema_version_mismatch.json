@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "call_id": "20261124_163100_007",
+  "status": "SUCCESS",
+  "error": null,
+  "source": {
+    "file_name": "20261124_1628_김지현_나루물류.m4a",
+    "file_path": "C:/CallCenter/processing/20261124_1628_김지현_나루물류.m4a",
+    "duration_sec": 120.0,
+    "received_at": "2026-11-24T16:31:00+09:00"
+  },
+  "call_datetime": "2026-11-24T16:28:00+09:00",
+  "agent_name": "김지현",
+  "customer_company": "나루물류",
+  "type": "INQUIRY",
+  "type_label": "질의",
+  "type_confidence": 0.9,
+  "customer_question": "대량 주문 할인 기준을 문의함",
+  "agent_action": "월 주문량 기준 할인 조건을 안내함",
+  "summary": "고객이 대량 주문 할인 기준을 문의했고 담당자가 조건을 안내했다.",
+  "sentiment": "NEUTRAL",
+  "follow_up_required": false,
+  "follow_up": null,
+  "keywords": ["대량 주문", "할인"],
+  "entities": [],
+  "transcript": {
+    "full_text": "[고객] 대량 주문하면 할인되나요?\n[상담원] 월 주문량 기준으로 적용됩니다.",
+    "segments": [
+      { "speaker": "CUSTOMER", "start_sec": 0.4, "end_sec": 3.0, "text": "대량 주문하면 할인되나요?" },
+      { "speaker": "AGENT", "start_sec": 3.5, "end_sec": 6.8, "text": "월 주문량 기준으로 적용됩니다." }
+    ],
+    "speaker_confidence": "HIGH"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 0, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 0 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v2.0",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T16:32:10+09:00"
+  }
+}
