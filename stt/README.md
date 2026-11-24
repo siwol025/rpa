@@ -79,11 +79,15 @@ python test_step2.py                                           # 32개 테스트
 - **출력:** `schema\call_schema.json` 형식 JSON. 주요 필드: `status`(SUCCESS/NEEDS_REVIEW/FAILED), `type`(INQUIRY 질의 / COMPLAINT 불만 / SUGGESTION 건의 / TRAINING 교육 내용 / OTHER 기타 문의), `type_confidence`, `summary`, `sentiment`, `follow_up`, `keywords`, `entities`, `transcript`, `pii`, `processing`, `error`
 - `NEEDS_REVIEW`: 유형 확신도 0.6 미만이거나 화자 구분이 불확실(`speaker_confidence=LOW`)한 건.
 - 예시: `schema\sample_success.json`, `schema\sample_failed.json`
+- **백엔드 적재 변환:** `call_schema.json`(v1.0)은 그대로 두고, 백엔드와 다른 부분은 적재할 때 `step2	o_backend.py`에서 바꿉니다. 테스트: `python test_to_backend.py`.
+  - 유형은 `type_label`(한글)을 `category`로, `customer_question`/`agent_action`/`customer_company`는 `question_summary`/`action_summary`/`client_company`로 보냅니다.
+  - `duration_sec`은 정수 초로 반올림하고, `entities`는 `[{type, value}]` 배열 그대로, `needs_review`는 STT 판정(`status == NEEDS_REVIEW`)을 그대로 따릅니다.
+  - 전사 구간 키(`start_sec`/`end_sec` vs `start`/`end`)는 백엔드 협의 전이라 `SEGMENT_KEY_MAP` 한 줄로 바꿉니다.
 
 ## 8. 화자 매핑·마스킹 규칙
 
 - **상담원 판정:** 첫 발화에 인사 키워드("고객지원센터", "고객센터", "상담원", "무엇을 도와")가 있는 화자 → 없으면 먼저 말한 화자 + 안내 문구 빈도. 근거가 약하거나 규칙이 어긋나면 `speaker_confidence=LOW`.
-- **마스킹 토큰:** `[RRN]` 주민번호 / `[CARD]` 카드 / `[PHONE]` 전화 / `[EMAIL]` 이메일 / `[ACCOUNT]` 계좌 / `[NAME]` 이름. 적용 순서는 화자 분리 → 마스킹 → GenAI.
+- **마스킹 토큰:** `[RRN]` 주민번호 / `[CARD]` 카드 / `[PHONE]` 전화 / `[EMAIL]` 이메일 / `[ACCOUNT]` 계좌 / `[NAME]` 이름 / `[ADDRESS]` 주소 / `[PASSWORD]` 비밀번호 / `[BIRTH]` 출생연도. 적용 순서는 화자 분리 → 마스킹 → GenAI.
 
 ## 9. 알려진 한계 (중요)
 
