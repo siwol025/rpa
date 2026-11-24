@@ -5,7 +5,9 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 
-_ENV_NAMES = ("MAX_UPLOAD_MB", "CORS_ORIGINS", "LOG_LEVEL", "DOCS_ENABLED")
+_DEV_DATABASE_URL = "postgresql+psycopg://callcenter:callcenter@localhost:5433/callcenter"
+
+_ENV_NAMES = ("MAX_UPLOAD_MB", "CORS_ORIGINS", "LOG_LEVEL", "DOCS_ENABLED", "DATABASE_URL")
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +24,7 @@ def test_defaults_without_env() -> None:
     assert settings.cors_origins == ["http://localhost:5173"]
     assert settings.log_level == "INFO"
     assert settings.docs_enabled is True
+    assert settings.database_url == _DEV_DATABASE_URL
 
 
 def test_cors_origins_parsed_as_comma_list(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -50,6 +53,7 @@ def test_env_example_is_compatible() -> None:
     assert settings.cors_origins == ["http://localhost:5173"]
     assert settings.log_level == "INFO"
     assert settings.docs_enabled is True
+    assert settings.database_url == _DEV_DATABASE_URL
 
 
 @pytest.mark.parametrize("value", ["0", "abc"])
@@ -78,3 +82,9 @@ def test_docs_enabled_from_env(monkeypatch: pytest.MonkeyPatch, value: str, expe
     monkeypatch.setenv("DOCS_ENABLED", value)
 
     assert Settings(_env_file=None).docs_enabled is expected
+
+
+def test_database_url_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@db:5432/x")
+
+    assert Settings(_env_file=None).database_url == "postgresql+psycopg://u:p@db:5432/x"

@@ -120,6 +120,10 @@
 ### 4.3 필터
 - 여러 값: 같은 이름을 반복한다 `?status=FAILED&status=NEEDS_REVIEW` (콤마 구분 아님).
 - 기간: `from`·`to`는 날짜(`YYYY-MM-DD`), **KST 기준 하루 단위, `to` 포함**. 즉 `from 00:00+09:00 ≤ 시각 < (to + 1일) 00:00+09:00`. 목록·통계·엑셀이 같은 기준을 쓴다. 기준 시각은 `call_datetime`이며 통화 일시가 없는 건(`metadata_incomplete`)은 기간 필터에 걸리지 않는다(`metadata_incomplete=true` 필터로 조회). 코드에서는 예약어라 `Query(alias="from")`.
+- `from`이 `to`보다 늦으면 422 `VALIDATION_ERROR`(`loc: ["query", "from"]`, `type: "date_range"`). 같은 날은 허용.
+- `from`·`to`의 허용 범위는 `2000-01-01`~`2100-12-31`, 벗어나면 422 `VALIDATION_ERROR`.
+- 키워드 `q`: 최대 100자(초과 422), 앞뒤 공백을 지운 뒤 비어 있으면 조건 없음. 대소문자 무시 부분 일치이며 `%`·`_`는 글자 그대로 검색한다. 대상은 질문 요약·조치 요약·교정 전사문(`corrected_text`).
+- 담당자 `agent`·고객사 `client`는 정확히 일치. 빈 값(공백만 있는 값 포함)은 필터 없음으로 본다.
 - 키워드 `q`는 로그에 남기지 않는다.
 
 ## 5. 값
@@ -146,7 +150,7 @@
 | `source_type` | `DRIVE`, `WEB` |
 | `speaker` | `AGENT`, `CUSTOMER` |
 
-- 정체(stale)는 상태 값이 아니다. 목록 항목의 `is_stale`(서버 계산)과 `stale` 필터로 표현한다.
+- 정체(stale)는 상태 값이 아니다. 목록 항목의 `is_stale`(서버 계산)과 `stale` 필터로 표현한다. 두 항목은 정체 감지(R-11) 이후 추가된다(그전에는 응답에 없고 `stale` 파라미터는 무시된다).
 
 ### 5.4 숫자
 - 숫자는 JSON 숫자로 보낸다. `Decimal`을 응답 모델에 쓰지 않는다(문자열로 나감). 신뢰도 `confidence`는 `float`(예: `0.85`).
