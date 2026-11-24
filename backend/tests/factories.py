@@ -47,11 +47,16 @@ def make_transcript(db: Session, call: CallRecord, **overrides: Any) -> Transcri
         "segments": [
             {
                 "speaker": "AGENT",
-                "start": 0.0,
-                "end": 3.2,
+                "start_sec": 0.0,
+                "end_sec": 3.2,
                 "text": "안녕하세요, 무엇을 도와드릴까요?",
             },
-            {"speaker": "CUSTOMER", "start": 3.5, "end": 6.0, "text": "요금 관련 문의입니다."},
+            {
+                "speaker": "CUSTOMER",
+                "start_sec": 3.5,
+                "end_sec": 6.0,
+                "text": "요금 관련 문의입니다.",
+            },
         ],
         "corrected_text": "안녕하세요, 무엇을 도와드릴까요? 요금 관련 문의입니다.",
         "stt_engine": "test-stt",
