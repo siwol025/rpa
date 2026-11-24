@@ -18,6 +18,7 @@ from app.core.middleware import (
     RequestIdMiddleware,
     UnhandledErrorMiddleware,
 )
+from app.infra.inbox import create_inbox_writer
 from app.schemas.common import error_responses
 
 
@@ -42,6 +43,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     # 엔진 생성만으로는 DB에 연결하지 않는다 (OpenAPI 내보내기·단위 테스트는 DB 없이 동작).
     app.state.session_factory = create_session_factory(settings.database_url)
+    # 키 파일·Drive 접근은 첫 업로드·헬스 체크 때 확인한다 (Drive 문제로 시작이 막히지 않음).
+    app.state.inbox_writer = create_inbox_writer(settings)
     app.include_router(calls.router)
     app.include_router(stats.router)
 

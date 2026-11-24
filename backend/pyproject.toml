@@ -15,6 +15,8 @@ dependencies = [
   "python-multipart",
   "google-api-python-client",
   "google-auth",
+  "google-auth-httplib2",
+  "httplib2",
   "openpyxl",
   "filetype",
   "structlog",
@@ -70,7 +72,7 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["googleapiclient.*", "google.oauth2.*", "openpyxl.*", "filetype.*", "testcontainers.*"]
+module = ["googleapiclient.*", "google.oauth2.*", "google_auth_httplib2.*", "httplib2.*", "openpyxl.*", "filetype.*", "testcontainers.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest
@@ -79,4 +81,5 @@ testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
   "integration: 실제 PostgreSQL(testcontainers)이 필요한 테스트",
+  "drive: 실제 Google Drive(테스트용 공유 드라이브 폴더)가 필요한 수동 테스트",
 ]
