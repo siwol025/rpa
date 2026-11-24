@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""키·음성 없이 돌리는 Step2 자체 테스트:  python test_step2.py"""
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import analyze
+import mask_pii
+import run_dummy
+
+T = os.path.join(os.path.dirname(HERE), "test")
+passed = 0
+
+
+def check(name, cond):
+    global passed
+    print(("PASS " if cond else "FAIL ") + name)
+    if not cond:
+        sys.exit(1)
+    passed += 1
+
+
+# 1. 마스킹 단위
+m = lambda s: mask_pii.mask_text(s)
+check("전화 010-1234-5678", m("제 번호는 010-1234-5678이에요")[0] == "제 번호는 [PHONE]이에요")
+check("전화 공백/점 구분 + 유선 02-123-4567", m("01012345678 / 010.1234.5678 / 02-123-4567")[0] == "[PHONE] / [PHONE] / [PHONE]")
+check("주민번호", m("901231-1234567")[0] == "[RRN]")
+check("카드번호", m("1234-5678-9012-3456")[0] == "[CARD]" and m("1234 5678 9012 3456")[0] == "[CARD]")
+check("계좌번호(하이픈)", m("계좌는 110-123-456789입니다")[0] == "계좌는 [ACCOUNT]입니다")
+check("이메일", m("hello@example.com 으로")[0] == "[EMAIL] 으로")
+check("이름: 상담원 ○○○", m("상담원 김하늘입니다")[0] == "상담원 [NAME]입니다")
+check("이름: 성함은 ○○○", m("성함은 홍길동입니다")[0] == "성함은 [NAME]입니다")
+# 오탐 방지: 날짜·기간·건수·일반 문장은 그대로
+for s in ("오늘로 3일째입니다", "2026-11-24에 접수", "5분 정도 분량", "고객센터입니다", "상담원 연결해 주세요"):
+    check("오탐 없음: " + s, m(s)[0] == s)
+# 겹침: 주민번호가 전화/계좌로 잘못 잡히지 않음
+check("주민번호가 [RRN] 하나로만 치환", m("주민번호 900101-2345678 입니다") == ("주민번호 [RRN] 입니다", {**m("")[1], "rrn": 1}))
+
+# 2. 더미 응답 2건: 마스킹 + 분류 + 스키마
+docs = []
+for i, pii, kind, typ in ((1, "hello@example.com", "email", "INQUIRY"), (2, "010-1234-5678", "phone", "COMPLAINT")):
+    resp = json.load(open(os.path.join(T, "sample_response_%d.json" % i), encoding="utf-8"))
+    d = run_dummy.process(resp, "sample_response_%d.json" % i, i)
+    docs.append(d)
+    raw = json.dumps(d, ensure_ascii=False)
+    check("샘플%d: 원본 PII가 결과 JSON 어디에도 없음" % i, pii not in raw)
+    check("샘플%d: 마스킹 건수 %s=1, name=1" % (i, kind), d["pii"]["counts"][kind] == 1 and d["pii"]["counts"]["name"] == 1)
+    check("샘플%d: 토큰이 전문에 존재" % i, "[%s]" % kind.upper() in d["transcript"]["full_text"])
+    check("샘플%d: 유형=%s, status=SUCCESS" % (i, typ), d["type"] == typ and d["status"] == "SUCCESS")
+    check("샘플%d: type_label 매핑" % i, d["type_label"] == analyze.TYPES[typ])
+    errs = run_dummy.validate_schema(d)
+    check("샘플%d: call_schema.json 통과" % i, errs is not None and not errs)
+
+# 3. 프롬프트 조립
+sys_p, user_p = analyze.build_prompt("[상담원] 안녕하세요\n[고객] 네")
+check("프롬프트: {{TRANSCRIPT}} 치환·설명줄 제거", "{{TRANSCRIPT}}" not in user_p and "[고객] 네" in user_p and "# prompt_v1" not in sys_p)
+
+# 4. 응답 전처리·재시도·실패 처리
+good = analyze.mock_llm(sys_p, user_p.replace("[고객] 네", "[고객] 세금계산서 언제 발행되는지 궁금해서 전화드렸어요. 어떻게 받나요?"))
+check("전처리: 코드펜스+설명 제거", analyze.extract_json("설명\n```json\n" + good + "\n```\n끝")["type"] in analyze.TYPES)
+calls = {"n": 0}
+def flaky(s, u):
+    calls["n"] += 1
+    return "죄송합니다, JSON을 만들 수 없습니다" if calls["n"] == 1 else good
+r, e, retry = analyze.analyze("[상담원] 안녕하세요\n[고객] 네", llm=flaky)
+check("재시도: 1회 실패 후 성공(retry_count=1)", r is not None and e is None and retry == 1)
+bad = json.loads(good); bad["type"] = "SPAM"
+r, e, retry = analyze.analyze("x", llm=lambda s, u: json.dumps(bad))
+check("검증 실패 3회 → VALIDATION 오류, retry=2", r is None and e["stage"] == "VALIDATION" and retry == 2 and "type enum" in e["reason"])
+fd = run_dummy.process(json.load(open(os.path.join(T, "dummy_clova_response_failed.json"), encoding="utf-8")), "failed.json", 9)
+check("STT 실패 응답 → status=FAILED, 스키마 통과", fd["status"] == "FAILED" and fd["error"]["stage"] == "STT" and not run_dummy.validate_schema(fd))
+lowc = run_dummy.process(json.load(open(os.path.join(T, "sample_response_1.json"), encoding="utf-8")), "x", 1,
+                         llm=lambda s, u: json.dumps({**json.loads(good), "type_confidence": 0.4}))
+check("확신도 0.4 → NEEDS_REVIEW", lowc["status"] == "NEEDS_REVIEW")
+
+print("\n통과: %d" % passed)

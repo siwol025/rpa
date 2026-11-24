@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "call_schema.json",
+  "title": "콜센터 통화 분석 결과 (STT + GenAI)",
+  "description": "③ UiPath GenAI & STT 파이프라인의 출력 스키마 v1.0. 모든 키는 항상 존재하며, 값이 없으면 null(빈 문자열 금지). 실패 건도 동일 구조로 출력한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "call_id", "status", "error", "source", "call_datetime",
+    "agent_name", "customer_company", "type", "type_label", "type_confidence",
+    "customer_question", "agent_action", "summary", "sentiment",
+    "follow_up_required", "follow_up", "keywords", "entities",
+    "transcript", "pii", "processing"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "call_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}_[0-9]{6}_[0-9]{3}$",
+      "description": "건별 고유 ID (수신일_수신시각_순번)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCESS", "NEEDS_REVIEW", "FAILED"],
+      "description": "NEEDS_REVIEW: 분류 신뢰도 낮음/화자 불확실 등 사람 확인 권장"
+    },
+    "error": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stage", "reason"],
+          "properties": {
+            "stage": { "type": "string", "enum": ["INPUT", "STT", "PII", "GENAI", "VALIDATION"] },
+            "reason": { "type": "string", "minLength": 1, "description": "사람이 읽는 사유. Secret Key/원문 내용 포함 금지" }
+          }
+        }
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_name", "file_path", "duration_sec", "received_at"],
+      "properties": {
+        "file_name": { "type": "string" },
+        "file_path": { "type": "string" },
+        "duration_sec": { "type": ["number", "null"], "minimum": 0 },
+        "received_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "call_datetime": { "type": ["string", "null"], "format": "date-time", "description": "통화 일시 (ISO 8601, +09:00). 알 수 없으면 null" },
+    "agent_name": { "type": ["string", "null"], "description": "담당자. 파일명/폴더 규칙에서 추출" },
+    "customer_company": { "type": ["string", "null"] },
+    "type": {
+      "type": ["string", "null"],
+      "enum": ["INQUIRY", "COMPLAINT", "SUGGESTION", "TRAINING", "OTHER", null],
+      "description": "INQUIRY 질의 / COMPLAINT 불만 / SUGGESTION 건의 / TRAINING 교육 내용 / OTHER 기타 문의"
+    },
+    "type_label": {
+      "type": ["string", "null"],
+      "enum": ["질의", "불만", "건의", "교육 내용", "기타 문의", null]
+    },
+    "type_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "customer_question": { "type": ["string", "null"], "maxLength": 200 },
+    "agent_action": { "type": ["string", "null"], "maxLength": 200 },
+    "summary": { "type": ["string", "null"], "maxLength": 300 },
+    "sentiment": {
+      "type": ["string", "null"],
+      "enum": ["POSITIVE", "NEUTRAL", "NEGATIVE", null]
+    },
+    "follow_up_required": { "type": ["boolean", "null"] },
+    "follow_up": { "type": ["string", "null"] },
+    "keywords": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "value"],
+        "properties": {
+          "type": { "type": "string", "enum": ["PRODUCT", "ORG", "DATE", "AMOUNT", "REF_NO", "OTHER"] },
+          "value": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["full_text", "segments", "speaker_confidence"],
+      "properties": {
+        "full_text": { "type": ["string", "null"], "description": "PII 마스킹 후 '[상담원] … / [고객] …' 형식" },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["speaker", "start_sec", "end_sec", "text"],
+            "properties": {
+              "speaker": { "type": "string", "enum": ["AGENT", "CUSTOMER", "UNKNOWN"] },
+              "start_sec": { "type": "number", "minimum": 0 },
+              "end_sec": { "type": "number", "minimum": 0 },
+              "text": { "type": "string" }
+            }
+          }
+        },
+        "speaker_confidence": { "type": ["string", "null"], "enum": ["HIGH", "LOW", null] }
+      }
+    },
+    "pii": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["masked", "counts"],
+      "properties": {
+        "masked": { "type": "boolean" },
+        "counts": {
+          "type": "object",
+          "description": "종류별 치환 건수. 예: phone, rrn, card, account, email, name",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "processing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stt_engine", "genai_model", "prompt_version", "retry_count", "processed_at"],
+      "properties": {
+        "stt_engine": { "type": "string" },
+        "genai_model": { "type": ["string", "null"] },
+        "prompt_version": { "type": "string" },
+        "retry_count": { "type": "integer", "minimum": 0 },
+        "processed_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "FAILED" } } },
+      "then": { "properties": { "error": { "type": "object" } } }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["SUCCESS", "NEEDS_REVIEW"] } } },
+      "then": {
+        "properties": {
+          "error": { "type": "null" },
+          "type": { "type": "string" },
+          "type_label": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      }
+    }
+  ]
+}

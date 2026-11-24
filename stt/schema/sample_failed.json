@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261124_160501_003",
+  "status": "FAILED",
+  "error": { "stage": "STT", "reason": "음성이 감지되지 않음(무음 파일)" },
+  "source": {
+    "file_name": "call_x.m4a",
+    "file_path": "C:/calls/in/call_x.m4a",
+    "duration_sec": 4.2,
+    "received_at": "2026-11-24T16:05:01+09:00"
+  },
+  "call_datetime": null,
+  "agent_name": null,
+  "customer_company": null,
+  "type": null,
+  "type_label": null,
+  "type_confidence": null,
+  "customer_question": null,
+  "agent_action": null,
+  "summary": null,
+  "sentiment": null,
+  "follow_up_required": null,
+  "follow_up": null,
+  "keywords": [],
+  "entities": [],
+  "transcript": { "full_text": null, "segments": [], "speaker_confidence": null },
+  "pii": { "masked": false, "counts": {} },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": null,
+    "prompt_version": "v1.2",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T16:05:20+09:00"
+  }
+}
