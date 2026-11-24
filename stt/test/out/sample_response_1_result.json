@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "call_id": "20261123_172903_001",
+  "call_id": "20261124_174003_001",
   "source": {
     "file_name": "sample_response_1.json",
     "file_path": "sample_response_1.json",
     "duration_sec": 158.72,
-    "received_at": "2026-11-23T17:29:03+09:00"
+    "received_at": "2026-11-24T17:40:03+09:00"
   },
   "call_datetime": null,
   "agent_name": null,
@@ -17,7 +17,6 @@
   "customer_question": "네, 안녕하세요. 이번 달부터 서비스를 쓰기 시작했는데요, 세금계산서는 언제 발행되는지 궁금해서 전화드렸어요.",
   "agent_action": "아닙니다. 말일 당일에 발행되고, 등록하신 이메일로 바로 발송됩니다.",
   "summary": "[모의 요약] 고객 발화 10개, 상담원 발화 10개. 주된 유형은 질의로 판단함.",
-  "sentiment": "NEUTRAL",
   "follow_up_required": false,
   "follow_up": null,
   "keywords": [
@@ -163,7 +162,10 @@
       "card": 0,
       "account": 0,
       "email": 1,
-      "name": 1
+      "name": 1,
+      "address": 0,
+      "password": 0,
+      "birth": 0
     }
   },
   "processing": {
@@ -171,6 +173,6 @@
     "genai_model": "mock-rule-based",
     "prompt_version": "v1",
     "retry_count": 0,
-    "processed_at": "2026-11-23T17:29:03+09:00"
+    "processed_at": "2026-11-24T17:40:03+09:00"
   }
 }

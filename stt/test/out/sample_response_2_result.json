@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "call_id": "20261123_172903_002",
+  "call_id": "20261124_174003_002",
   "source": {
     "file_name": "sample_response_2.json",
     "file_path": "sample_response_2.json",
     "duration_sec": 156.97,
-    "received_at": "2026-11-23T17:29:03+09:00"
+    "received_at": "2026-11-24T17:40:03+09:00"
   },
   "call_datetime": null,
   "agent_name": null,
@@ -17,7 +17,6 @@
   "customer_question": "저, 같은 문제로 전화하는 게 벌써 두 번째예요. 파일 업로드할 때 오류가 계속 나는데, 이게 오늘로 3일째입니다.",
   "agent_action": "알겠습니다. 이전 문의 내용을 확인해 보니 어제 접수된 건이 있는데, 아직 해결 완료로 처리되지 않았네요.",
   "summary": "[모의 요약] 고객 발화 8개, 상담원 발화 9개. 주된 유형은 불만로 판단함.",
-  "sentiment": "NEGATIVE",
   "follow_up_required": true,
   "follow_up": "상담원이 약속한 후속 연락/회신 필요",
   "keywords": [
@@ -143,7 +142,10 @@
       "card": 0,
       "account": 0,
       "email": 0,
-      "name": 1
+      "name": 1,
+      "address": 0,
+      "password": 0,
+      "birth": 0
     }
   },
   "processing": {
@@ -151,6 +153,6 @@
     "genai_model": "mock-rule-based",
     "prompt_version": "v1",
     "retry_count": 0,
-    "processed_at": "2026-11-23T17:29:03+09:00"
+    "processed_at": "2026-11-24T17:40:03+09:00"
   }
 }

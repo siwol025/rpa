@@ -18,7 +18,6 @@
   "customer_question": null,
   "agent_action": null,
   "summary": null,
-  "sentiment": null,
   "follow_up_required": null,
   "follow_up": null,
   "keywords": [],

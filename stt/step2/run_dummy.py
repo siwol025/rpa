@@ -29,7 +29,8 @@ def messy_llm(system, user):
     return "분석 결과입니다.\n```json\n" + analyze.mock_llm(system, user) + "\n```\n도움이 되었길 바랍니다."
 
 
-def process(resp, file_name, seq, llm=analyze.mock_llm, prompt_version="v1"):
+def process(resp, file_name, seq, llm=analyze.mock_llm, prompt_version="v1", stt_error=None):
+    """stt_error: clova_stt 가 실패했을 때 {"stage","reason"} (예: INPUT/STT). 있으면 resp 는 쓰지 않고 실패 건으로 만든다."""
     now = datetime.now(KST).replace(microsecond=0)
     base = {
         "schema_version": "1.0",
@@ -41,14 +42,19 @@ def process(resp, file_name, seq, llm=analyze.mock_llm, prompt_version="v1"):
     proc = {"stt_engine": "clova-speech", "genai_model": "mock-rule-based", "prompt_version": prompt_version,
             "retry_count": 0, "processed_at": now.isoformat()}
     empty = {"type": None, "type_label": None, "type_confidence": None, "customer_question": None,
-             "agent_action": None, "summary": None, "sentiment": None, "follow_up_required": None,
+             "agent_action": None, "summary": None, "follow_up_required": None,
              "follow_up": None, "keywords": [], "entities": []}
+    def failed_stt(stage, reason):
+        return {**base, "status": "FAILED", "error": {"stage": stage, "reason": reason}, **empty,
+                "transcript": {"full_text": None, "segments": [], "speaker_confidence": None},
+                "pii": {"masked": False, "counts": {}}, "processing": proc}
+
+    if stt_error:
+        return failed_stt(stt_error["stage"], stt_error["reason"])
     try:
         tr = parse_clova.to_transcript(resp)
     except Exception as e:
-        return {**base, "status": "FAILED", "error": {"stage": "STT", "reason": str(e)}, **empty,
-                "transcript": {"full_text": None, "segments": [], "speaker_confidence": None},
-                "pii": {"masked": False, "counts": {}}, "processing": proc}
+        return failed_stt("STT", str(e))
     base["source"]["duration_sec"] = tr["segments"][-1]["end_sec"]
     masked, pii = mask_pii.mask_transcript(tr)
     result, err, retries = analyze.analyze(masked["full_text"], llm=llm)

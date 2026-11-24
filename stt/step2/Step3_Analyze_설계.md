@@ -66,9 +66,8 @@ Loop While attempt <= in_MaxRetry
 최종 실패 → out_Success=False, out_ErrorReason=lastError  (stage = VALIDATION 또는 GENAI)
 ```
 검증 항목(`analyze.py`의 `validate`와 동일):
-- 필수 키 11개: `type, type_confidence, customer_company, customer_question, agent_action, summary, sentiment, follow_up_required, follow_up, keywords, entities`
+- 필수 키 10개(감정 분석 `sentiment`는 추출 대상이 아니라 제거함): `type, type_confidence, customer_company, customer_question, agent_action, summary, follow_up_required, follow_up, keywords, entities`
 - `type` ∈ {INQUIRY, COMPLAINT, SUGGESTION, TRAINING, OTHER} (백엔드 코드 EDUCATION/ETC로의 변환은 적재 단계 `step2/to_backend.py`)
-- `sentiment` ∈ {POSITIVE, NEUTRAL, NEGATIVE}
 - `type_confidence`는 0.0~1.0 숫자, `summary`는 비어 있지 않고 300자 이내
 - `customer_question`, `agent_action`은 null이거나 1~200자 문자열
 - `follow_up_required`는 boolean
@@ -80,7 +79,7 @@ Loop While attempt <= in_MaxRetry
 
 | 최종 필드 | 채우는 주체 | 출처 |
 |---|---|---|
-| `type`, `type_confidence`, `customer_company`, `customer_question`, `agent_action`, `summary`, `sentiment`, `follow_up_required`, `follow_up`, `keywords`, `entities` | LLM (`out_ResultJson`) | |
+| `type`, `type_confidence`, `customer_company`, `customer_question`, `agent_action`, `summary`, `follow_up_required`, `follow_up`, `keywords`, `entities` | LLM (`out_ResultJson`) | |
 | `type_label` | RPA | `type` 코드 → 한글 라벨 |
 | `transcript` | RPA | Step2 화자 정제 결과 (마스킹 후) |
 | `pii` | RPA | `mask_pii`의 `{masked, counts}` |
