@@ -164,7 +164,7 @@ sequenceDiagram
     else 웹 업로드
         U->>A: POST /api/uploads
         A->>A: 확장자·MIME·크기 검증
-        A->>I: Drive API 업로드 (appProperties.source=web)
+        A->>I: Drive API 업로드 (properties.source=web)
         A-->>U: 202 접수됨
     end
 
@@ -433,7 +433,10 @@ class AudioStorage(Protocol):
 ```python
 class InboxWriter(Protocol):
     def write(self, filename: str, stream: BinaryIO, content_type: str) -> str: ...  # 생성된 파일 ID 반환
+    def check(self) -> None: ...  # 파일 생성 없이 쓰기 가능 여부 확인 (헬스 체크)
 ```
+두 메서드 모두 실패하면 `InboxUnavailableError`를 던진다.
+
 | 구현체 | 대상 | 비고 |
 |---|---|---|
 | `DriveInboxWriter` | Google Drive 공유 드라이브 `inbox/` | **기본**. 서비스 계정 + Drive API(`google-api-python-client`) |
@@ -441,11 +444,11 @@ class InboxWriter(Protocol):
 
 업로드 규칙
 - Drive API 업로드(resumable)로 전송. Drive는 업로드가 끝난 파일만 목록에 나타나므로 Dispatcher가 전송 중인 파일을 집지 않음
-- 공유 드라이브 대상이므로 API 호출 시 `supportsAllDrives=true` **[확인 필요]**
+- 공유 드라이브 대상이므로 API 호출 시 `supportsAllDrives=true`
 - 원래 파일명 유지(파일명 규칙으로 메타데이터 추출). Drive는 같은 이름을 허용하므로 별도 접미사 불필요
-- `appProperties.source=web` 기록 → Dispatcher가 등록 시 `source_type=WEB`으로 전달
+- 공개 파일 속성 `properties.source=web` 기록(`appProperties`는 요청한 앱만 읽을 수 있어 Dispatcher가 읽지 못할 수 있음) → Dispatcher가 등록 시 `source_type=WEB`으로 전달
 - 웹 업로드 시 DB 등록은 하지 않음 (등록은 Dispatcher 단일 경로)
-- 실패 시 지수 백오프로 2회 재시도 후 `503 INBOX_UNAVAILABLE`
+- 실패 시 지수 백오프로 2회 재시도 후 `503 INBOX_UNAVAILABLE` (어댑터는 `InboxUnavailableError`, 서비스가 503으로 변환)
 
 ---
 
@@ -536,7 +539,7 @@ flowchart TB
 |---|---|
 | 사용자 → 웹/API | 사내망/VPN, VM 방화벽 IP 허용 목록, HTTPS는 필요 시 Uvicorn SSL |
 | 로봇 → API | API Key (`X-API-Key`), 키 교체 시 2개 동시 허용 기간 지원, 로봇 PC IP만 `/api/robot/*` 허용(앱 미들웨어, `ROBOT_ALLOWED_IPS`) |
-| API → 클라우드 폴더 | 서비스 계정은 공유 드라이브 최소 권한(업로드 가능한 최소 역할), 키 파일 서버 외부 반출 금지·주기적 교체 **[확인 필요]** |
+| API → 클라우드 폴더 | 서비스 계정은 공유 드라이브(또는 `inbox/` 폴더) **기여자** 역할 **[확인 필요: E-01]**, 키 파일 서버 외부 반출 금지·주기적 교체 |
 | 클라우드 폴더 자체 | 공유 드라이브 멤버를 담당자·RPA 계정·서비스 계정으로 한정, 링크 공유 금지, `done/` 보관 기간 단축 |
 | API → DB | 전용 DB 계정(앱 권한만), 마이그레이션 계정 분리 |
 | 업로드 파일 (웹·로봇) | 확장자 + MIME + 매직 바이트 검증, 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |

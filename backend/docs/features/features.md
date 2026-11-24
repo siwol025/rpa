@@ -81,7 +81,7 @@
 | W-04 | 삭제 | `DELETE /api/calls/{id}` | 소프트 삭제(`deleted_at`) | P0 | 2 | C-04 | WEB-04 |
 | W-05 | 재처리 요청 | `POST /api/calls/{id}/retry` | `FAILED`·`NEEDS_REVIEW`·`STORED` 건과 **정체 건**을 `RETRY_REQUESTED`로 전이 (R-02 사용), `retry_count` +1. 정체되지 않은 처리 중 건은 409 | P1 | 2 | R-02 | WEB-09 |
 | W-06 | 음성 재생 | `GET /api/calls/{id}/audio` | HTTP Range 스트리밍 (R-03 사용), 접근 로그 기록 | P0 | 2 | R-03 | WEB-03 |
-| W-07 | 웹 업로드 | `POST /api/uploads` | 다중 파일, 형식 검증(크기 제한은 C-02), `DriveInboxWriter`로 클라우드 `inbox/` 업로드(`appProperties.source=web`), DB 등록 없음, 202 응답 | P1 | 2 | C-02, **W-08** | IN-03 |
+| W-07 | 웹 업로드 | `POST /api/uploads` | 다중 파일, 형식 검증(크기 제한은 C-02), `DriveInboxWriter`로 클라우드 `inbox/` 업로드(`properties.source=web`), DB 등록 없음, 202 응답 | P1 | 2 | C-02, **W-08** | IN-03 |
 | W-08 | Drive 연동 모듈 | `InboxWriter` | `DriveInboxWriter`(서비스 계정, 공유 드라이브), 개발용 `LocalInboxWriter`, 재시도·503 처리, 헬스 체크용 접근 확인 함수 | P1 | 2 | C-01, **E-01** | IN-03 |
 | W-09 | 통계 — 요약 | `GET /api/stats/summary` | 총 건수, 유형별, 미조치, 검토 필요, **메타데이터 확인 필요**, 실패, 정체(R-11 사용) | P0 | 2 | R-11 | WEB-01 |
 | W-10 | 통계 — 추이·분류 | `GET /api/stats/trend`, `/api/stats/breakdown` | 일/주/월 추이, 담당자별·고객사별 집계 | P0 | 2 | C-04 | WEB-01 |
