@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import Settings
 from app.infra.inbox import InboxWriter
 from app.infra.storage import AudioStorage
 from app.repositories.call_repository import CallRepository
@@ -44,7 +45,14 @@ def get_audio_storage(request: Request) -> AudioStorage:
     return storage
 
 
+def get_settings_from_app(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings
+
+
 def get_robot_service(
-    session: DbSession, storage: Annotated[AudioStorage, Depends(get_audio_storage)]
+    session: DbSession,
+    storage: Annotated[AudioStorage, Depends(get_audio_storage)],
+    settings: Annotated[Settings, Depends(get_settings_from_app)],
 ) -> RobotService:
-    return RobotService(session, storage)
+    return RobotService(session, storage, stale_threshold_min=settings.stale_threshold_min)

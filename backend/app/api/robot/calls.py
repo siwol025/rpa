@@ -2,13 +2,19 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Request, UploadFile
 
 from app.api.deps import get_robot_service
 from app.core.errors import ErrorCode
 from app.core.logging import bind_call_id
 from app.schemas.common import error_responses
-from app.schemas.robot import RobotCallForm, RobotCallRegistered
+from app.schemas.robot import (
+    BIGINT_MAX,
+    RobotCallForm,
+    RobotCallRegistered,
+    RobotCallStatus,
+    RobotQueuedRequest,
+)
 from app.services.robot_service import RobotService
 
 router = APIRouter(
@@ -18,6 +24,7 @@ router = APIRouter(
 )
 
 RobotServiceDep = Annotated[RobotService, Depends(get_robot_service)]
+CallIdPath = Annotated[int, Path(ge=1, le=BIGINT_MAX)]
 
 
 @router.post(
@@ -37,3 +44,19 @@ def register_call(
     call = service.register_call(file.file, form)
     bind_call_id(request, call.id)
     return RobotCallRegistered(call_id=call.id)
+
+
+@router.patch(
+    "/{call_id}/status",
+    responses=error_responses(ErrorCode.NOT_FOUND, ErrorCode.INVALID_STATE_TRANSITION),
+)
+def mark_call_queued(
+    call_id: CallIdPath,
+    body: RobotQueuedRequest,
+    request: Request,
+    service: RobotServiceDep,
+) -> RobotCallStatus:
+    """Queue에 추가한 뒤 `QUEUED`로 보고한다. `REGISTERED`·`RETRY_REQUESTED`에서만 허용한다."""
+    bind_call_id(request, call_id)
+    call = service.mark_queued(call_id, body.queue_item_id)
+    return RobotCallStatus(call_id=call.id, status=call.status)

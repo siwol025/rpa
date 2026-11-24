@@ -1,11 +1,11 @@
 """로봇(UiPath) API 요청·응답 모델. 규약은 docs/api/convention.md."""
 
 import re
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, BeforeValidator, Field, field_validator
 
-from app.schemas.call import SourceType
+from app.schemas.call import CallStatus, SourceType
 from app.schemas.common import KstDatetime
 
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
@@ -64,3 +64,20 @@ class RobotCallForm(BaseModel):
 
 class RobotCallRegistered(BaseModel):
     call_id: int
+
+
+BIGINT_MAX = 9_223_372_036_854_775_807
+
+
+class RobotQueuedRequest(BaseModel):
+    """`PATCH /api/robot/calls/{id}/status` 본문. 로봇이 보낼 수 있는 전이는 QUEUED뿐이다."""
+
+    status: Literal["QUEUED"]
+    queue_item_id: int = Field(ge=1, le=BIGINT_MAX, description="Orchestrator Queue Item ID")
+
+
+class RobotCallStatus(BaseModel):
+    """상태를 바꾸는 동작의 결과 (`{call_id, status}`)."""
+
+    call_id: int
+    status: CallStatus

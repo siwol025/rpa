@@ -13,6 +13,7 @@ from app.infra.storage import AudioStorage
 from app.models import CallRecord, ProcessingLog
 from app.schemas.call import CallStatus, LogStatus, LogStep
 from app.schemas.robot import RobotCallForm
+from app.services.state_machine import CallStateMachine
 
 # 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
 _EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
@@ -38,9 +39,10 @@ class _HashingReader:
 
 
 class RobotService:
-    def __init__(self, db: Session, storage: AudioStorage) -> None:
+    def __init__(self, db: Session, storage: AudioStorage, *, stale_threshold_min: int) -> None:
         self._db = db
         self._storage = storage
+        self._machine = CallStateMachine(db, stale_threshold_min=stale_threshold_min)
 
     def register_call(self, upload: BinaryIO, form: RobotCallForm) -> CallRecord:
         """음성 사본을 저장하고 `REGISTERED`로 등록한다 (R-04).
@@ -61,6 +63,29 @@ class RobotService:
         except BaseException:
             self._storage.delete(key)
             raise
+        return call
+
+    def mark_queued(self, call_id: int, queue_item_id: int) -> CallRecord:
+        """`REGISTERED`·`RETRY_REQUESTED` 건을 `QUEUED`로 바꾸고 Queue Item ID를 기록한다 (R-05).
+
+        같은 `queue_item_id`로 이미 `QUEUED`면 그대로 성공한다 (응답을 못 받은 Dispatcher의 재시도).
+        다른 ID로 `QUEUED`이거나 그 밖의 상태면 409.
+        """
+        call = self._db.scalars(
+            select(CallRecord)
+            .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
+            .with_for_update()
+        ).one_or_none()
+        if call is None:
+            raise AppError(ErrorCode.NOT_FOUND)
+        if call.status == CallStatus.QUEUED and call.queue_item_id == queue_item_id:
+            return call
+
+        self._machine.transition(
+            call_id, CallStatus.QUEUED, actor="robot", reason=f"queue_item_id={queue_item_id}"
+        )
+        call.queue_item_id = queue_item_id
+        self._db.commit()
         return call
 
     def _create_record(self, form: RobotCallForm, key: str, reader: _HashingReader) -> CallRecord:

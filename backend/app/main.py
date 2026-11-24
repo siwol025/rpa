@@ -44,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         generate_unique_id_function=_operation_id,
     )
     register_exception_handlers(app)
+    app.state.settings = settings
     # 엔진 생성만으로는 DB에 연결하지 않는다 (OpenAPI 내보내기·단위 테스트는 DB 없이 동작).
     app.state.session_factory = create_session_factory(settings.database_url)
     # 키 파일·Drive 접근은 첫 업로드·헬스 체크 때 확인한다 (Drive 문제로 시작이 막히지 않음).

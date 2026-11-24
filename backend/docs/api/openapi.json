@@ -777,6 +777,47 @@
         "title": "RobotCallRegistered",
         "type": "object"
       },
+      "RobotCallStatus": {
+        "description": "상태를 바꾸는 동작의 결과 (`{call_id, status}`).",
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CallStatus"
+          }
+        },
+        "required": [
+          "call_id",
+          "status"
+        ],
+        "title": "RobotCallStatus",
+        "type": "object"
+      },
+      "RobotQueuedRequest": {
+        "description": "`PATCH /api/robot/calls/{id}/status` 본문. 로봇이 보낼 수 있는 전이는 QUEUED뿐이다.",
+        "properties": {
+          "queue_item_id": {
+            "description": "Orchestrator Queue Item ID",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Queue Item Id",
+            "type": "integer"
+          },
+          "status": {
+            "const": "QUEUED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "queue_item_id"
+        ],
+        "title": "RobotQueuedRequest",
+        "type": "object"
+      },
       "SegmentOut": {
         "properties": {
           "end_sec": {
@@ -1343,6 +1384,111 @@
           }
         },
         "summary": "Register Call",
+        "tags": [
+          "robot"
+        ]
+      }
+    },
+    "/api/robot/calls/{call_id}/status": {
+      "patch": {
+        "description": "Queue에 추가한 뒤 `QUEUED`로 보고한다. `REGISTERED`·`RETRY_REQUESTED`에서만 허용한다.",
+        "operationId": "mark_call_queued",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotQueuedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotCallStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Mark Call Queued",
         "tags": [
           "robot"
         ]
