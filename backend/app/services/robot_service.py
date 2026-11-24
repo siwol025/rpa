@@ -26,6 +26,8 @@ _EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
 _SIGNATURE_BYTES = 262  # filetype이 판별에 쓰는 최대 길이
 
 # 이 상태에서 보낸 FAIL은 전이 없이 로그만 남긴다 (처리는 끝났고 엑셀 기입 등 뒷단계만 실패).
+# 처리 결과가 저장된 상태. 이후 로봇의 재전송은 같은 내용일 때만 받는다.
+_RESULT_STATES = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW})
 _LOG_ONLY_ON_FAIL = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW, CallStatus.FAILED})
 
 
@@ -94,20 +96,32 @@ class RobotService:
     def put_transcript(self, call_id: int, body: RobotTranscriptRequest) -> CallRecord:
         """전사를 저장하고 `QUEUED` → `STT_DONE`으로 전이한다 (R-06).
 
-        멱등: 이미 `STT_DONE`이면 전이 없이 전사만 덮어쓴다 (Queue 재시도로 다시 불려도 같은 결과).
-        그 밖의 상태는 409.
+        멱등: 이미 `STT_DONE`이면 전이 없이 전사만 덮어쓴다. 처리가 끝난(`STORED`·`NEEDS_REVIEW`)
+        뒤에는 저장된 전사와 같은 내용일 때만 그대로 성공한다(응답을 못 받은 Performer의 Queue
+        재시도). 다른 내용이거나 그 밖의 상태면 409라서 이미 저장된 결과를 덮어쓰지 않는다.
         """
         call = self._lock_call(call_id)
-        if call.status != CallStatus.STT_DONE:
-            self._machine.transition(call_id, CallStatus.STT_DONE, actor="robot")
-
+        segments = [segment.model_dump(mode="json") for segment in body.segments]
         transcript = self._db.scalars(
             select(Transcript).where(Transcript.call_id == call_id)
         ).one_or_none()
+
+        if call.status in _RESULT_STATES:
+            if (
+                transcript is not None
+                and transcript.segments == segments
+                and transcript.corrected_text == body.full_text
+                and transcript.stt_engine == body.stt_engine
+            ):
+                return call
+            raise InvalidTransition(call.status, CallStatus.STT_DONE)
+        if call.status != CallStatus.STT_DONE:
+            self._machine.transition(call_id, CallStatus.STT_DONE, actor="robot")
+
         if transcript is None:
             transcript = Transcript(call_id=call_id, segments=[])
             self._db.add(transcript)
-        transcript.segments = [segment.model_dump(mode="json") for segment in body.segments]
+        transcript.segments = segments
         # 마스킹된 전체 텍스트를 corrected_text에 둔다 (키워드 검색 pg_trgm 대상).
         transcript.corrected_text = body.full_text
         transcript.stt_engine = body.stt_engine

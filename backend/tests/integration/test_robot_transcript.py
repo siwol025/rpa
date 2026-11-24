@@ -122,6 +122,39 @@ def test_stt_done_call_with_existing_transcript_is_overwritten(
     assert transcript.corrected_text == FULL_TEXT
 
 
+@pytest.mark.parametrize("finished", [S.STORED, S.NEEDS_REVIEW])
+def test_identical_resend_after_processing_finished_is_ok_and_changes_nothing(
+    robot_client: TestClient, db: Session, finished: S
+) -> None:
+    # 응답을 못 받은 Performer가 Queue 재시도로 전체를 다시 보내는 경우.
+    call = make_call_record(db, status=S.QUEUED)
+    put(robot_client, call.id, body())
+    call.status = finished
+    db.flush()
+
+    response = put(robot_client, call.id, body())
+
+    assert response.status_code == 200
+    assert response.json() == {"call_id": call.id, "status": finished}
+    assert log_count(db, call.id) == 1  # 새 로그도 전이도 없다
+
+
+@pytest.mark.parametrize("finished", [S.STORED, S.NEEDS_REVIEW])
+def test_different_resend_after_processing_finished_is_409_and_keeps_stored_transcript(
+    robot_client: TestClient, db: Session, finished: S
+) -> None:
+    call = make_call_record(db, status=S.QUEUED)
+    put(robot_client, call.id, body())
+    call.status = finished
+    db.flush()
+
+    response = put(robot_client, call.id, body(full_text="다른 내용"))
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["current_status"] == finished
+    assert transcripts(db, call.id)[0].corrected_text == FULL_TEXT
+
+
 @pytest.mark.parametrize(
     "source", [S.REGISTERED, S.STORED, S.NEEDS_REVIEW, S.FAILED, S.RETRY_REQUESTED]
 )
