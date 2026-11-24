@@ -54,7 +54,8 @@ class Analysis(TimestampMixin, Base):
     action_summary: Mapped[str | None] = mapped_column(Text)
     follow_up_required: Mapped[bool | None] = mapped_column(Boolean, server_default="false")
     action_status: Mapped[str | None] = mapped_column(String(20), server_default="OPEN")
-    entities: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # STT 결과와 같은 [{type, value}] 배열 (stt/schema/call_schema.json). 객체(dict)가 아니다.
+    entities: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     raw_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)  # GenAI 원본
     prompt_version: Mapped[str | None] = mapped_column(String(20))
     needs_review: Mapped[bool | None] = mapped_column(Boolean, server_default="false")
