@@ -37,7 +37,7 @@ docker compose -f deploy/docker-compose.dev.yml up --build
 | 서비스 | 주소 |
 |---|---|
 | API (hot reload) | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 (callcenter / callcenter) |
+| PostgreSQL | localhost:5433 (callcenter / callcenter) |
 | Adminer | http://localhost:8080 (서버: `db`) |
 
 ## 검사
