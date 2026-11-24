@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
 from app.infra.storage import AudioStorage
-from app.models import CallRecord, ProcessingLog
+from app.models import CallRecord, ProcessingLog, Transcript
 from app.schemas.call import CallStatus, LogStatus, LogStep
-from app.schemas.robot import RobotCallForm
+from app.schemas.robot import RobotCallForm, RobotTranscriptRequest
 from app.services.state_machine import CallStateMachine
 
 # 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
@@ -71,13 +71,7 @@ class RobotService:
         같은 `queue_item_id`로 이미 `QUEUED`면 그대로 성공한다 (응답을 못 받은 Dispatcher의 재시도).
         다른 ID로 `QUEUED`이거나 그 밖의 상태면 409.
         """
-        call = self._db.scalars(
-            select(CallRecord)
-            .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
-            .with_for_update()
-        ).one_or_none()
-        if call is None:
-            raise AppError(ErrorCode.NOT_FOUND)
+        call = self._lock_call(call_id)
         if call.status == CallStatus.QUEUED and call.queue_item_id == queue_item_id:
             return call
 
@@ -86,6 +80,40 @@ class RobotService:
         )
         call.queue_item_id = queue_item_id
         self._db.commit()
+        return call
+
+    def put_transcript(self, call_id: int, body: RobotTranscriptRequest) -> CallRecord:
+        """전사를 저장하고 `QUEUED` → `STT_DONE`으로 전이한다 (R-06).
+
+        멱등: 이미 `STT_DONE`이면 전이 없이 전사만 덮어쓴다 (Queue 재시도로 다시 불려도 같은 결과).
+        그 밖의 상태는 409.
+        """
+        call = self._lock_call(call_id)
+        if call.status != CallStatus.STT_DONE:
+            self._machine.transition(call_id, CallStatus.STT_DONE, actor="robot")
+
+        transcript = self._db.scalars(
+            select(Transcript).where(Transcript.call_id == call_id)
+        ).one_or_none()
+        if transcript is None:
+            transcript = Transcript(call_id=call_id, segments=[])
+            self._db.add(transcript)
+        transcript.segments = [segment.model_dump(mode="json") for segment in body.segments]
+        # 마스킹된 전체 텍스트를 corrected_text에 둔다 (키워드 검색 pg_trgm 대상).
+        transcript.corrected_text = body.full_text
+        transcript.stt_engine = body.stt_engine
+        self._db.commit()
+        return call
+
+    def _lock_call(self, call_id: int) -> CallRecord:
+        """행 잠금을 걸고 건을 읽는다. 없거나 소프트 삭제된 건은 404."""
+        call = self._db.scalars(
+            select(CallRecord)
+            .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
+            .with_for_update()
+        ).one_or_none()
+        if call is None:
+            raise AppError(ErrorCode.NOT_FOUND)
         return call
 
     def _create_record(self, form: RobotCallForm, key: str, reader: _HashingReader) -> CallRecord:

@@ -3,9 +3,9 @@
 import re
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
 
-from app.schemas.call import CallStatus, SourceType
+from app.schemas.call import CallStatus, SourceType, Speaker
 from app.schemas.common import KstDatetime
 
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
@@ -81,3 +81,29 @@ class RobotCallStatus(BaseModel):
 
     call_id: int
     status: CallStatus
+
+
+class SegmentIn(BaseModel):
+    """전사 구간 한 줄 (`stt/schema/call_schema.json`의 `transcript.segments` 항목)."""
+
+    speaker: Speaker
+    start_sec: float = Field(ge=0, allow_inf_nan=False, description="구간 시작(초)")
+    end_sec: float = Field(ge=0, allow_inf_nan=False, description="구간 끝(초)")
+    text: str
+
+    @model_validator(mode="after")
+    def _end_not_before_start(self) -> "SegmentIn":
+        if self.end_sec < self.start_sec:
+            raise ValueError("end_sec는 start_sec보다 작을 수 없습니다")
+        return self
+
+
+class RobotTranscriptRequest(BaseModel):
+    """`PUT /api/robot/calls/{id}/transcript` 본문. PII 마스킹이 끝난 전사만 보낸다."""
+
+    segments: list[SegmentIn]
+    full_text: str | None = Field(
+        default=None,
+        description="마스킹 후 '[상담원] … / [고객] …' 전체 텍스트. 키워드 검색에 쓰인다.",
+    )
+    stt_engine: Annotated[str, Field(max_length=50)] | None = None

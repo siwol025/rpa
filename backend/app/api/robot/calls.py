@@ -14,6 +14,7 @@ from app.schemas.robot import (
     RobotCallRegistered,
     RobotCallStatus,
     RobotQueuedRequest,
+    RobotTranscriptRequest,
 )
 from app.services.robot_service import RobotService
 
@@ -59,4 +60,20 @@ def mark_call_queued(
     """Queue에 추가한 뒤 `QUEUED`로 보고한다. `REGISTERED`·`RETRY_REQUESTED`에서만 허용한다."""
     bind_call_id(request, call_id)
     call = service.mark_queued(call_id, body.queue_item_id)
+    return RobotCallStatus(call_id=call.id, status=call.status)
+
+
+@router.put(
+    "/{call_id}/transcript",
+    responses=error_responses(ErrorCode.NOT_FOUND, ErrorCode.INVALID_STATE_TRANSITION),
+)
+def put_transcript(
+    call_id: CallIdPath,
+    body: RobotTranscriptRequest,
+    request: Request,
+    service: RobotServiceDep,
+) -> RobotCallStatus:
+    """전사를 적재하고 `STT_DONE`으로 바꾼다. 같은 내용을 다시 보내도 같은 결과(멱등)다."""
+    bind_call_id(request, call_id)
+    call = service.put_transcript(call_id, body)
     return RobotCallStatus(call_id=call.id, status=call.status)

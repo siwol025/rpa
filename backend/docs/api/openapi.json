@@ -818,6 +818,79 @@
         "title": "RobotQueuedRequest",
         "type": "object"
       },
+      "RobotTranscriptRequest": {
+        "description": "`PUT /api/robot/calls/{id}/transcript` 본문. PII 마스킹이 끝난 전사만 보낸다.",
+        "properties": {
+          "full_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "마스킹 후 '[상담원] … / [고객] …' 전체 텍스트. 키워드 검색에 쓰인다.",
+            "title": "Full Text"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentIn"
+            },
+            "title": "Segments",
+            "type": "array"
+          },
+          "stt_engine": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stt Engine"
+          }
+        },
+        "required": [
+          "segments"
+        ],
+        "title": "RobotTranscriptRequest",
+        "type": "object"
+      },
+      "SegmentIn": {
+        "description": "전사 구간 한 줄 (`stt/schema/call_schema.json`의 `transcript.segments` 항목).",
+        "properties": {
+          "end_sec": {
+            "description": "구간 끝(초)",
+            "minimum": 0.0,
+            "title": "End Sec",
+            "type": "number"
+          },
+          "speaker": {
+            "$ref": "#/components/schemas/Speaker"
+          },
+          "start_sec": {
+            "description": "구간 시작(초)",
+            "minimum": 0.0,
+            "title": "Start Sec",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker",
+          "start_sec",
+          "end_sec",
+          "text"
+        ],
+        "title": "SegmentIn",
+        "type": "object"
+      },
       "SegmentOut": {
         "properties": {
           "end_sec": {
@@ -1489,6 +1562,111 @@
           }
         },
         "summary": "Mark Call Queued",
+        "tags": [
+          "robot"
+        ]
+      }
+    },
+    "/api/robot/calls/{call_id}/transcript": {
+      "put": {
+        "description": "전사를 적재하고 `STT_DONE`으로 바꾼다. 같은 내용을 다시 보내도 같은 결과(멱등)다.",
+        "operationId": "put_transcript",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotTranscriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotCallStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Put Transcript",
         "tags": [
           "robot"
         ]
