@@ -1,0 +1,97 @@
+{
+  "_comment": "더미 응답. 실제 CLOVA Speech 응답 구조를 가정해 만든 테스트용 파일이며, 실제 응답(sample_response.json)을 받으면 구조 차이를 비교해 파서를 수정할 것. start/end 단위는 ms로 가정.",
+  "result": "COMPLETED",
+  "message": "Succeeded",
+  "token": "dummy-token-0001",
+  "version": "dummy",
+  "params": {
+    "language": "ko-KR",
+    "completion": "sync",
+    "diarization": { "enable": true, "speakerCountMin": 2, "speakerCountMax": 2 },
+    "noiseFiltering": true,
+    "fullText": true
+  },
+  "progress": 100,
+  "keywords": {},
+  "segments": [
+    {
+      "start": 400, "end": 4200,
+      "text": "안녕하세요, 고객센터입니다. 무엇을 도와드릴까요?",
+      "confidence": 0.97,
+      "diarization": { "label": "1" },
+      "speaker": { "label": "1", "name": "A", "edited": false },
+      "words": [],
+      "textEdited": "안녕하세요, 고객센터입니다. 무엇을 도와드릴까요?"
+    },
+    {
+      "start": 4800, "end": 8900,
+      "text": "네, 회원 정보에 있는 연락처를 바꾸고 싶은데요.",
+      "confidence": 0.95,
+      "diarization": { "label": "2" },
+      "speaker": { "label": "2", "name": "B", "edited": false },
+      "words": [],
+      "textEdited": "네, 회원 정보에 있는 연락처를 바꾸고 싶은데요."
+    },
+    {
+      "start": 9100, "end": 11000,
+      "text": "어디서 변경하면 되나요?",
+      "confidence": 0.96,
+      "diarization": { "label": "2" },
+      "speaker": { "label": "2", "name": "B", "edited": false },
+      "words": [],
+      "textEdited": "어디서 변경하면 되나요?"
+    },
+    {
+      "start": 11800, "end": 17500,
+      "text": "마이페이지에서 회원 정보 수정 메뉴로 들어가시면 변경하실 수 있습니다.",
+      "confidence": 0.94,
+      "diarization": { "label": "1" },
+      "speaker": { "label": "1", "name": "A", "edited": false },
+      "words": [],
+      "textEdited": "마이페이지에서 회원 정보 수정 메뉴로 들어가시면 변경하실 수 있습니다."
+    },
+    {
+      "start": 18300, "end": 25200,
+      "text": "아, 그런데 비밀번호를 잊어버려서 로그인이 안 돼요. 제 번호는 010-1234-5678이에요.",
+      "confidence": 0.91,
+      "diarization": { "label": "2" },
+      "speaker": { "label": "2", "name": "B", "edited": false },
+      "words": [],
+      "textEdited": "아, 그런데 비밀번호를 잊어버려서 로그인이 안 돼요. 제 번호는 010-1234-5678이에요."
+    },
+    {
+      "start": 26000, "end": 31400,
+      "text": "본인 확인 후 임시 비밀번호를 문자로 보내 드리겠습니다.",
+      "confidence": 0.96,
+      "diarization": { "label": "1" },
+      "speaker": { "label": "1", "name": "A", "edited": false },
+      "words": [],
+      "textEdited": "본인 확인 후 임시 비밀번호를 문자로 보내 드리겠습니다."
+    },
+    {
+      "start": 32000, "end": 33800,
+      "text": "네, 감사합니다.",
+      "confidence": 0.98,
+      "diarization": { "label": "2" },
+      "speaker": { "label": "2", "name": "B", "edited": false },
+      "words": [],
+      "textEdited": "네, 감사합니다."
+    },
+    {
+      "start": 34400, "end": 37900,
+      "text": "더 도와드릴 일 있으실까요? 감사합니다.",
+      "confidence": 0.96,
+      "diarization": { "label": "1" },
+      "speaker": { "label": "1", "name": "A", "edited": false },
+      "words": [],
+      "textEdited": "더 도와드릴 일 있으실까요? 감사합니다."
+    }
+  ],
+  "text": "안녕하세요, 고객센터입니다. 무엇을 도와드릴까요? 네, 회원 정보에 있는 연락처를 바꾸고 싶은데요. 어디서 변경하면 되나요? 마이페이지에서 회원 정보 수정 메뉴로 들어가시면 변경하실 수 있습니다. 아, 그런데 비밀번호를 잊어버려서 로그인이 안 돼요. 제 번호는 010-1234-5678이에요. 본인 확인 후 임시 비밀번호를 문자로 보내 드리겠습니다. 네, 감사합니다. 더 도와드릴 일 있으실까요? 감사합니다.",
+  "confidence": 0.95,
+  "speakers": [
+    { "label": "1", "name": "A", "edited": false },
+    { "label": "2", "name": "B", "edited": false }
+  ],
+  "eventTexts": []
+}
