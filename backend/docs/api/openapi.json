@@ -107,6 +107,26 @@
         "title": "AnalysisOut",
         "type": "object"
       },
+      "Body_register_call": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RobotCallForm"
+          }
+        ],
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "녹취 음성 파일(wav, mp3)",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_register_call",
+        "type": "object"
+      },
       "BreakdownItem": {
         "properties": {
           "by_category": {
@@ -477,6 +497,45 @@
         "title": "CategoryCounts",
         "type": "object"
       },
+      "DuplicateFileDetail": {
+        "properties": {
+          "existing_id": {
+            "title": "Existing Id",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "existing_id",
+          "status"
+        ],
+        "title": "DuplicateFileDetail",
+        "type": "object"
+      },
+      "DuplicateFileErrorResponse": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/DuplicateFileDetail"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "detail"
+        ],
+        "title": "DuplicateFileErrorResponse",
+        "type": "object"
+      },
       "EntityOut": {
         "properties": {
           "type": {
@@ -629,6 +688,93 @@
           "created_at"
         ],
         "title": "ProcessingLogOut",
+        "type": "object"
+      },
+      "RobotCallForm": {
+        "description": "`POST /api/robot/calls`의 multipart 폼 필드 (파일은 `file`로 따로 받는다).\n\n담당자·통화 일시·고객사는 파일명에서 못 뽑았으면 비워 보낸다. 담당자나 통화 일시가\n비면 서버가 `metadata_incomplete=true`로 등록하고 웹에서 보정한다.",
+        "properties": {
+          "agent_name": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "call_datetime": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Datetime"
+          },
+          "client_company": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Company"
+          },
+          "file_hash": {
+            "description": "파일 내용의 SHA-256(16진수 64자). 서버가 다시 계산해 비교한다.",
+            "title": "File Hash",
+            "type": "string"
+          },
+          "original_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Original Name",
+            "type": "string"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Drive 파일 ID 등 출처 식별자",
+            "title": "Source Ref"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          }
+        },
+        "required": [
+          "file_hash",
+          "original_name",
+          "source_type"
+        ],
+        "title": "RobotCallForm",
+        "type": "object"
+      },
+      "RobotCallRegistered": {
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "call_id"
+        ],
+        "title": "RobotCallRegistered",
         "type": "object"
       },
       "SegmentOut": {
@@ -1097,6 +1243,108 @@
         "summary": "Get Call",
         "tags": [
           "calls"
+        ]
+      }
+    },
+    "/api/robot/calls": {
+      "post": {
+        "description": "음성 사본을 저장하고 `REGISTERED`로 등록한다. 텍스트 변환 전에 먼저 호출한다.",
+        "operationId": "register_call",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_call"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotCallRegistered"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateFileErrorResponse"
+                }
+              }
+            },
+            "description": "DUPLICATE_FILE"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Register Call",
+        "tags": [
+          "robot"
         ]
       }
     },

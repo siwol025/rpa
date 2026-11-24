@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
+from app.api.robot import calls as robot_calls
 from app.api.robot.auth import RobotAuthMiddleware
 from app.api.web import calls, stats
 from app.core.config import Settings, get_settings
@@ -20,6 +21,7 @@ from app.core.middleware import (
     UnhandledErrorMiddleware,
 )
 from app.infra.inbox import create_inbox_writer
+from app.infra.storage import create_audio_storage
 from app.schemas.common import error_responses
 
 
@@ -46,7 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = create_session_factory(settings.database_url)
     # 키 파일·Drive 접근은 첫 업로드·헬스 체크 때 확인한다 (Drive 문제로 시작이 막히지 않음).
     app.state.inbox_writer = create_inbox_writer(settings)
+    # 폴더는 첫 저장·헬스 체크 때 만든다 (시작 시 디스크를 건드리지 않는다).
+    app.state.audio_storage = create_audio_storage(settings)
     app.include_router(calls.router)
+    app.include_router(robot_calls.router)
     app.include_router(stats.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.

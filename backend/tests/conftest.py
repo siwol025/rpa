@@ -3,6 +3,7 @@
 - `postgres_url`: 세션당 PostgreSQL 16 컨테이너 1개를 띄우고 Alembic 으로 최신 스키마를 적용한다.
 - `db`: 테스트마다 트랜잭션을 열고 끝나면 롤백한다. 테스트 코드가 `commit()` 해도 격리된다.
 - `client`: FastAPI TestClient.
+- `robot_client`: 로봇 API용. 인증 헤더·허용 IP가 설정되고 `db`·임시 음성 저장소를 쓴다.
 
 DB 가 필요한 테스트는 `db` 픽스처를 쓰고 `@pytest.mark.integration` 을 붙인다.
 Docker 없이 돌리려면 `pytest -m "not integration"`.
@@ -14,12 +15,15 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 from testcontainers.community.postgres import PostgresContainer
 
 from alembic import command
+from app.api.deps import get_db
+from app.core.config import Settings
 from app.main import create_app
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -67,4 +71,36 @@ def db(engine: Engine) -> Iterator[Session]:
 def client() -> Iterator[TestClient]:
     # get_db 의존성이 생기면(C-02) app.dependency_overrides 로 `db` 픽스처를 주입한다.
     with TestClient(create_app()) as test_client:
+        yield test_client
+
+
+ROBOT_KEY = "test-robot-key"
+ROBOT_IP = "127.0.0.1"
+
+
+@pytest.fixture
+def audio_root(tmp_path: Path) -> Path:
+    return tmp_path / "audio"
+
+
+@pytest.fixture
+def robot_app(db: Session, audio_root: Path) -> FastAPI:
+    app = create_app(
+        Settings(
+            _env_file=None,
+            robot_api_keys=[ROBOT_KEY],
+            robot_allowed_ips=[ROBOT_IP],
+            audio_storage_root=audio_root,
+        )
+    )
+    # 요청이 테스트의 db 세션을 그대로 쓴다. 서비스의 commit()도 테스트 끝에 롤백된다.
+    app.dependency_overrides[get_db] = lambda: db
+    return app
+
+
+@pytest.fixture
+def robot_client(robot_app: FastAPI) -> Iterator[TestClient]:
+    with TestClient(
+        robot_app, client=(ROBOT_IP, 50000), headers={"X-API-Key": ROBOT_KEY}
+    ) as test_client:
         yield test_client

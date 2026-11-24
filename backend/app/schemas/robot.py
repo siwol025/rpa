@@ -1,0 +1,66 @@
+"""로봇(UiPath) API 요청·응답 모델. 규약은 docs/api/convention.md."""
+
+import re
+from typing import Annotated, Any
+
+from pydantic import BaseModel, BeforeValidator, Field, field_validator
+
+from app.schemas.call import SourceType
+from app.schemas.common import KstDatetime
+
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+
+
+def _blank_to_none(value: Any) -> Any:
+    """multipart는 값이 없는 필드를 빈 문자열로 보낼 수 있다. 빈 값은 '없음'으로 본다."""
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value.strip() if isinstance(value, str) else value
+
+
+# 길이 제한은 str 쪽에만 건다 (`str | None` 전체에 걸면 None이 된 뒤 제한이 적용돼 500).
+OptionalText = Annotated[str | None, BeforeValidator(_blank_to_none)]
+OptionalName50 = Annotated[
+    Annotated[str, Field(max_length=50)] | None, BeforeValidator(_blank_to_none)
+]
+OptionalName100 = Annotated[
+    Annotated[str, Field(max_length=100)] | None, BeforeValidator(_blank_to_none)
+]
+
+
+class RobotCallForm(BaseModel):
+    """`POST /api/robot/calls`의 multipart 폼 필드 (파일은 `file`로 따로 받는다).
+
+    담당자·통화 일시·고객사는 파일명에서 못 뽑았으면 비워 보낸다. 담당자나 통화 일시가
+    비면 서버가 `metadata_incomplete=true`로 등록하고 웹에서 보정한다.
+    """
+
+    file_hash: str = Field(
+        description="파일 내용의 SHA-256(16진수 64자). 서버가 다시 계산해 비교한다."
+    )
+    original_name: Annotated[str, Field(min_length=1, max_length=255)]
+    source_type: SourceType
+    source_ref: OptionalText = Field(default=None, description="Drive 파일 ID 등 출처 식별자")
+    call_datetime: Annotated[KstDatetime | None, BeforeValidator(_blank_to_none)] = None
+    agent_name: OptionalName50 = None
+    client_company: OptionalName100 = None
+
+    @field_validator("file_hash")
+    @classmethod
+    def _normalize_hash(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not _SHA256_HEX.fullmatch(normalized):
+            raise ValueError("file_hash는 SHA-256 16진수 64자여야 합니다")
+        return normalized
+
+    @field_validator("original_name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("original_name이 비어 있습니다")
+        return stripped
+
+
+class RobotCallRegistered(BaseModel):
+    call_id: int
