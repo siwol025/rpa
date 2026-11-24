@@ -174,16 +174,18 @@ flowchart LR
 ### 6.2 중복
 | 상황 | 보완 |
 |---|---|
-| 같은 파일 재적재 / 재등록 시도 | 서버 해시 중복 검사 → `409 {existing_id, status}` → 아래 표에 따라 처리 |
+| 같은 파일 재적재 / 재등록 시도 | 서버 해시 중복 검사 → `409 DUPLICATE_FILE`(`detail.existing_id`, `detail.status`) → 아래 표에 따라 처리 |
 | 여러 로봇의 동시 감지 | `processing/`으로의 이동을 선점 수단으로 사용 |
 | 결과 API 재전송 | `PUT` 적재 API는 멱등 (같은 값 재전송 시 동일 결과) |
 
 **등록 응답별 Dispatcher 처리**
 
+409 응답의 "기존 건 상태"는 에러 본문 `detail.status`, 기존 건 ID는 `detail.existing_id`에서 읽는다 (에러 형식: `backend/docs/api/convention.md` §3).
+
 | 응답 | 기존 건 상태 | 의미 | Dispatcher 처리 |
 |---|---|---|---|
 | `201 {call_id}` | — | 신규 등록 | Queue 추가 → `QUEUED` 보고 |
-| `409` | `REGISTERED` | 이전 실행이 Queue 추가 전에 중단됨 | `existing_id`로 Queue 추가부터 이어서 진행 → `QUEUED` 보고 |
+| `409` | `REGISTERED` | 이전 실행이 Queue 추가 전에 중단됨 | `detail.existing_id`로 Queue 추가부터 이어서 진행 → `QUEUED` 보고 |
 | `409` | `QUEUED`·`STT_DONE`·`RETRY_REQUESTED` | 이미 처리 중 | 아무것도 하지 않음 (멈춰 있으면 서버 정체 감지 → 웹 재처리) |
 | `409` | `STORED`·`NEEDS_REVIEW` | 이미 처리 완료된 같은 파일 | 파일을 `done/`으로 이동 |
 | `409` | `FAILED` | 이미 실패 처리된 같은 파일 | 파일을 `failed/`로 이동 (복구는 웹 재처리) |
@@ -256,7 +258,7 @@ stateDiagram-v2
 
 | Method | Endpoint | 호출자 | 설명 |
 |---|---|---|---|
-| POST | `/api/robot/calls` | Dispatcher | 등록 (multipart: `file`, `call_datetime`, `agent_name`, `client_company`, `file_hash`, `source_type`, `source_ref`) → `{call_id}` / `409 {existing_id, status}` (§6.2). 메타데이터는 추출 실패 시 생략 가능 |
+| POST | `/api/robot/calls` | Dispatcher | 등록 (multipart: `file`, `call_datetime`, `agent_name`, `client_company`, `file_hash`, `source_type`, `source_ref`) → `201 {call_id}` / `409 DUPLICATE_FILE` (`detail.existing_id`, `detail.status`, §6.2). 메타데이터는 추출 실패 시 생략 가능 |
 | PATCH | `/api/robot/calls/{id}/status` | Dispatcher | `QUEUED` 전이 (`queue_item_id` 포함). `REGISTERED`·`RETRY_REQUESTED`에서만 허용 |
 | GET | `/api/robot/calls?status=RETRY_REQUESTED` | Dispatcher | 재처리 대상 조회 (`call_id`, `retry_count`) |
 | GET | `/api/robot/calls/{id}/audio` | Performer | 재처리 시 음성 다운로드 |

@@ -61,7 +61,7 @@
 | R-01 | 로봇 인증 | 미들웨어 | `X-API-Key` 검증(키 2개 동시 허용, 실패 401), `/api/robot/*` 로봇 PC IP 확인(`ROBOT_ALLOWED_IPS`, 실패 403) | P0 | 1 | C-02, E-04 | — |
 | R-02 | 상태 머신 | `CallStateMachine` | `architecture.md` §5 전이표 구현, 허용되지 않은 전이 409, `SELECT ... FOR UPDATE`, `status_changed_at` 갱신, 전이마다 `processing_log` 기록. **정체 판단**(`status_changed_at` > `STALE_THRESHOLD_MIN`)으로 정체된 `REGISTERED`·`QUEUED`·`STT_DONE`의 재처리 전이 허용 | P0 | 1 | C-04 | §6.1 |
 | R-03 | 음성 사본 저장소 | `AudioStorage` / `LocalStorage` | 저장·열기(Range)·삭제 인터페이스, UUID 키 | P0 | 1 | C-01 | IN-04 |
-| R-04 | 등록 | `POST /api/robot/calls` | multipart 수신, 형식 검증(크기 제한은 C-02), 음성 사본 저장 → `REGISTERED`, 실패 시 사본 삭제(보상 처리). **해시 중복 시 `409 {existing_id, status}`** (Dispatcher가 상태별로 이어서 처리, `input_flow.md` §6.2). **메타데이터 누락 시 `metadata_incomplete=true`**로 등록 | P0 | 1 | R-01~03 | IN-04~06 |
+| R-04 | 등록 | `POST /api/robot/calls` | multipart 수신, 형식 검증(크기 제한은 C-02), 음성 사본 저장 → `REGISTERED`, 실패 시 사본 삭제(보상 처리). **해시 중복 시 `409 DUPLICATE_FILE`(`detail.existing_id`·`detail.status`)** (Dispatcher가 상태별로 이어서 처리, `input_flow.md` §6.2). **메타데이터 누락 시 `metadata_incomplete=true`**로 등록 | P0 | 1 | R-01~03 | IN-04~06 |
 | R-05 | 상태 변경 | `PATCH /api/robot/calls/{id}/status` | `QUEUED` 전이(`REGISTERED`·`RETRY_REQUESTED`에서만), `queue_item_id` 기록 | P0 | 1 | R-02 | RPA-03 |
 | R-06 | 전사 적재 | `PUT /api/robot/calls/{id}/transcript` | `segments` 검증, UPSERT(멱등) → `STT_DONE` | P0 | 1 | R-02, E-03 | RPA-04 |
 | R-07 | 분석 적재 | `PUT /api/robot/calls/{id}/analysis` | GenAI 결과 Pydantic 스키마 검증(5대 유형 Enum), 신뢰도 임계값 → `STORED` / `NEEDS_REVIEW`, UPSERT(멱등) | P0 | 1 | R-02, E-02 | RPA-01, AI-05·07 |
