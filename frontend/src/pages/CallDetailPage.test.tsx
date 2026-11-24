@@ -26,7 +26,7 @@ describe('상담 상세: 보기', () => {
     const conv = screen.getByRole('region', { name: '전사 원문' })
     expect(within(conv).getAllByRole('listitem')).toHaveLength(c.transcript!.segments.length)
     expect(within(conv).getByText('상담원 · 0:00')).toBeInTheDocument()
-    expect(screen.getByLabelText('유형')).toHaveValue('질의')
+    expect(screen.getByLabelText('유형')).toHaveValue('INQUIRY')
     expect(screen.getByLabelText('질문 요약')).toHaveValue(c.analysis!.question_summary)
     expect(screen.getByLabelText('조치 내역')).toHaveValue(c.analysis!.action_summary)
     expect(screen.getByLabelText('조치 상태')).toHaveValue('DONE')
@@ -99,6 +99,20 @@ describe('상담 상세: 보기', () => {
     expect(asked).toBe(0)
   })
 
+  it('NOT_FOUND가 아닌 404는 삭제된 상담으로 안내하지 않는다', async () => {
+    server.use(http.get('*/api/calls/1', () => new HttpResponse('not found', { status: 404 })))
+    renderWithProviders(<App />, { route: '/calls/1' })
+    expect(await screen.findByText('요청을 처리하지 못했어요.')).toBeInTheDocument()
+  })
+
+  it('나중에 추가된 유형도 그대로 보여준다', async () => {
+    const c = call(1)
+    server.use(http.get('*/api/calls/1', () => HttpResponse.json({ ...c, analysis: { ...c.analysis!, category: 'NEW_TYPE' } })))
+    await openDetail(1)
+    expect(screen.getByLabelText('유형')).toHaveValue('NEW_TYPE')
+    expect(within(header()).getByText('NEW_TYPE')).toBeInTheDocument()
+  })
+
   it('불러오는 동안 표시한다', async () => {
     server.use(
       http.get('*/api/calls/1', async () => {
@@ -111,10 +125,10 @@ describe('상담 상세: 보기', () => {
   })
 
   it('목록으로 돌아가면 필터가 그대로', async () => {
-    renderWithProviders(<App />, { route: '/calls?category=불만' })
+    renderWithProviders(<App />, { route: '/calls?category=COMPLAINT' })
     await userEvent.click((await screen.findAllByRole('link', { name: /항의함/ }))[0])
     await userEvent.click(await screen.findByRole('link', { name: '← 상담 목록' }))
-    await waitFor(() => expect(location()).toBe('/calls?category=불만'))
+    await waitFor(() => expect(location()).toBe('/calls?category=COMPLAINT'))
   })
 })
 
@@ -173,7 +187,7 @@ describe('상담 상세: 수정', () => {
     await userEvent.selectOptions(screen.getByLabelText('유형'), '질의')
     await userEvent.click(button('검토 완료'))
     await waitFor(() => expect(within(header()).getByText('저장 완료')).toBeInTheDocument())
-    expect(sent).toEqual([{ category: '질의', review_completed: true }])
+    expect(sent).toEqual([{ category: 'INQUIRY', review_completed: true }])
     expect(screen.queryByRole('button', { name: '검토 완료' })).not.toBeInTheDocument()
   })
 

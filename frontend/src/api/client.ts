@@ -1,7 +1,8 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const DEFAULT_TIMEOUT_MS = 15_000
 
-type Params = Record<string, string | number | boolean | undefined>
+type Value = string | number | boolean | undefined
+type Params = Record<string, Value | readonly Value[]>
 interface Options {
   timeoutMs?: number
 }
@@ -22,12 +23,14 @@ export class ApiError extends Error {
   }
 }
 
-/** 빈 값과 false는 보내지 않는다 (켜진 필터만 전달) */
+/** 빈 값과 false는 보내지 않는다 (켜진 필터만 전달). 여러 값은 같은 이름을 반복한다 */
 export function toQueryString(params: Params): string {
   const sp = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
-    if (v === undefined || v === '' || v === false) continue
-    sp.append(k, String(v))
+    for (const one of Array.isArray(v) ? (v as readonly Value[]) : [v as Value]) {
+      if (one === undefined || one === '' || one === false) continue
+      sp.append(k, String(one))
+    }
   }
   const s = sp.toString()
   return s ? `?${s}` : ''

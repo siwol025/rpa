@@ -1,4 +1,4 @@
-import { CATEGORIES, type ActionStatus, type CallStatus } from '../api/types'
+import { CATEGORIES, type ActionStatus, type CallStatus, type Category } from '../api/types'
 
 export type StatusTone = 'running' | 'done' | 'review' | 'failed' | 'warn'
 
@@ -25,6 +25,19 @@ export function canRetry(status: CallStatus, stale: boolean): boolean {
   return stale && status !== 'RETRY_REQUESTED'
 }
 
+const CATEGORY_LABEL: Record<Category, string> = {
+  INQUIRY: '질의',
+  COMPLAINT: '불만',
+  SUGGESTION: '건의',
+  EDUCATION: '교육 내용',
+  ETC: '기타 문의',
+}
+
+/** 나중에 추가된 유형이면 코드를 그대로 보여준다 */
+export function categoryLabel(category: string): string {
+  return CATEGORY_LABEL[category as Category] ?? category
+}
+
 export function categoryColorVar(category: string): string {
   const i = (CATEGORIES as readonly string[]).indexOf(category)
   return i < 0 ? 'var(--line-strong)' : `var(--s${i + 1})`
@@ -33,7 +46,7 @@ export function categoryColorVar(category: string): string {
 export const ACTION_LABEL: Record<ActionStatus, string> = { OPEN: '미조치', DONE: '조치 완료' }
 
 export function actionLabel(status: ActionStatus | null): string {
-  return status ? ACTION_LABEL[status] : '-'
+  return status ? (ACTION_LABEL[status] ?? status) : '-'
 }
 
 export const STEP_LABEL: Record<string, string> = {

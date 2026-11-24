@@ -7,7 +7,7 @@ import { CategoryChip } from '../components/CategoryChip'
 import { ErrorState } from '../components/ErrorState'
 import { Badge, StatusBadges } from '../components/StatusBadge'
 import { formatDateTime, formatSeconds, fromInputValue, toInputValue } from '../lib/format'
-import { ACTION_LABEL, canRetry, STEP_LABEL, type StatusTone } from '../lib/status'
+import { ACTION_LABEL, canRetry, categoryLabel, STEP_LABEL, type StatusTone } from '../lib/status'
 import { useToast } from '../lib/toast'
 
 const MASK = /([0-9A-Za-z-]*\*{3,}[0-9A-Za-z*-]*)/g
@@ -193,6 +193,8 @@ function EditForm({ c }: { c: CallDetail }) {
     onChange: (e: { target: { value: string } }) => setForm((f) => ({ ...f, [key]: e.target.value })),
   })
   const changes = diff(saved, form)
+  // 나중에 추가된 유형이 저장돼 있어도 다른 값으로 보이지 않게 한다
+  const categories = [...new Set([...CATEGORIES, ...(saved.category ? [saved.category] : [])])]
   const dirty = Object.keys(changes).length > 0
 
   const submit = (extra: CallPatch, done: string) => {
@@ -220,8 +222,10 @@ function EditForm({ c }: { c: CallDetail }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="f-category" label="유형">
               <select {...bind('category')}>
-                {CATEGORIES.map((k) => (
-                  <option key={k}>{k}</option>
+                {categories.map((k) => (
+                  <option key={k} value={k}>
+                    {categoryLabel(k)}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -278,7 +282,7 @@ function EditForm({ c }: { c: CallDetail }) {
 
 function retryNotice(c: CallDetail): string {
   if (c.status !== 'RETRY_REQUESTED') return '처리 중인 상담은 재처리를 요청할 수 없어요.'
-  return c.stale
+  return c.is_stale
     ? '재처리 요청이 오래 멈춰 있어요. RPA 담당자에게 로봇 점검을 요청해 주세요.'
     : '재처리를 기다리고 있어요. 다음 처리 주기에 반영돼요.'
 }
@@ -289,7 +293,7 @@ function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
   const remove = useDeleteCall()
   const toast = useToast()
   const navigate = useNavigate()
-  const allowed = canRetry(c.status, c.stale)
+  const allowed = canRetry(c.status, c.is_stale)
 
   return (
     <div className="flex flex-col gap-3">
@@ -343,7 +347,7 @@ export function CallDetailPage() {
   const from = (useLocation().state as { from?: string } | null)?.from ?? ''
   const backTo = `/calls${from}`
   const { data: c, error, isFetching, refetch } = useCall(id, valid)
-  const missing = !valid || (error instanceof ApiError && error.status === 404)
+  const missing = !valid || (error instanceof ApiError && error.code === 'NOT_FOUND')
 
   return (
     <section>

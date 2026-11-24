@@ -2,21 +2,22 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useCalls } from '../api/calls'
 import { useBreakdown } from '../api/stats'
-import { CATEGORIES, STATUSES, type CallListParams, type CallSort } from '../api/types'
+import { CATEGORIES, PAGE_MAX, STATUSES, type CallListParams, type CallSort } from '../api/types'
 import { CategoryChip } from '../components/CategoryChip'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
 import { PeriodInput } from '../components/PeriodInput'
 import { StatusBadges } from '../components/StatusBadge'
 import { formatDateTime, formatSeconds } from '../lib/format'
-import { actionLabel, STATUS_LABEL } from '../lib/status'
+import { actionLabel, categoryLabel, STATUS_LABEL } from '../lib/status'
 import { dateParam, oneOf, useUrlParams } from '../lib/useUrlParams'
 
 const PAGE_SIZE = 20
 const HEADERS = ['통화 일시', '담당자', '고객사', '유형', '질문 요약', '통화 시간', '조치 상태', '처리 상태']
+// 서버 기본값은 등록순(-created_at)이라 통화 일시 정렬을 항상 보낸다
 const SORTS: { value: CallSort; label: string }[] = [
-  { value: 'call_datetime:desc', label: '최신순' },
-  { value: 'call_datetime:asc', label: '오래된순' },
+  { value: '-call_datetime', label: '최신순' },
+  { value: 'call_datetime', label: '오래된순' },
 ]
 const KEYWORD_DELAY_MS = 300
 
@@ -51,9 +52,9 @@ function useNames(by: 'agent' | 'client') {
 export function CallsPage() {
   const { sp, set } = useUrlParams()
   const { search } = useLocation()
-  const page = Math.max(1, Math.floor(Number(sp.get('page'))) || 1)
+  const page = Math.min(PAGE_MAX, Math.max(1, Math.floor(Number(sp.get('page'))) || 1))
   const urlQ = sp.get('q') ?? ''
-  const params: CallListParams = {
+  const params = {
     from: dateParam(sp, 'from'),
     to: dateParam(sp, 'to'),
     category: oneOf(sp, 'category', CATEGORIES),
@@ -63,10 +64,10 @@ export function CallsPage() {
     q: urlQ || undefined,
     stale: sp.get('stale') === 'true' || undefined,
     metadata_incomplete: sp.get('metadata_incomplete') === 'true' || undefined,
-    sort: oneOf(sp, 'sort', ['call_datetime:asc']),
     page,
     size: PAGE_SIZE,
-  }
+    sort: oneOf(sp, 'sort', ['call_datetime']) ?? SORTS[0].value,
+  } satisfies CallListParams
   const { data, error, isPending, isFetching, isPlaceholderData, refetch } = useCalls(params)
   const agents = useNames('agent')
   const clients = useNames('client')
@@ -99,7 +100,7 @@ export function CallsPage() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input type="search" aria-label="키워드" placeholder="키워드" className="field w-56 max-w-full" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
         <PeriodInput value={params} onChange={set} />
-        <FilterSelect label="유형" value={params.category} onChange={(v) => set('category', v)} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
+        <FilterSelect label="유형" value={params.category} onChange={(v) => set('category', v)} options={CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))} />
         <FilterSelect label="담당자" value={params.agent} onChange={(v) => set('agent', v)} options={agents} />
         <FilterSelect label="고객사" value={params.client} onChange={(v) => set('client', v)} options={clients} />
         <FilterSelect label="처리 상태" value={params.status} onChange={(v) => set('status', v)} options={STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
@@ -111,7 +112,7 @@ export function CallsPage() {
           <input type="checkbox" checked={params.stale ?? false} onChange={(e) => set('stale', e.target.checked ? 'true' : '')} />
           정체
         </label>
-        <select aria-label="정렬" className="field" value={params.sort ?? SORTS[0].value} onChange={(e) => set('sort', e.target.value === SORTS[0].value ? '' : e.target.value)}>
+        <select aria-label="정렬" className="field" value={params.sort} onChange={(e) => set('sort', e.target.value === SORTS[0].value ? '' : e.target.value)}>
           {SORTS.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}

@@ -1,15 +1,15 @@
 /*
- * 백엔드 문서(research.md §4·§5, architecture.md §5·§7, prd.md §6)의 이름을 그대로 쓴다.
+ * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), research.md §4·§5, architecture.md §5·§7.
+ * 엔드포인트별 필드의 최종 기준은 openapi.json인데 아직 비어 있다(paths: {}). 채워지면 이 파일과 대조한다.
  *
- * [확인 필요] 문서에 세부 형태가 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
- *  1. 목록 항목과 상세 응답의 구조(아래 CallListItem, CallDetail), 응답의 stale 값
- *  2. 검토 완료를 알리는 필드(CallPatch.review_completed)
- *  3. 통계 응답의 구조(StatsSummary, TrendItem, BreakdownItem)
- *  4. sort 값의 형식
- *  5. 유형 값이 한글인지 코드(INQUIRY 등)인지
+ * [확인 필요] 규약에 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
+ *  1. 목록 항목에 들어가는 필드(CallListItem), 상세 응답의 구조와 로그의 이름(processing_log)
+ *  2. 상세 응답에도 is_stale이 있는지
+ *  3. 검토 완료를 알리는 필드(CallPatch.review_completed)
+ *  4. 통계 응답의 필드(StatsSummary, TrendItem, BreakdownItem)
  */
 
-export const CATEGORIES = ['질의', '불만', '건의', '교육 내용', '기타 문의'] as const
+export const CATEGORIES = ['INQUIRY', 'COMPLAINT', 'SUGGESTION', 'EDUCATION', 'ETC'] as const
 export type Category = (typeof CATEGORIES)[number]
 
 export const STATUSES = ['REGISTERED', 'QUEUED', 'STT_DONE', 'STORED', 'NEEDS_REVIEW', 'FAILED', 'RETRY_REQUESTED'] as const
@@ -30,7 +30,7 @@ export interface CallBase {
   status: CallStatus
   status_changed_at: string
   retry_count: number
-  stale: boolean
+  is_stale: boolean
 }
 
 export interface CallListItem extends CallBase {
@@ -89,6 +89,16 @@ export interface CallPatch {
   editor?: string
 }
 
+/** POST /calls/{id}/retry */
+export interface RetryResult {
+  call_id: number
+  status: CallStatus
+  retry_count: number
+}
+
+export const PAGE_MAX = 10_000
+export const PAGE_SIZE_MAX = 100
+
 export interface Page<T> {
   items: T[]
   page: number
@@ -96,7 +106,8 @@ export interface Page<T> {
   total: number
 }
 
-export type CallSort = 'call_datetime:desc' | 'call_datetime:asc'
+/** 내림차순은 앞에 - */
+export type CallSort = 'call_datetime' | '-call_datetime' | 'created_at' | '-created_at' | 'status_changed_at' | '-status_changed_at'
 
 export interface CallListParams {
   from?: string
@@ -104,7 +115,7 @@ export interface CallListParams {
   category?: Category
   agent?: string
   client?: string
-  status?: CallStatus
+  status?: CallStatus | CallStatus[]
   q?: string
   stale?: boolean
   metadata_incomplete?: boolean
@@ -120,7 +131,7 @@ export interface Period {
 
 export interface StatsSummary {
   total: number
-  by_category: Record<Category, number>
+  by_category: Record<string, number>
   action_open: number
   needs_review: number
   metadata_incomplete: number

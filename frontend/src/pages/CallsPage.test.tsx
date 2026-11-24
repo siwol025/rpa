@@ -28,7 +28,7 @@ describe('상담 목록', () => {
   it('유형을 고르면 그 유형만 보이고 주소에 남는다', async () => {
     await openList()
     await userEvent.selectOptions(screen.getByLabelText('유형'), '교육 내용')
-    await waitFor(() => expect(location()).toBe('/calls?category=교육 내용'))
+    await waitFor(() => expect(location()).toBe('/calls?category=EDUCATION'))
     await waitFor(() => expect(bodyRows()).toHaveLength(3))
     for (const r of bodyRows()) expect(within(r).getByText('교육 내용')).toBeInTheDocument()
   })
@@ -62,7 +62,7 @@ describe('상담 목록', () => {
     await userEvent.type(screen.getByLabelText('키워드'), '이체')
     await userEvent.selectOptions(screen.getByLabelText('유형'), '불만')
     await waitFor(() => expect(location()).toContain('q=이체'))
-    expect(location()).toContain('category=불만')
+    expect(location()).toContain('category=COMPLAINT')
   })
 
   it('띄어쓰기 뒤에 잠깐 멈춰도 입력이 바뀌지 않는다', async () => {
@@ -86,7 +86,7 @@ describe('상담 목록', () => {
     expect(screen.getByLabelText('시작일')).toHaveValue('2026-11-16')
     for (const r of bodyRows()) expect(r).toHaveTextContent(/11\/1[67] /)
     await userEvent.selectOptions(screen.getByLabelText('정렬'), '오래된순')
-    await waitFor(() => expect(location()).toContain('sort=call_datetime:asc'))
+    await waitFor(() => expect(location()).toContain('sort=call_datetime'))
     await waitFor(() => expect(bodyRows()[0]).toHaveTextContent('11/16 10:55'))
   })
 
@@ -138,7 +138,7 @@ describe('상담 목록', () => {
       }),
     )
     await openList('/calls?category=foo&status=BAD&sort=x&page=1.5')
-    expect(sent).toBe('?page=1&size=20')
+    expect(sent).toBe('?page=1&size=20&sort=-call_datetime')
   })
 
   it('새 결과를 불러오는 동안 표시한다', async () => {
@@ -151,6 +151,19 @@ describe('상담 목록', () => {
     )
     await userEvent.selectOptions(screen.getByLabelText('유형'), '불만')
     await waitFor(() => expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'true'))
+  })
+
+  it('페이지가 허용 범위를 넘으면 최댓값으로 보낸다', async () => {
+    let sent = ''
+    server.use(
+      http.get('*/api/calls', ({ request }) => {
+        sent = new URL(request.url).searchParams.get('page') ?? ''
+        return HttpResponse.json({ items: [], page: 10000, size: 20, total: 27 })
+      }),
+    )
+    renderWithProviders(<App />, { route: '/calls?page=99999999' })
+    expect(await screen.findByText('조건에 맞는 상담이 없어요')).toBeInTheDocument()
+    expect(sent).toBe('10000')
   })
 
   it('서버 오류면 서버 문구와 다시 시도 버튼', async () => {

@@ -29,14 +29,14 @@ export function Badge({ tone, children }: { tone: StatusTone; children: ReactNod
   )
 }
 
-type BadgeFields = Pick<CallBase, 'status' | 'stale' | 'metadata_incomplete'>
+type BadgeFields = Pick<CallBase, 'status' | 'is_stale' | 'metadata_incomplete'>
 
 /** 처리 상태 + 정체 + 메타데이터 확인 필요 */
 export function StatusBadges({ call, metadata = true }: { call: BadgeFields; metadata?: boolean }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
       <Badge tone={statusTone(call.status)}>{STATUS_LABEL[call.status] ?? call.status}</Badge>
-      {call.stale && <Badge tone="warn">정체</Badge>}
+      {call.is_stale && <Badge tone="warn">정체</Badge>}
       {metadata && call.metadata_incomplete && <Badge tone="warn">메타데이터 확인 필요</Badge>}
     </span>
   )

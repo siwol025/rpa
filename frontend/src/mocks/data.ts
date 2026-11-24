@@ -14,7 +14,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-10T09:25:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -50,7 +50,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.93,
       "question_summary": "출장 중 사용할 법인카드의 해외 결제 차단 해제 방법을 문의함.",
       "action_summary": "본인 확인 후 차단을 해제하고, 11월 21일 이후 다시 차단되도록 설정함.",
@@ -122,7 +122,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-10T14:53:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -152,7 +152,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "불만",
+      "category": "COMPLAINT",
       "confidence": 0.91,
       "question_summary": "오전에 보낸 타행 이체가 2시간 넘게 입금되지 않았다고 항의함.",
       "action_summary": "수취 은행 전산 점검으로 지연 중임을 안내하고, 입금이 확인되면 다시 연락하기로 함.",
@@ -224,7 +224,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-11T10:18:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -254,7 +254,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.95,
       "question_summary": "운전자금 대출을 신청할 때 필요한 서류를 문의함.",
       "action_summary": "필요 서류 목록을 안내하고 담당자 이메일로 보냄.",
@@ -323,7 +323,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-11T15:33:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -353,7 +353,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "교육 내용",
+      "category": "EDUCATION",
       "confidence": 0.88,
       "question_summary": "새로 온 직원이 기업뱅킹 OTP 등록 방법을 안내해 달라고 요청함.",
       "action_summary": "등록 화면을 함께 보며 단계별로 안내하고 등록 완료를 확인함.",
@@ -424,7 +424,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-12T10:03:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -448,7 +448,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.94,
       "question_summary": "공사 대금 지급을 위해 1일 이체 한도를 올리는 방법을 문의함.",
       "action_summary": "한도 상향에 필요한 서류와 신청 절차를 안내함.",
@@ -517,7 +517,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-12T13:43:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -535,7 +535,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "건의",
+      "category": "SUGGESTION",
       "confidence": 0.86,
       "question_summary": "여러 건의 이체 결과를 한 번에 내려받는 기능을 요청함.",
       "action_summary": "현재는 건별로 받을 수 있음을 안내하고 개선 의견으로 접수함.",
@@ -605,7 +605,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "NEEDS_REVIEW",
     "status_changed_at": "2026-11-13T10:31:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -635,7 +635,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "불만",
+      "category": "COMPLAINT",
       "confidence": 0.55,
       "question_summary": "기업뱅킹 로그인 오류가 사흘째 반복되어 이체를 하지 못한다고 함.",
       "action_summary": "재설치를 안내했으나 해결되지 않아 전산 담당에 접수함.",
@@ -705,7 +705,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-13T16:15:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -735,7 +735,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.96,
       "question_summary": "법인카드 분실 신고와 재발급 절차를 문의함.",
       "action_summary": "사용 정지 처리 후 재발급을 신청함.",
@@ -805,7 +805,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-16T11:08:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -835,7 +835,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "불만",
+      "category": "COMPLAINT",
       "confidence": 0.92,
       "question_summary": "2주 전 잘못 보낸 송금의 반환이 늦어진다고 항의함.",
       "action_summary": "수취인과 연락이 되지 않아 지연 중임을 설명하고 진행 상황을 다시 알리기로 함.",
@@ -905,7 +905,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-16T14:43:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -923,7 +923,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "건의",
+      "category": "SUGGESTION",
       "confidence": 0.84,
       "question_summary": "이체 알림을 담당자 여러 명이 함께 받게 해 달라고 건의함.",
       "action_summary": "현재는 1명만 등록할 수 있음을 안내하고 개선 의견으로 접수함.",
@@ -993,7 +993,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-17T09:58:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1017,7 +1017,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "교육 내용",
+      "category": "EDUCATION",
       "confidence": 0.9,
       "question_summary": "급여이체 파일을 올리는 방법을 안내해 달라고 요청함.",
       "action_summary": "파일 양식과 업로드 순서를 안내하고 정상 등록을 확인함.",
@@ -1089,7 +1089,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-17T16:18:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1113,7 +1113,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "불만",
+      "category": "COMPLAINT",
       "confidence": 0.93,
       "question_summary": "법인카드가 같은 금액으로 두 번 결제되었다고 함.",
       "action_summary": "중복 승인을 확인하고 가맹점에 취소를 요청함.",
@@ -1185,7 +1185,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-18T10:23:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1203,7 +1203,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.95,
       "question_summary": "대출 상환일을 15일에서 25일로 바꿀 수 있는지 문의함.",
       "action_summary": "상환일을 25일로 변경함.",
@@ -1274,7 +1274,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-18T13:48:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1292,7 +1292,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "기타 문의",
+      "category": "ETC",
       "confidence": 0.89,
       "question_summary": "다른 부서로 잘못 연결되었다고 함.",
       "action_summary": "담당 부서로 연결함.",
@@ -1359,7 +1359,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "NEEDS_REVIEW",
     "status_changed_at": "2026-11-19T09:38:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1389,7 +1389,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "불만",
+      "category": "COMPLAINT",
       "confidence": 0.62,
       "question_summary": "대출 심사 결과를 일주일째 받지 못했다고 함.",
       "action_summary": "서류 추가 확인으로 지연 중임을 안내하고 당일 오후에 연락하기로 함.",
@@ -1460,7 +1460,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-19T14:28:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1484,7 +1484,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "교육 내용",
+      "category": "EDUCATION",
       "confidence": 0.87,
       "question_summary": "지연이체 서비스의 사용 방법을 안내해 달라고 요청함.",
       "action_summary": "서비스 내용과 취소 방법을 설명하고 신청을 도움.",
@@ -1554,7 +1554,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-20T09:18:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1572,7 +1572,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.94,
       "question_summary": "해외 송금 수수료를 문의함.",
       "action_summary": "건당 수수료와 추가 비용을 안내함.",
@@ -1641,7 +1641,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-20T13:23:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1659,7 +1659,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "기타 문의",
+      "category": "ETC",
       "confidence": 0.9,
       "question_summary": "지점 영업시간을 문의함.",
       "action_summary": "가까운 지점의 영업시간을 안내함.",
@@ -1726,7 +1726,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-23T10:43:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1744,7 +1744,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "질의",
+      "category": "INQUIRY",
       "confidence": 0.92,
       "question_summary": "잔액증명서 발급 방법을 문의함.",
       "action_summary": "기업뱅킹에서 발급하는 순서를 안내함.",
@@ -1813,7 +1813,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STORED",
     "status_changed_at": "2026-11-23T11:25:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1831,7 +1831,7 @@ export const MOCK_CALLS: CallDetail[] = [
       ]
     },
     "analysis": {
-      "category": "건의",
+      "category": "SUGGESTION",
       "confidence": 0.83,
       "question_summary": "증명서를 영문으로도 발급해 달라고 건의함.",
       "action_summary": "개선 의견으로 접수함.",
@@ -1900,7 +1900,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "FAILED",
     "status_changed_at": "2026-11-23T14:40:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": null,
     "analysis": null,
     "processing_log": [
@@ -1936,7 +1936,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "FAILED",
     "status_changed_at": "2026-11-23T16:31:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -1993,7 +1993,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "QUEUED",
     "status_changed_at": "2026-11-24T08:45:00+09:00",
     "retry_count": 0,
-    "stale": true,
+    "is_stale": true,
     "transcript": null,
     "analysis": null,
     "processing_log": [
@@ -2023,7 +2023,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "STT_DONE",
     "status_changed_at": "2026-11-24T09:52:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": {
       "segments": [
         {
@@ -2074,7 +2074,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "REGISTERED",
     "status_changed_at": "2026-11-24T09:55:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": null,
     "analysis": null,
     "processing_log": [
@@ -2098,7 +2098,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "QUEUED",
     "status_changed_at": "2026-11-24T09:45:00+09:00",
     "retry_count": 0,
-    "stale": false,
+    "is_stale": false,
     "transcript": null,
     "analysis": null,
     "processing_log": [
@@ -2128,7 +2128,7 @@ export const MOCK_CALLS: CallDetail[] = [
     "status": "RETRY_REQUESTED",
     "status_changed_at": "2026-11-24T09:10:00+09:00",
     "retry_count": 1,
-    "stale": true,
+    "is_stale": true,
     "transcript": null,
     "analysis": null,
     "processing_log": [

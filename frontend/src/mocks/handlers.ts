@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw'
-import { CATEGORIES, type CallDetail, type CallListItem, type CallPatch } from '../api/types'
+import { CATEGORIES, PAGE_MAX, PAGE_SIZE_MAX, type CallDetail, type CallListItem, type CallPatch, type RetryResult } from '../api/types'
 import { canRetry } from '../lib/status'
 import { MOCK_CALLS } from './data'
 
@@ -13,6 +13,7 @@ export function resetDb() {
 
 const error = (status: number, code: string, message: string) => HttpResponse.json({ code, message, detail: null }, { status })
 const notFound = () => error(404, 'NOT_FOUND', '대상을 찾을 수 없습니다.')
+const invalidRequest = () => error(422, 'VALIDATION_ERROR', '요청 형식이 올바르지 않습니다.')
 const invalidState = () => error(409, 'INVALID_STATE_TRANSITION', '현재 상태에서 허용되지 않는 요청입니다.')
 const find = (id: unknown) => db.find((c) => c.id === Number(id))
 const now = () => new Date().toISOString()
@@ -84,7 +85,13 @@ export const handlers = [
     const sp = new URL(request.url).searchParams
     const q = sp.get('q')
     const is = (key: string, value: string | null | undefined) => !sp.get(key) || sp.get(key) === value
-    const dir = sp.get('sort') === 'call_datetime:asc' ? 1 : -1
+    const statuses = sp.getAll('status')
+    const sort = sp.get('sort') ?? '-created_at'
+    const dir = sort.startsWith('-') ? -1 : 1
+    const field = sort.replace('-', '')
+    if (!['call_datetime', 'created_at', 'status_changed_at'].includes(field)) return invalidRequest()
+    const key = (c: CallDetail) =>
+      field === 'call_datetime' ? c.call_datetime : field === 'status_changed_at' ? c.status_changed_at : c.processing_log[0].created_at
     const rows = db
       .filter(
         (c) =>
@@ -92,8 +99,8 @@ export const handlers = [
           is('category', c.analysis?.category) &&
           is('agent', c.agent_name) &&
           is('client', c.client_company) &&
-          is('status', c.status) &&
-          is('stale', String(c.stale)) &&
+          (statuses.length === 0 || statuses.includes(c.status)) &&
+          is('stale', String(c.is_stale)) &&
           is('metadata_incomplete', String(c.metadata_incomplete)) &&
           (!q ||
             [c.analysis?.question_summary, c.analysis?.action_summary, ...(c.transcript?.segments.map((s) => s.text) ?? [])]
@@ -101,11 +108,13 @@ export const handlers = [
               .includes(q)),
       )
       .sort((a, b) => {
-        if (!a.call_datetime || !b.call_datetime) return Number(!a.call_datetime) - Number(!b.call_datetime)
-        return dir * a.call_datetime.localeCompare(b.call_datetime)
+        const [x, y] = [key(a), key(b)]
+        if (!x || !y) return Number(!x) - Number(!y)
+        return dir * (Date.parse(x) - Date.parse(y) || a.id - b.id)
       })
     const page = positive(sp.get('page'), 1)
     const size = positive(sp.get('size'), 20)
+    if (page > PAGE_MAX || size > PAGE_SIZE_MAX) return invalidRequest()
     return HttpResponse.json({ items: rows.slice((page - 1) * size, page * size).map(toItem), page, size, total: rows.length })
   }),
 
@@ -150,13 +159,14 @@ export const handlers = [
     await delay(WAIT)
     const c = find(params.id)
     if (!c) return notFound()
-    if (!canRetry(c.status, c.stale)) return invalidState()
+    if (!canRetry(c.status, c.is_stale)) return invalidState()
     c.status = 'RETRY_REQUESTED'
     c.status_changed_at = now()
-    c.stale = false
+    c.is_stale = false
     c.retry_count += 1
     c.processing_log.push({ step: 'RETRY', status: 'RETRY', message: null, created_at: now() })
-    return new HttpResponse(null, { status: 202 })
+    const result: RetryResult = { call_id: c.id, status: c.status, retry_count: c.retry_count }
+    return HttpResponse.json(result, { status: 202 })
   }),
 
   http.get(`*${BASE}/calls/:id/audio`, ({ params }) =>
@@ -175,7 +185,7 @@ export const handlers = [
       needs_review: n((c) => c.status === 'NEEDS_REVIEW'),
       metadata_incomplete: n((c) => c.metadata_incomplete),
       failed: n((c) => c.status === 'FAILED'),
-      stale: n((c) => c.stale),
+      stale: n((c) => c.is_stale),
     })
   }),
 

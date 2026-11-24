@@ -85,14 +85,16 @@ describe('처리 상태', () => {
     expect(await screen.findByRole('link', { name: '20261124_084000_이상담_B물류.mp3' })).toBeInTheDocument()
   })
 
-  it('한 번에 다 못 보여주면 남은 건수를 알린다', async () => {
+  it('상태 여러 개를 한 번에 조회하고, 다 못 보여주면 남은 건수를 알린다', async () => {
+    let sent = ''
     server.use(
       http.get('*/api/calls', ({ request }) => {
-        const failed = new URL(request.url).searchParams.get('status') === 'FAILED'
-        return HttpResponse.json({ items: [], page: 1, size: 100, total: failed ? 130 : 0 })
+        sent = new URL(request.url).search
+        return HttpResponse.json({ items: [], page: 1, size: 100, total: 130 })
       }),
     )
     renderWithProviders(<App />, { route: '/uploads' })
     expect(await screen.findByText(/130건이 더 있어요/)).toBeInTheDocument()
+    expect(sent).toBe('?status=REGISTERED&status=QUEUED&status=STT_DONE&status=RETRY_REQUESTED&status=FAILED&page=1&size=100&sort=-status_changed_at')
   })
 })

@@ -23,6 +23,9 @@ describe('toQueryString', () => {
       '?q=%EC%B9%B4%EB%93%9C+100%25%26%ED%95%B4%EC%A7%80&page=1&inc=true',
     )
   })
+  it('여러 값은 같은 이름을 반복한다', () => {
+    expect(toQueryString({ status: ['FAILED', 'QUEUED'], size: 5 })).toBe('?status=FAILED&status=QUEUED&size=5')
+  })
   it('값이 없으면 빈 문자열', () => {
     expect(toQueryString({})).toBe('')
   })

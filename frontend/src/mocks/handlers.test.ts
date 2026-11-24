@@ -7,11 +7,11 @@ const list = (p: Partial<CallListParams> = {}) => fetchCalls({ page: 1, size: 10
 
 describe('mock: 목록', () => {
   it('최신순·오래된순 모두 일시 없는 건은 맨 뒤', async () => {
-    const desc = (await list()).items.map((c) => c.call_datetime)
+    const desc = (await list({ sort: '-call_datetime' })).items.map((c) => c.call_datetime)
     expect(desc.at(-1)).toBeNull()
     const dated = desc.slice(0, -1) as string[]
     expect([...dated].sort().reverse()).toEqual(dated)
-    const asc = (await list({ sort: 'call_datetime:asc' })).items.map((c) => c.call_datetime)
+    const asc = (await list({ sort: 'call_datetime' })).items.map((c) => c.call_datetime)
     expect(asc.at(-1)).toBeNull()
     expect(asc[0]).toBe('2026-11-10T09:12:00+09:00')
   })
@@ -21,11 +21,11 @@ describe('mock: 목록', () => {
   })
 
   it.each<[string, Partial<CallListParams>, (c: CallListItem) => boolean]>([
-    ['유형', { category: '교육 내용' }, (c) => c.category === '교육 내용'],
+    ['유형', { category: 'EDUCATION' }, (c) => c.category === 'EDUCATION'],
     ['담당자', { agent: '김상담' }, (c) => c.agent_name === '김상담'],
     ['고객사', { client: 'B물류' }, (c) => c.client_company === 'B물류'],
-    ['상태', { status: 'FAILED' }, (c) => c.status === 'FAILED'],
-    ['정체', { stale: true }, (c) => c.stale],
+    ['상태', { status: ['FAILED', 'QUEUED'] }, (c) => ['FAILED', 'QUEUED'].includes(c.status)],
+    ['정체', { stale: true }, (c) => c.is_stale],
     ['메타데이터', { metadata_incomplete: true }, (c) => c.metadata_incomplete],
     ['기간', { from: '2026-11-16', to: '2026-11-17' }, (c) => /^2026-11-1[67]/.test(c.call_datetime ?? '')],
   ])('%s 필터', async (_, params, ok) => {
@@ -56,7 +56,7 @@ describe('mock: 상세와 변경', () => {
     await expect(updateCall(7, { review_completed: true })).rejects.toMatchObject({ status: 409, code: 'INVALID_STATE_TRANSITION' })
   })
   it('재처리는 상태와 횟수를 바꾸고, 처리 중이면 409', async () => {
-    await retryCall(21)
+    expect(await retryCall(21)).toEqual({ call_id: 21, status: 'RETRY_REQUESTED', retry_count: 1 })
     expect(await fetchCall(21)).toMatchObject({ status: 'RETRY_REQUESTED', retry_count: 1 })
     await expect(retryCall(24)).rejects.toMatchObject({ status: 409 })
   })
@@ -74,7 +74,7 @@ describe('mock: 통계', () => {
   it('요약', async () => {
     expect(await fetchSummary({ from: '2026-11-10', to: '2026-11-24' })).toEqual({
       total: 26,
-      by_category: { 질의: 7, 불만: 5, 건의: 2, '교육 내용': 3, '기타 문의': 2 },
+      by_category: { INQUIRY: 7, COMPLAINT: 5, SUGGESTION: 2, EDUCATION: 3, ETC: 2 },
       action_open: 5,
       needs_review: 2,
       metadata_incomplete: 1,

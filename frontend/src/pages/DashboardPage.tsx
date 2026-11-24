@@ -9,6 +9,7 @@ import { ErrorState } from '../components/ErrorState'
 import { PeriodInput } from '../components/PeriodInput'
 import { TrendChart } from '../components/TrendChart'
 import { saveBlob } from '../lib/saveBlob'
+import { categoryLabel } from '../lib/status'
 import { useToast } from '../lib/toast'
 import { dateParam, useUrlParams } from '../lib/useUrlParams'
 
@@ -26,6 +27,12 @@ const UNITS: { value: Granularity; label: string }[] = [
   { value: 'week', label: '주' },
   { value: 'month', label: '월' },
 ]
+
+/** 5대 유형은 0건이어도 보여주고, 나중에 추가된 유형은 뒤에 붙인다 */
+function categoryRows(s: StatsSummary) {
+  const codes = [...new Set<string>([...CATEGORIES, ...Object.keys(s.by_category)])]
+  return codes.map((c) => ({ name: categoryLabel(c), count: s.by_category[c] ?? 0 }))
+}
 
 function Panel({ title, side, children }: { title: string; side?: ReactNode; children: ReactNode }) {
   return (
@@ -135,7 +142,7 @@ export function DashboardPage() {
           </Loaded>
         </Panel>
         <Panel title="유형별 건수">
-          <Loaded query={summary}>{(s) => <BarList rows={CATEGORIES.map((name) => ({ name, count: s.by_category[name] ?? 0 }))} />}</Loaded>
+          <Loaded query={summary}>{(s) => <BarList rows={categoryRows(s)} />}</Loaded>
         </Panel>
       </div>
 

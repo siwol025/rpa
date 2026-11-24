@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MONITOR_SIZE, useMonitor, useRetryCall } from '../api/calls'
+import { useMonitor, useRetryCall } from '../api/calls'
 import { uploadFile } from '../api/uploads'
-import type { CallListItem } from '../api/types'
+import { PAGE_SIZE_MAX, type CallListItem } from '../api/types'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
 import { Badge, StatusBadges } from '../components/StatusBadge'
@@ -101,7 +101,7 @@ function Uploader() {
 function RetryCell({ call }: { call: CallListItem }) {
   const retry = useRetryCall()
   const toast = useToast()
-  if (!canRetry(call.status, call.stale)) return <span className="text-muted">{call.stale ? '로봇 점검 필요' : '-'}</span>
+  if (!canRetry(call.status, call.is_stale)) return <span className="text-muted">{call.is_stale ? '로봇 점검 필요' : '-'}</span>
   return (
     <button
       type="button"
@@ -115,22 +115,20 @@ function RetryCell({ call }: { call: CallListItem }) {
 }
 
 function Monitor() {
-  const queries = useMonitor()
-  const failed = queries.find((q) => q.error)
-  const loaded = queries.every((q) => q.data)
-  const rows = queries.flatMap((q) => q.data?.items ?? []).sort((a, b) => Date.parse(b.status_changed_at) - Date.parse(a.status_changed_at))
-  const hidden = queries.reduce((n, q) => n + (q.data ? Math.max(0, q.data.total - q.data.items.length) : 0), 0)
-  const stale = rows.filter((c) => c.stale).length
+  const { data, error, isFetching, refetch } = useMonitor()
+  const rows = data?.items ?? []
+  const hidden = data ? Math.max(0, data.total - rows.length) : 0
+  const stale = rows.filter((c) => c.is_stale).length
 
   return (
     <section aria-label="처리 상태" className="mt-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
         <h2 className="m-0 text-[15px] font-semibold">처리 상태</h2>
-        {loaded && !failed && <span className="text-xs text-muted">자동으로 갱신돼요</span>}
+        {data && !error && <span className="text-xs text-muted">자동으로 갱신돼요</span>}
       </div>
-      {failed?.error && (
+      {error && (
         <div className="mb-3">
-          <ErrorState error={failed.error} onRetry={() => queries.forEach((q) => q.error && q.refetch())} retrying={failed.isFetching} />
+          <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} />
         </div>
       )}
       {stale > 0 && (
@@ -138,7 +136,7 @@ function Monitor() {
           <span>오래 처리가 멈춘 상담이 {stale}건 있어요</span>
         </div>
       )}
-      {loaded ? (
+      {data ? (
         <div className="tablewrap">
           <table className="min-w-[700px]">
             <thead>
@@ -171,11 +169,11 @@ function Monitor() {
           {rows.length === 0 && hidden === 0 && <EmptyState title="처리 중인 상담이 없어요" />}
         </div>
       ) : (
-        !failed && <div aria-label="불러오는 중" role="status" className="skeleton h-40" />
+        !error && <div aria-label="불러오는 중" role="status" className="skeleton h-40" />
       )}
       {hidden > 0 && (
         <p className="mt-2 mb-0 text-[13px] text-fg-2">
-          상태마다 {MONITOR_SIZE}건까지 보여줘요. {hidden}건이 더 있어요. <Link to="/calls" className="underline">상담 목록에서 보기</Link>
+          {PAGE_SIZE_MAX}건까지 보여줘요. {hidden}건이 더 있어요. <Link to="/calls" className="underline">상담 목록에서 보기</Link>
         </p>
       )}
     </section>

@@ -33,15 +33,23 @@ npm run build      # 배포용 빌드 (dist/). 예시 데이터는 들어가지 
 | `src/components/` | 레이아웃, 배지, 차트, 에러·빈 상태, 알림 |
 | `src/pages/` | 대시보드, 상담 목록, 상담 상세, 업로드·처리 상태, 404 |
 
+## 백엔드와 맞춘 것
+
+백엔드 `backend/docs/api/convention.md` v0.1 (API 규약)을 따른다. 2026-11-24 기준 `feat/api-convention` 브랜치에 있고 `main`에 합쳐지기 전이다.
+
+- 에러는 `{code, message, detail}`. 화면에는 `message`, 분기는 `code`로 한다
+- 유형은 코드(`INQUIRY` 등)로 주고받고 한글 이름은 `src/lib/status.ts`에서 붙인다. 나중에 추가된 값은 코드를 그대로 보여준다
+- 정렬은 `sort=-call_datetime` 형식. 서버 기본값이 등록순이라 목록은 정렬을 항상 보낸다
+- 여러 값은 같은 이름을 반복한다 (`?status=FAILED&status=QUEUED`)
+- `page` 최대 10000, `size` 최대 100
+- 정체 여부는 `is_stale`, 정체 필터는 `stale`
+
 ## 백엔드 확인이 필요한 것
 
-문서에 세부 형태가 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위와 `src/api/uploads.ts`에 있다.
+규약에 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위와 `src/api/uploads.ts`에 있다.
 
-1. 목록 항목과 상세 응답의 구조, 응답에 정체 여부(`stale`)가 들어가는지
-2. 검토 완료를 알리는 필드 (`PATCH`의 `review_completed`)
-3. 통계 응답 3개의 구조
-4. `sort` 값의 형식
-5. 유형 값이 한글인지 코드인지
-6. 업로드 폼의 필드 이름 (`files`)
-
-에러 형식 `{code, message, detail}`과 `X-Request-Id`는 백엔드 코드(`core/errors.py`)와 맞춰져 있다.
+1. 목록 항목의 필드, 상세 응답의 구조와 로그의 이름
+2. 상세 응답에도 `is_stale`이 있는지
+3. 검토 완료를 알리는 필드 (`PATCH`의 `review_completed`)
+4. 통계 응답의 필드
+5. 업로드 폼의 필드 이름 (`files`)

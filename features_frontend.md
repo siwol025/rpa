@@ -2,11 +2,13 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.2 (팀 저장소 문서에 맞춤) |
+| 문서 버전 | v0.3 (API 규약에 맞춤) |
 | 작성일 | 2026-11-24 |
-| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, 화면 시안 `design/dashboard-mockup-v0.2.html` |
+| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1(`feat/api-convention` 브랜치, `main` 합치기 전), 화면 시안 `design/dashboard-mockup-v0.2.html` |
 
-> **v0.1에서 바뀐 점**: 챗봇 제외(PRD §3.2), 처리 상태 7개를 묶지 않고 각각 표시, 통계를 문서에 있는 항목으로 한정, 엑셀은 기간만 지정, 확인이 끝난 요청 정리.
+> **v0.3에서 바뀐 점**: API 규약 v0.1 반영 — 유형 코드, `is_stale`, 정렬 형식, 상태 여러 개 조회, `code`로 분기.
+>
+> **v0.2에서 바뀐 점**: 챗봇 제외(PRD §3.2), 처리 상태 7개를 묶지 않고 각각 표시, 통계를 문서에 있는 항목으로 한정, 엑셀은 기간만 지정, 확인이 끝난 요청 정리.
 
 상태: ✅ 예시 데이터로 구현·테스트 완료 (백엔드 연결 전) / ⬜ 아직
 
@@ -21,7 +23,7 @@
 | F-C01 | 프로젝트 셋업 (React, Vite, TypeScript, Tailwind, TanStack Query, MSW, Vitest) | P0 | 1 | ✅ |
 | F-C02 | 메뉴와 주소: `/` 대시보드, `/calls` 목록, `/calls/:id` 상세, `/uploads` 업로드·처리 상태, 404 | P0 | 1 | ✅ |
 | F-C03 | 공통 부품: 배지, 차트, 로딩·빈 상태·오류 표시, 알림, 라이트·다크 | P0 | 1 | ✅ |
-| F-C04 | API 호출: 에러 `{code, message, detail}`의 `message`를 그대로 표시, `X-Request-Id` 기록, 시간 제한, 4xx는 재시도 안 함 | P0 | 1 | ✅ |
+| F-C04 | API 호출: 에러 `{code, message, detail}`의 `message`를 그대로 표시하고 `code`로 분기, `X-Request-Id` 기록, 시간 제한, 4xx는 재시도 안 함 | P0 | 1 | ✅ |
 | F-C05 | 예시 데이터 모드 (`npm run dev`), 실제 백엔드 모드 (`npm run dev:api`) | P0 | 1 | ✅ |
 | F-C06 | OpenAPI에서 타입 생성 | P1 | 1 | ⬜ 웹 API 구현 후 |
 
@@ -89,7 +91,9 @@
 | `FAILED` | 실패 | 가능 |
 | `RETRY_REQUESTED` | 재처리 요청됨 | 불가 (정체면 로봇 점검 안내) |
 
-"정체"와 "메타데이터 확인 필요"는 상태와 별개로 함께 표시한다. 조치 상태는 `OPEN` 미조치, `DONE` 조치 완료로 표시한다.
+유형은 코드를 한글로 표시한다: `INQUIRY` 질의, `COMPLAINT` 불만, `SUGGESTION` 건의, `EDUCATION` 교육 내용, `ETC` 기타 문의. 모르는 값은 코드를 그대로 보여준다.
+
+"정체"(`is_stale`)와 "메타데이터 확인 필요"는 상태와 별개로 함께 표시한다. 조치 상태는 `OPEN` 미조치, `DONE` 조치 완료로 표시한다.
 
 ---
 
@@ -98,11 +102,14 @@
 ### 끝난 요청
 | ID | 내용 | 결과 |
 |---|---|---|
-| FE-02 | 에러·페이지 형식 | 에러 `{code, message, detail}`(구현됨), `page`·`size`·`total` |
+| FE-02 | 에러·페이지 형식 | 에러 `{code, message, detail}`(구현됨), `page`(최대 10000)·`size`(최대 100)·`total` |
 | FE-03 | CORS | `http://localhost:5173` 기본 허용 |
 | FE-07 | 설정값 | 업로드 100MB(요청 전체), `wav`·`mp3`, 정체 30분 [가정] |
 | FE-08 | 조치 상태 값 | `OPEN`, `DONE` |
 | FE-10 | 챗봇 | 개발 제외 (PRD §3.2) |
+| FE-12 | 유형 값 | 영문 코드. 한글 표시는 프론트 (규약 §5.3) |
+| FE-16 | 통화 일시가 없는 상담 | 기간 필터에 걸리지 않음. `metadata_incomplete` 필터로 조회 (규약 §4.3) |
+| FE-17 | 상태 여러 개 조회 | 같은 이름을 반복 (규약 §4.3) |
 
 ### 남은 요청
 | ID | 내용 | 대상 | 막힌 기능 |
@@ -113,10 +120,7 @@
 | FE-06 | 분석 결과와 `entities` 확정 | GenAI·STT | F-V03 |
 | FE-09 | 담당자·고객사 목록을 받을 방법 (지금은 통계 분류 응답의 이름 사용) | 백엔드 B | F-L02 |
 | FE-11 | 프론트 배포 방식 | 백엔드 B | F-O01 |
-| FE-12 | 유형 값이 한글인지 코드인지 | 백엔드 B, GenAI·STT | 전체 |
-| FE-13 | 응답에 정체 여부(`stale`)를 넣을 수 있는지 | 백엔드 B | 배지, 재처리 조건 |
+| FE-13 | 상세 응답에도 `is_stale`이 있는지 (목록은 있음, 규약 §5.3) | 백엔드 B | 상세의 배지, 재처리 조건 |
 | FE-14 | `PATCH`에서 검토 완료를 알리는 방법 | 백엔드 B | F-V05 |
-| FE-15 | 업로드 폼 필드 이름, `sort` 값 형식 | 백엔드 B | F-U01, F-L03 |
-| FE-16 | 통화 일시가 없는 상담을 기간 통계에 어떻게 셀지 | 백엔드 B | F-D02 |
-| FE-17 | 목록 조회에서 상태 여러 개를 한 번에 받을 수 있는지 (지금은 5번 호출) | 백엔드 B | F-U02 |
+| FE-15 | 업로드 폼 필드 이름 | 백엔드 B | F-U01 |
 | FE-18 | 수정 이력(`edit_history`)을 화면에서 볼지, 본다면 API | 팀, 백엔드 B | — |

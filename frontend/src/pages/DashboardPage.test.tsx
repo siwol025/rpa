@@ -60,6 +60,16 @@ describe('대시보드', () => {
     expect(within(panel('기간별 추이')).getByText('이 기간에는 상담이 없어요')).toBeInTheDocument()
   })
 
+  it('나중에 추가된 유형은 뒤에 붙인다', async () => {
+    server.use(
+      http.get('*/api/stats/summary', () =>
+        HttpResponse.json({ total: 3, by_category: { COMPLAINT: 2, NEW_TYPE: 1 }, action_open: 0, needs_review: 0, metadata_incomplete: 0, failed: 0, stale: 0 }),
+      ),
+    )
+    await open()
+    expect(within(panel('유형별 건수')).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['질의0건', '불만2건', '건의0건', '교육 내용0건', '기타 문의0건', 'NEW_TYPE1건'])
+  })
+
   it('한 부분이 실패해도 나머지는 보인다', async () => {
     server.use(http.get('*/api/stats/trend', () => HttpResponse.json({ code: 'INTERNAL_ERROR', message: '서버 내부 오류가 발생했습니다.', detail: null }, { status: 500 })))
     await open()
