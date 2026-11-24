@@ -26,7 +26,7 @@ class Transcript(Base):
     call_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("call_record.id"), nullable=False, unique=True
     )
-    # [{speaker: "AGENT|CUSTOMER", start, end, text}] (PII 마스킹 후)
+    # [{speaker: "AGENT|CUSTOMER", start_sec, end_sec, text}] (PII 마스킹 후, 초 단위)
     segments: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     corrected_text: Mapped[str | None] = mapped_column(Text)
     stt_engine: Mapped[str | None] = mapped_column(String(50))
