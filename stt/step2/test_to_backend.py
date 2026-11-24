@@ -65,15 +65,18 @@ for v in (-1, "3", True):
     except tb.NotLoadable:
         check("3. 잘못된 duration 거부: %r" % (v,), True)
 
-# 4. 전사 구간 키 (설정 한 곳)
+# 4. 전사 구간 키: start_sec / end_sec 로 확정
 seg = tr["segments"][0]
-check("4. 기본: start_sec/end_sec 유지", set(seg) == {"speaker", "start_sec", "end_sec", "text"} and seg["start_sec"] == 0.4 and seg["end_sec"] == 3.1)
-alt = {"start_sec": "start", "end_sec": "end"}
-seg2 = tb.to_backend(ok, key_map=alt)["transcript"]["segments"][0]
-check("4. 매핑만 바꾸면 start/end로 전환", set(seg2) == {"speaker", "start", "end", "text"} and seg2["start"] == 0.4 and seg2["end"] == 3.1)
-tb.SEGMENT_KEY_MAP = alt
-check("4. 모듈 설정(SEGMENT_KEY_MAP)을 바꿔도 동일", "start" in tb.to_backend(ok)["transcript"]["segments"][1])
-tb.SEGMENT_KEY_MAP = {"start_sec": "start_sec", "end_sec": "end_sec"}
+check("4. 키는 speaker/start_sec/end_sec/text 그대로", set(seg) == {"speaker", "start_sec", "end_sec", "text"} and seg["start_sec"] == 0.4 and seg["end_sec"] == 3.1)
+check("4. start/end 키는 쓰지 않음", all("start" not in s and "end" not in s for s in tr["segments"]))
+d = copy.deepcopy(ok); d["transcript"]["segments"][0]["extra"] = "x"
+check("4. 정해진 4개 키만 보냄(여분 키 제거)", set(tb.to_backend(d)["transcript"]["segments"][0]) == {"speaker", "start_sec", "end_sec", "text"})
+d = copy.deepcopy(ok); d["transcript"]["segments"][0].pop("end_sec")
+try:
+    tb.to_backend(d)
+    check("4. end_sec가 없는 구간 거부", False)
+except tb.NotLoadable:
+    check("4. end_sec가 없는 구간 거부", True)
 check("4. 값(시간·화자·텍스트)은 변하지 않음", [s["text"] for s in tr["segments"]] == [s["text"] for s in ok["transcript"]["segments"]]
       and [s["speaker"] for s in tr["segments"]] == ["AGENT", "CUSTOMER"])
 check("4. 원본 문서는 변경되지 않음", "start_sec" in ok["transcript"]["segments"][0] and "start" not in ok["transcript"]["segments"][0])

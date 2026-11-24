@@ -82,7 +82,7 @@ python test_step2.py                                           # 32개 테스트
 - **백엔드 적재 변환:** `call_schema.json`(v1.0)은 그대로 두고, 백엔드와 다른 부분은 적재할 때 `step2	o_backend.py`에서 바꿉니다. 테스트: `python test_to_backend.py`.
   - 유형은 `type_label`(한글)을 `category`로, `customer_question`/`agent_action`/`customer_company`는 `question_summary`/`action_summary`/`client_company`로 보냅니다.
   - `duration_sec`은 정수 초로 반올림하고, `entities`는 `[{type, value}]` 배열 그대로, `needs_review`는 STT 판정(`status == NEEDS_REVIEW`)을 그대로 따릅니다.
-  - 전사 구간 키(`start_sec`/`end_sec` vs `start`/`end`)는 백엔드 협의 전이라 `SEGMENT_KEY_MAP` 한 줄로 바꿉니다.
+  - 전사 구간 키는 `start_sec`/`end_sec`로 확정(백엔드 협의 완료)이라 이름을 바꾸지 않고 그대로 보냅니다.
 
 ## 8. 화자 매핑·마스킹 규칙
 

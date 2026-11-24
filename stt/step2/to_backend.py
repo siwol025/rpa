@@ -10,7 +10,7 @@ STT 결과(schema/call_schema.json, v1.0) → 백엔드 적재용 값 변환 (�
                  (TRAINING→EDUCATION, OTHER→ETC 는 백엔드가 API 응답에서 변환 — 우리는 코드를 보내지 않는다)
   2. 필드 이름 : customer_question→question_summary, agent_action→action_summary, customer_company→client_company
   3. 통화 시간 : 소수 초 → 정수 초(반올림, .5는 올림). call_record.duration_sec이 Integer
-  4. 전사 구간 : start_sec/end_sec 키를 그대로 유지(기본). 이름은 SEGMENT_KEY_MAP 한 곳에서만 정한다 — 협의 결과에 따라 바꾼다
+  4. 전사 구간 : 키는 start_sec / end_sec 로 확정(백엔드 협의 완료). STT 값을 그대로 보낸다 — 이름을 바꾸지 않는다
   5. 검토 필요 : STT 판정을 그대로 따른다. status == NEEDS_REVIEW (확신도 0.6 미만 또는 화자 구분 불확실) → needs_review=True.
                  여기서 다시 계산하지 않는다(백엔드 문서의 0.7 기준을 적용하지 않음)
   6. entities  : [{type, value}] 배열 그대로 (백엔드 PR #6에서 같은 배열로 맞춤)
@@ -30,11 +30,7 @@ import json
 import math
 import sys
 
-# ======================================================================= 협의로 바뀔 수 있는 설정
-# 4. 전사 구간 키 이름: {STT 키: 전송 키}. 프론트·백엔드 모델 주석은 start/end 이므로 확정되면 아래 줄을 바꾼다.
-#    예) SEGMENT_KEY_MAP = {"start_sec": "start", "end_sec": "end"}
-SEGMENT_KEY_MAP = {"start_sec": "start_sec", "end_sec": "end_sec"}
-
+# ======================================================================= 설정
 # 2. 필드 이름 매핑 {STT 키: 백엔드 키}
 FIELD_MAP = {
     "customer_question": "question_summary",
@@ -77,18 +73,13 @@ def category_of(doc):
     return label
 
 
-def convert_segments(segments, key_map=None):
-    """4. 전사 구간 키 이름 변환. 키 이름은 key_map(기본 SEGMENT_KEY_MAP)만 따른다."""
-    km = SEGMENT_KEY_MAP if key_map is None else key_map
-    out = []
-    for s in segments or []:
-        out.append({
-            "speaker": s["speaker"],
-            km["start_sec"]: s["start_sec"],
-            km["end_sec"]: s["end_sec"],
-            "text": s["text"],
-        })
-    return out
+def convert_segments(segments):
+    """4. 전사 구간. 키는 speaker / start_sec / end_sec / text 로 확정 — 이름 변환 없이 필요한 키만 복사한다."""
+    try:
+        return [{"speaker": s["speaker"], "start_sec": s["start_sec"], "end_sec": s["end_sec"], "text": s["text"]}
+                for s in segments or []]
+    except KeyError as e:
+        raise NotLoadable("전사 구간에 필수 키가 없음: %s (speaker/start_sec/end_sec/text 필요)" % e)
 
 
 def needs_review_of(doc):
@@ -107,12 +98,12 @@ def to_call_update(doc):
     }
 
 
-def to_transcript_payload(doc, key_map=None):
+def to_transcript_payload(doc):
     tr = doc.get("transcript") or {}
     if not tr.get("segments"):
         return None
     return {
-        "segments": convert_segments(tr["segments"], key_map),
+        "segments": convert_segments(tr["segments"]),
         "stt_engine": (doc.get("processing") or {}).get("stt_engine"),
     }
 
@@ -134,14 +125,14 @@ def to_analysis_payload(doc):
     }
 
 
-def to_backend(doc, key_map=None):
+def to_backend(doc):
     """call_schema.json 형식의 STT 결과 한 건 → {call, transcript, analysis, failure}.
     FAILED 건: analysis=None, failure={stage, reason}(로그 API용). 적재 불가 값이면 NotLoadable."""
     if doc.get("schema_version") != "1.0":
         raise NotLoadable("지원하지 않는 schema_version: %r (이 변환은 1.0 기준)" % (doc.get("schema_version"),))
     return {
         "call": to_call_update(doc),
-        "transcript": to_transcript_payload(doc, key_map),
+        "transcript": to_transcript_payload(doc),
         "analysis": to_analysis_payload(doc),
         "failure": doc.get("error") if doc.get("status") == "FAILED" else None,
     }
