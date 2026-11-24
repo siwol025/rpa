@@ -56,6 +56,10 @@ uv run pytest -m "not integration"   # Docker 없이 실행 가능한 테스트�
 2. 없으면 testcontainers로 `postgres:16` 컨테이너 (Docker 필요)
 3. 둘 다 불가하면 skip
 
+수동 Drive 테스트(`drive` 마커)는 `TEST_DRIVE_FOLDER_ID`가 없으면 skip된다. E-01 이후 테스트용 공유 드라이브 폴더로 실행한다(운영 `inbox/` 금지, 올린 파일은 직접 정리).
+
+    GOOGLE_APPLICATION_CREDENTIALS=<키 경로> TEST_DRIVE_FOLDER_ID=<폴더 ID> uv run pytest -m drive
+
 ### OpenAPI 갱신
 
 요청·응답 스키마나 라우트를 바꾸면 다시 생성해 같은 커밋에 포함한다(최신이 아니면 `pytest`가 실패한다).

@@ -81,7 +81,7 @@ A안에서는 저장소가 두 종류로 나뉜다.
 | 컨테이너 | Docker + docker-compose (api, db) | 팀원 로컬 환경 통일 |
 | 리버스 프록시 | 사용하지 않음 (Uvicorn 직접 노출) | IP 제한은 VM 방화벽 + 앱 미들웨어, 업로드 용량 제한은 앱에서 처리 (`back_stack.md` §6.1) |
 | 실시간 상태 갱신 | 프론트 폴링(3~5초), 필요 시 SSE | WebSocket은 양방향이 필요 없어 과함 |
-| 클라우드 폴더 접근 | Google Drive API + 서비스 계정 (`google-api-python-client`) | 웹 업로드 → `inbox/` 업로드 전용. 서비스 계정은 개인 "내 드라이브" 저장 용량이 없으므로 **공유 드라이브** 사용 **[확인 필요]**. 업로드 시 `appProperties.source=web` 기록 |
+| 클라우드 폴더 접근 | Google Drive API + 서비스 계정 (`google-api-python-client`) | 웹 업로드 → `inbox/` 업로드 전용. 서비스 계정은 개인 "내 드라이브" 저장 용량이 없으므로 **공유 드라이브** 사용. 업로드 시 `properties.source=web` 기록 |
 | 백그라운드 작업 | FastAPI `BackgroundTasks` 수준으로 충분 | 무거운 처리는 UiPath 로봇이 담당하므로 Celery 불필요 |
 | 엑셀 생성 | openpyxl | 상세 §6 참조 |
 

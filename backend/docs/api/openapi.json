@@ -107,6 +107,60 @@
         "title": "AnalysisOut",
         "type": "object"
       },
+      "BreakdownItem": {
+        "properties": {
+          "by_category": {
+            "$ref": "#/components/schemas/CategoryCounts"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "by_category"
+        ],
+        "title": "BreakdownItem",
+        "type": "object"
+      },
+      "BreakdownResponse": {
+        "properties": {
+          "by": {
+            "enum": [
+              "agent",
+              "client"
+            ],
+            "title": "By",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "by",
+          "items"
+        ],
+        "title": "BreakdownResponse",
+        "type": "object"
+      },
       "CallDetail": {
         "properties": {
           "agent_name": {
@@ -389,6 +443,40 @@
         "title": "Category",
         "type": "string"
       },
+      "CategoryCounts": {
+        "description": "유형 코드별 건수. 5개 키가 항상 있다(0 포함). 분석 전인 건은 어느 키에도 없다.",
+        "properties": {
+          "COMPLAINT": {
+            "title": "Complaint",
+            "type": "integer"
+          },
+          "EDUCATION": {
+            "title": "Education",
+            "type": "integer"
+          },
+          "ETC": {
+            "title": "Etc",
+            "type": "integer"
+          },
+          "INQUIRY": {
+            "title": "Inquiry",
+            "type": "integer"
+          },
+          "SUGGESTION": {
+            "title": "Suggestion",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "INQUIRY",
+          "COMPLAINT",
+          "SUGGESTION",
+          "EDUCATION",
+          "ETC"
+        ],
+        "title": "CategoryCounts",
+        "type": "object"
+      },
       "EntityOut": {
         "properties": {
           "type": {
@@ -601,6 +689,51 @@
           "segments"
         ],
         "title": "TranscriptOut",
+        "type": "object"
+      },
+      "TrendPoint": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "period": {
+            "format": "date",
+            "title": "Period",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period",
+          "count"
+        ],
+        "title": "TrendPoint",
+        "type": "object"
+      },
+      "TrendResponse": {
+        "properties": {
+          "granularity": {
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Granularity",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "granularity",
+          "items"
+        ],
+        "title": "TrendResponse",
         "type": "object"
       },
       "ValidationErrorDetail": {
@@ -964,6 +1097,188 @@
         "summary": "Get Call",
         "tags": [
           "calls"
+        ]
+      }
+    },
+    "/api/stats/breakdown": {
+      "get": {
+        "operationId": "get_stats_breakdown",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "by",
+            "required": true,
+            "schema": {
+              "enum": [
+                "agent",
+                "client"
+              ],
+              "title": "By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BreakdownResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Get Stats Breakdown",
+        "tags": [
+          "stats"
+        ]
+      }
+    },
+    "/api/stats/trend": {
+      "get": {
+        "operationId": "get_stats_trend",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "granularity",
+            "required": false,
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "title": "Granularity",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Get Stats Trend",
+        "tags": [
+          "stats"
         ]
       }
     }

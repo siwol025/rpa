@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
-from app.api.web import calls
+from app.api.web import calls, stats
 from app.core.config import Settings, get_settings
 from app.core.db import create_session_factory
 from app.core.errors import ErrorCode, register_exception_handlers
@@ -18,6 +18,7 @@ from app.core.middleware import (
     RequestIdMiddleware,
     UnhandledErrorMiddleware,
 )
+from app.infra.inbox import create_inbox_writer
 from app.schemas.common import error_responses
 
 
@@ -42,7 +43,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     # 엔진 생성만으로는 DB에 연결하지 않는다 (OpenAPI 내보내기·단위 테스트는 DB 없이 동작).
     app.state.session_factory = create_session_factory(settings.database_url)
+    # 키 파일·Drive 접근은 첫 업로드·헬스 체크 때 확인한다 (Drive 문제로 시작이 막히지 않음).
+    app.state.inbox_writer = create_inbox_writer(settings)
     app.include_router(calls.router)
+    app.include_router(stats.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.
     # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → BodySizeLimit → 라우터
