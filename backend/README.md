@@ -8,6 +8,8 @@ FastAPI + PostgreSQL 16. 설계 문서는 [`docs/`](docs/) 참조.
 | 기술 스택 | `docs/tech-stack/back_stack.md` |
 | 리서치 | `docs/researchs/research.md` |
 | 기능 목록·분담 | `docs/features/features.md` |
+| API 규약 | `docs/api/convention.md` |
+| OpenAPI (팀 간 계약) | `docs/api/openapi.json` |
 
 ## 준비물
 
@@ -46,4 +48,12 @@ uv run ruff format --check .
 uv run mypy
 uv run pytest                     # 전체
 uv run pytest -m "not integration"   # Docker 없이 실행 가능한 테스트만
+```
+
+### OpenAPI 갱신
+
+요청·응답 스키마나 라우트를 바꾸면 다시 생성해 같은 커밋에 포함한다(최신이 아니면 `pytest`가 실패한다).
+
+```bash
+uv run python -m scripts.export_openapi
 ```

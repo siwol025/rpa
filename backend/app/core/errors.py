@@ -50,6 +50,11 @@ _STATUS_TO_CODE: dict[int, ErrorCode] = {
 }
 
 
+def error_status(code: ErrorCode) -> int:
+    """코드의 기본 HTTP 상태 (OpenAPI 문서화용)."""
+    return _ERROR_SPECS[code][0]
+
+
 class AppError(Exception):
     """서비스·라우터가 던지는 공통 예외. HTTP 객체에 의존하지 않는다."""
 

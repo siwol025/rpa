@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 
-_ENV_NAMES = ("MAX_UPLOAD_MB", "CORS_ORIGINS", "LOG_LEVEL")
+_ENV_NAMES = ("MAX_UPLOAD_MB", "CORS_ORIGINS", "LOG_LEVEL", "DOCS_ENABLED")
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +21,7 @@ def test_defaults_without_env() -> None:
     assert settings.max_upload_bytes == 104_857_600
     assert settings.cors_origins == ["http://localhost:5173"]
     assert settings.log_level == "INFO"
+    assert settings.docs_enabled is True
 
 
 def test_cors_origins_parsed_as_comma_list(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -48,6 +49,7 @@ def test_env_example_is_compatible() -> None:
     assert settings.max_upload_mb == 100
     assert settings.cors_origins == ["http://localhost:5173"]
     assert settings.log_level == "INFO"
+    assert settings.docs_enabled is True
 
 
 @pytest.mark.parametrize("value", ["0", "abc"])
@@ -69,3 +71,10 @@ def test_log_level_is_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LOG_LEVEL", "info")
 
     assert Settings(_env_file=None).log_level == "INFO"
+
+
+@pytest.mark.parametrize(("value", "expected"), [("false", False), ("0", False), ("true", True)])
+def test_docs_enabled_from_env(monkeypatch: pytest.MonkeyPatch, value: str, expected: bool) -> None:
+    monkeypatch.setenv("DOCS_ENABLED", value)
+
+    assert Settings(_env_file=None).docs_enabled is expected
