@@ -91,7 +91,7 @@ def test_keyword_searches_summaries_and_corrected_text(db_session: Session) -> N
     make_transcript(
         db_session,
         only_segments,
-        segments=[{"speaker": "CUSTOMER", "start": 0, "end": 1, "text": "환불"}],
+        segments=[{"speaker": "CUSTOMER", "start_sec": 0, "end_sec": 1, "text": "환불"}],
     )
     make_call(db_session)
 

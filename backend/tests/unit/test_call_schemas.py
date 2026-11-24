@@ -3,6 +3,9 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
 from app.schemas.call import CallDetail, CallListItem
 
 _BASE: dict[str, Any] = {
@@ -101,3 +104,35 @@ def test_detail_serializes_entities_as_list_of_type_value() -> None:
         {"type": "REF_NO", "value": "주문번호 [REF]"},
         {"type": "DATE", "value": "일주일 전"},
     ]
+
+
+def test_detail_serializes_segments_in_stt_format() -> None:
+    # STT 결과(stt/schema/call_schema.json)의 segments 형식 그대로 내보낸다.
+    segments = [
+        {"speaker": "AGENT", "start_sec": 0.4, "end_sec": 3.1, "text": "안녕하세요"},
+        {"speaker": "UNKNOWN", "start_sec": 3.6, "end_sec": 6.0, "text": "네"},
+    ]
+    detail = CallDetail.model_validate(
+        {
+            **_BASE,
+            "transcript": SimpleNamespace(segments=segments),
+            "analysis": None,
+            "processing_log": [],
+        }
+    )
+
+    assert detail.model_dump(mode="json")["transcript"]["segments"] == segments
+
+
+def test_detail_rejects_unknown_speaker() -> None:
+    with pytest.raises(ValidationError):
+        CallDetail.model_validate(
+            {
+                **_BASE,
+                "transcript": SimpleNamespace(
+                    segments=[{"speaker": "BOT", "start_sec": 0, "end_sec": 1, "text": "x"}]
+                ),
+                "analysis": None,
+                "processing_log": [],
+            }
+        )

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from fastapi import Query
 from pydantic import BaseModel, BeforeValidator, ConfigDict
@@ -159,11 +159,24 @@ class CallListItem(CallBase):
     action_status: ActionStatus | None
 
 
+class Speaker(StrEnum):
+    AGENT = "AGENT"
+    CUSTOMER = "CUSTOMER"
+    UNKNOWN = "UNKNOWN"
+
+
+class SegmentOut(BaseModel):
+    # STT 결과(stt/schema/call_schema.json)의 transcript.segments 항목.
+    speaker: Speaker
+    start_sec: float
+    end_sec: float
+    text: str
+
+
 class TranscriptOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    # 항목 구조({speaker, start, end, text})는 E-03 확정 전이라 엄격 모델로 두지 않는다.
-    segments: list[dict[str, Any]]
+    segments: list[SegmentOut]
 
 
 class EntityOut(BaseModel):
