@@ -1,0 +1,52 @@
+# 로컬 개발용: api(hot reload) + PostgreSQL 16 + Adminer
+# 실행: docker compose -f deploy/docker-compose.dev.yml up --build
+name: callcenter-dev
+
+services:
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - path: ../backend/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://callcenter:callcenter@db:5432/callcenter
+      AUDIO_STORAGE_ROOT: /data/audio
+      INBOX_BACKEND: local
+      INBOX_LOCAL_PATH: /data/inbox
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - ./dev-data/audio:/data/audio
+      - ./dev-data/inbox:/data/inbox   # LocalInboxWriter 대상 폴더
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: callcenter
+      POSTGRES_PASSWORD: callcenter
+      POSTGRES_DB: callcenter
+    ports:
+      - "5432:5432"   # 개발 환경에서만 노출
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U callcenter -d callcenter"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

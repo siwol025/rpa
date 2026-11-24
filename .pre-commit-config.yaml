@@ -1,0 +1,30 @@
+# 설치: cd backend && uv run pre-commit install --config ../.pre-commit-config.yaml
+# (또는 레포 루트에서 `uv run --directory backend pre-commit install`)
+# Ruff·mypy 는 backend/uv.lock 버전과 맞추기 위해 local hook(uv run)으로 실행한다.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --directory backend ruff check --fix .
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --directory backend ruff format .
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+      - id: mypy
+        name: mypy
+        entry: uv run --directory backend mypy
+        language: system
+        files: ^backend/app/.*\.py$
+        pass_filenames: false
+      - id: forbid-env-files
+        name: .env / 서비스 계정 키 커밋 금지
+        entry: 비밀 파일은 커밋할 수 없습니다 (.env, *.pem, 서비스 계정 키 JSON)
+        language: fail
+        files: (^|/)(\.env(\.[^/]*)?|.*\.pem|.*service-account.*\.json|.*-sa\.json)$
+        exclude: (^|/)\.env\.example$

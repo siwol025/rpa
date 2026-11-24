@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 비밀 정보
+.env
+.env.*
+!.env.example
+*.pem
+*service-account*.json
+*-sa.json
+secrets/
+
+# 로컬 데이터
+backend/data/
+deploy/dev-data/
+
+# Office 임시 파일
+~$*
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude 개인 설정
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Word 문서
+*.docx

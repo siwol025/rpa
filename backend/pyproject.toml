@@ -1,0 +1,82 @@
+[project]
+name = "callcenter-backend"
+version = "0.1.0"
+description = "콜센터 AI RPA 비서 — 백엔드 API (FastAPI + PostgreSQL)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "pydantic>=2",
+  "pydantic-settings",
+  "sqlalchemy>=2.0,<2.1",
+  "psycopg[binary]>=3",
+  "alembic",
+  "python-multipart",
+  "google-api-python-client",
+  "google-auth",
+  "openpyxl",
+  "filetype",
+  "structlog",
+]
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "httpx",
+  "testcontainers[postgres]",
+  "ruff",
+  "mypy",
+  "pre-commit",
+]
+
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------- Ruff
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["alembic/versions", "docs"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",  # pycodestyle
+  "F",       # pyflakes
+  "I",       # isort
+  "UP",      # pyupgrade
+  "B",       # bugbear
+  "SIM",     # simplify
+  "N",       # pep8-naming
+  "C4",      # comprehensions
+  "RUF",
+]
+ignore = [
+  "RUF001", "RUF002", "RUF003",  # 한글 주석·문자열의 유사 문자 경고
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["googleapiclient.*", "google.oauth2.*", "openpyxl.*", "filetype.*", "testcontainers.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "integration: 실제 PostgreSQL(testcontainers)이 필요한 테스트",
+]
