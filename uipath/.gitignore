@@ -1,0 +1,11 @@
+# UiPath 실행 중 생기는 임시·결과 파일
+.local/
+.objects/
+.settings/
+.tmh/
+.project/
+.codedworkflows/
+Publish/
+Runtime/out/
+Runtime/processing/
+Runtime/report/
