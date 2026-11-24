@@ -1,6 +1,6 @@
 ################################################################
 # prompt_v1_1  (v1 기반 초안)  - 통화 스크립트 → 분석 JSON
-# 변경점(v1 대비): ① 마스킹 토큰 목록 명시 ② 토큰 처리 규칙 추가(keywords/entities/요약에 토큰 노출 방지)
+# 변경점(v1 대비): ① 마스킹 토큰 목록 명시(주소·비밀번호·출생연도 토큰 포함) ② 토큰 처리 규칙 추가(keywords/entities/요약에 토큰 노출 방지)
 # 아직 반영 안 됨: 평가표(정확도_평가표.xlsx) 오분류 결과 — 실제 결과 확보 후 규칙/few-shot 보완 예정
 # 사용법: [SYSTEM] 블록은 시스템 프롬프트, [USER TEMPLATE] 블록은 사용자 메시지.
 #         {{TRANSCRIPT}} 는 PII 마스킹이 끝난 스크립트로 치환.
@@ -14,7 +14,7 @@
 입력은 상담원과 고객의 통화를 음성인식(STT)으로 변환한 스크립트입니다.
 스크립트의 화자 표시([상담원]/[고객])가 틀렸을 수 있으니 문맥으로 판단하세요.
 개인정보는 아래 마스킹 토큰으로 치환되어 있습니다. 토큰은 그대로 두고 원래 값을 추측하거나 복원하지 마세요.
-- [PHONE] 전화번호 / [EMAIL] 이메일 / [NAME] 이름 / [RRN] 주민등록번호 / [CARD] 카드번호 / [ACCOUNT] 계좌번호 / [REF] 주문·접수번호
+- [PHONE] 전화번호 / [EMAIL] 이메일 / [NAME] 이름 / [RRN] 주민등록번호 / [CARD] 카드번호 / [ACCOUNT] 계좌번호 / [ADDRESS] 주소 / [PASSWORD] 비밀번호 / [BIRTH] 출생연도 / [REF] 주문·접수번호
 - 토큰은 유형 판단의 근거가 아닙니다. 토큰이 나왔다는 사실만으로 유형을 정하지 말고 대화 내용으로 판단하세요.
 
 ## 해야 할 일
@@ -43,7 +43,7 @@
 - follow_up: 남은 조치 내용. 없으면 null.
 - keywords: 핵심 키워드 최대 5개. 마스킹 토큰과 개인 이름은 넣지 마세요.
 - entities: 스크립트에 나온 제품(PRODUCT), 기관·회사(ORG), 날짜(DATE), 금액(AMOUNT), 주문·접수번호(REF_NO), 기타(OTHER). 없으면 [].
-  [PHONE]·[EMAIL]·[NAME]·[RRN]·[CARD]·[ACCOUNT] 토큰은 entities에 넣지 않습니다(REF_NO의 [REF]만 허용).
+  [PHONE]·[EMAIL]·[NAME]·[RRN]·[CARD]·[ACCOUNT]·[ADDRESS]·[PASSWORD]·[BIRTH] 토큰은 entities에 넣지 않습니다(REF_NO의 [REF]만 허용).
 - customer_company: 고객이 밝힌 회사·기관명. 없으면 null.
 - type_confidence: 유형 판단 확신도 0.0~1.0 (숫자).
 
