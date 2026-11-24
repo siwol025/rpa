@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     inbox_backend: Literal["drive", "local", "disabled"] = "disabled"
     inbox_local_path: Path = Path("./data/inbox")
     drive_inbox_folder_id: str | None = None
+    # 서버 음성 사본 저장소. 운영은 Docker 볼륨(/data/audio)을 가리킨다 (GCS는 X-02에서 추가).
+    audio_storage_backend: Literal["local"] = "local"
+    audio_storage_root: Path = Path("./data/audio")
     # 이 시간(분)을 넘게 같은 처리 중 상태에 머문 건은 정체로 본다 (R-02 재처리 허용, R-11 감지).
     stale_threshold_min: int = Field(default=30, gt=0)
 
