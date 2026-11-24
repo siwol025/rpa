@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261124_162200_006",
+  "status": "SUCCESS",
+  "error": null,
+  "source": {
+    "file_name": "20261124_1620_이도윤_다온푸드.m4a",
+    "file_path": "C:/CallCenter/processing/20261124_1620_이도윤_다온푸드.m4a",
+    "duration_sec": 101.4,
+    "received_at": "2026-11-24T16:22:00+09:00"
+  },
+  "call_datetime": "2026-11-24T16:20:00+09:00",
+  "agent_name": "이도윤",
+  "customer_company": "다온푸드",
+  "type": null,
+  "type_label": null,
+  "type_confidence": null,
+  "customer_question": "납품 일정 변경을 요청함",
+  "agent_action": "일정 변경 가능 여부를 확인하기로 함",
+  "summary": null,
+  "sentiment": "NEUTRAL",
+  "follow_up_required": true,
+  "follow_up": "납품 일정 변경 가능 여부 회신",
+  "keywords": ["납품", "일정 변경"],
+  "entities": [],
+  "transcript": {
+    "full_text": "[고객] 납품 일정을 바꾸고 싶어요.",
+    "segments": [
+      { "speaker": "CUSTOMER", "start_sec": 0.5, "end_sec": 3.0, "text": "납품 일정을 바꾸고 싶어요." }
+    ],
+    "speaker_confidence": "HIGH"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 0, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 0 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v1.2",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T16:23:05+09:00"
+  }
+}

@@ -107,6 +107,7 @@ backend/
 │   ├── main.py                  # FastAPI 앱 생성, 라우터·미들웨어 등록
 │   ├── core/
 │   │   ├── config.py            # pydantic-settings (환경 변수)
+│   │   ├── db.py                # 엔진·세션 팩토리
 │   │   ├── logging.py           # JSON 구조화 로그, request_id
 │   │   ├── errors.py            # 공통 예외 → 에러 응답 매핑
 │   │   └── security.py          # 로봇 API Key 검증
@@ -163,7 +164,7 @@ sequenceDiagram
     else 웹 업로드
         U->>A: POST /api/uploads
         A->>A: 확장자·MIME·크기 검증
-        A->>I: Drive API 업로드 (appProperties.source=web)
+        A->>I: Drive API 업로드 (properties.source=web)
         A-->>U: 202 접수됨
     end
 
@@ -280,7 +281,7 @@ stateDiagram-v2
 - **메타데이터 누락은 상태가 아니다.** `metadata_incomplete` 표시로 별도 관리하며 처리 흐름을 막지 않는다 (`NEEDS_REVIEW`는 AI 신뢰도 전용)
 - 동시성: 상태 변경 시 `SELECT ... FOR UPDATE`로 행 잠금
 - 재전송(같은 상태로의 재적재)은 덮어쓰기로 처리 → 멱등
-- 신뢰도 임계값: 환경 변수 `REVIEW_CONFIDENCE_THRESHOLD` (기본 0.7 **[가정]**)
+- 검토 필요(`NEEDS_REVIEW`) 판정: STT·GenAI 파이프라인의 판정(분류 신뢰도 0.6 미만 또는 화자 구분 불확실, `stt/schema/call_schema.json`의 `status`)을 그대로 따른다. 백엔드는 임계값으로 다시 판정하지 않는다
 
 ---
 
@@ -432,7 +433,10 @@ class AudioStorage(Protocol):
 ```python
 class InboxWriter(Protocol):
     def write(self, filename: str, stream: BinaryIO, content_type: str) -> str: ...  # 생성된 파일 ID 반환
+    def check(self) -> None: ...  # 파일 생성 없이 쓰기 가능 여부 확인 (헬스 체크)
 ```
+두 메서드 모두 실패하면 `InboxUnavailableError`를 던진다.
+
 | 구현체 | 대상 | 비고 |
 |---|---|---|
 | `DriveInboxWriter` | Google Drive 공유 드라이브 `inbox/` | **기본**. 서비스 계정 + Drive API(`google-api-python-client`) |
@@ -440,11 +444,11 @@ class InboxWriter(Protocol):
 
 업로드 규칙
 - Drive API 업로드(resumable)로 전송. Drive는 업로드가 끝난 파일만 목록에 나타나므로 Dispatcher가 전송 중인 파일을 집지 않음
-- 공유 드라이브 대상이므로 API 호출 시 `supportsAllDrives=true` **[확인 필요]**
+- 공유 드라이브 대상이므로 API 호출 시 `supportsAllDrives=true`
 - 원래 파일명 유지(파일명 규칙으로 메타데이터 추출). Drive는 같은 이름을 허용하므로 별도 접미사 불필요
-- `appProperties.source=web` 기록 → Dispatcher가 등록 시 `source_type=WEB`으로 전달
+- 공개 파일 속성 `properties.source=web` 기록(`appProperties`는 요청한 앱만 읽을 수 있어 Dispatcher가 읽지 못할 수 있음) → Dispatcher가 등록 시 `source_type=WEB`으로 전달
 - 웹 업로드 시 DB 등록은 하지 않음 (등록은 Dispatcher 단일 경로)
-- 실패 시 지수 백오프로 2회 재시도 후 `503 INBOX_UNAVAILABLE`
+- 실패 시 지수 백오프로 2회 재시도 후 `503 INBOX_UNAVAILABLE` (어댑터는 `InboxUnavailableError`, 서비스가 503으로 변환)
 
 ---
 
@@ -522,7 +526,6 @@ flowchart TB
 | `MAX_UPLOAD_MB` | 요청 전체 크기 한도(MiB, 기본 100), 모든 API 공통, 앱에서 검사 |
 | `ROBOT_ALLOWED_IPS` | `/api/robot/*` 호출 허용 IP (로봇 PC) |
 | `ALLOWED_EXTENSIONS` | `wav,mp3` |
-| `REVIEW_CONFIDENCE_THRESHOLD` | 검토 필요 임계값 |
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
 | `CORS_ORIGINS` | 프론트 주소 |
 | `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |
@@ -536,7 +539,7 @@ flowchart TB
 |---|---|
 | 사용자 → 웹/API | 사내망/VPN, VM 방화벽 IP 허용 목록, HTTPS는 필요 시 Uvicorn SSL |
 | 로봇 → API | API Key (`X-API-Key`), 키 교체 시 2개 동시 허용 기간 지원, 로봇 PC IP만 `/api/robot/*` 허용(앱 미들웨어, `ROBOT_ALLOWED_IPS`) |
-| API → 클라우드 폴더 | 서비스 계정은 공유 드라이브 최소 권한(업로드 가능한 최소 역할), 키 파일 서버 외부 반출 금지·주기적 교체 **[확인 필요]** |
+| API → 클라우드 폴더 | 서비스 계정은 공유 드라이브(또는 `inbox/` 폴더) **기여자** 역할 **[확인 필요: E-01]**, 키 파일 서버 외부 반출 금지·주기적 교체 |
 | 클라우드 폴더 자체 | 공유 드라이브 멤버를 담당자·RPA 계정·서비스 계정으로 한정, 링크 공유 금지, `done/` 보관 기간 단축 |
 | API → DB | 전용 DB 계정(앱 권한만), 마이그레이션 계정 분리 |
 | 업로드 파일 (웹·로봇) | 확장자 + MIME + 매직 바이트 검증, 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |

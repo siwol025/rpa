@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261124_153012_001",
+  "status": "SUCCESS",
+  "error": null,
+  "source": {
+    "file_name": "20261124_1512_김지현_한빛물산.m4a",
+    "file_path": "C:/CallCenter/processing/20261124_1512_김지현_한빛물산.m4a",
+    "duration_sec": 142.6,
+    "received_at": "2026-11-24T15:30:12+09:00"
+  },
+  "call_datetime": "2026-11-24T15:12:00+09:00",
+  "agent_name": "박서준",
+  "customer_company": "한빛물산",
+  "type": "COMPLAINT",
+  "type_label": "불만",
+  "type_confidence": 0.95,
+  "customer_question": "주문한 물품이 일주일째 도착하지 않아 배송 상황과 보상 여부를 문의함 (재분석)",
+  "agent_action": "배송사 확인 결과 11/26 도착 예정임을 안내함",
+  "summary": "[재처리] 배송 지연 불만. 배송사 확인 결과 11/26 도착 예정으로 안내하여 해결됨.",
+  "sentiment": "NEUTRAL",
+  "follow_up_required": false,
+  "follow_up": null,
+  "keywords": ["배송 지연", "도착 예정"],
+  "entities": [
+    { "type": "DATE", "value": "11/26" }
+  ],
+  "transcript": {
+    "full_text": "[상담원] 안녕하세요, 한빛물산 고객센터입니다.\n[고객] 주문한 물건이 아직 안 왔어요.",
+    "segments": [
+      { "speaker": "AGENT", "start_sec": 0.4, "end_sec": 3.1, "text": "안녕하세요, 한빛물산 고객센터입니다." },
+      { "speaker": "CUSTOMER", "start_sec": 3.6, "end_sec": 6.0, "text": "주문한 물건이 아직 안 왔어요." }
+    ],
+    "speaker_confidence": "HIGH"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 1, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 1 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v1.3",
+    "retry_count": 1,
+    "processed_at": "2026-11-24T17:02:10+09:00"
+  }
+}

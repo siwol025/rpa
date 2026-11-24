@@ -121,9 +121,9 @@ flowchart LR
 
 | 항목 | 방식 |
 |---|---|
-| 서버 인증 | Google Cloud **서비스 계정** + Drive API. 서비스 계정을 공유 드라이브에 "콘텐츠 관리자" 이하 권한으로 추가 **[확인 필요]** |
+| 서버 인증 | Google Cloud **서비스 계정** + Drive API. 서비스 계정을 공유 드라이브에 "기여자" 권한(파일 추가만, 이동·삭제 불가)으로 추가 **[확인 필요]** |
 | 업로드 | 서버가 확장자·MIME·용량 검증 후 Drive API로 `inbox/`에 업로드 |
-| 출처 표시 | 업로드 시 Drive 파일 속성(`appProperties`)에 `source=web`을 기록 → Dispatcher가 등록 시 `source_type=WEB`으로 전달 (직접 업로드는 `DRIVE`) |
+| 출처 표시 | 업로드 시 Drive 공개 파일 속성(`properties`)에 `source=web`을 기록 → Dispatcher는 파일 메타데이터의 `properties.source`로 판정해 등록 시 `source_type=WEB`으로 전달 (직접 업로드는 `DRIVE`) |
 | DB 등록 | 하지 않음 (중복 등록 방지). 업로드 화면에는 "접수됨, 처리 대기" 안내만 표시 |
 | 장점 | 로봇은 입력 위치를 클라우드 `inbox/` 하나만 알면 됨 |
 

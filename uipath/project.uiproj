@@ -1,0 +1,6 @@
+{
+  "Name": "팀프로젝트",
+  "ProjectType": "Process",
+  "Description": "팀프로젝트",
+  "MainFile": "Main.xaml"
+}

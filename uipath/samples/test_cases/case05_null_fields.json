@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261124_161500_005",
+  "status": "SUCCESS",
+  "error": null,
+  "source": {
+    "file_name": "call_unknown.m4a",
+    "file_path": "C:/CallCenter/processing/call_unknown.m4a",
+    "duration_sec": 63.0,
+    "received_at": "2026-11-24T16:15:00+09:00"
+  },
+  "call_datetime": null,
+  "agent_name": null,
+  "customer_company": null,
+  "type": "OTHER",
+  "type_label": "기타 문의",
+  "type_confidence": 0.81,
+  "customer_question": "다음 주 휴무 일정을 문의함",
+  "agent_action": "연휴 기간과 긴급 연락 방법을 안내함",
+  "summary": "고객이 휴무 일정을 문의했고 담당자가 연휴 기간과 긴급 연락 방법을 안내했다.",
+  "sentiment": "NEUTRAL",
+  "follow_up_required": false,
+  "follow_up": null,
+  "keywords": ["휴무", "연휴"],
+  "entities": [],
+  "transcript": {
+    "full_text": "[고객] 다음 주 휴무가 언제인가요?\n[상담원] 연휴 기간은 안내해 드리겠습니다.",
+    "segments": [
+      { "speaker": "CUSTOMER", "start_sec": 0.6, "end_sec": 3.2, "text": "다음 주 휴무가 언제인가요?" },
+      { "speaker": "AGENT", "start_sec": 3.8, "end_sec": 7.5, "text": "연휴 기간은 안내해 드리겠습니다." }
+    ],
+    "speaker_confidence": "HIGH"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 0, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 0 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v1.2",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T16:16:12+09:00"
+  }
+}

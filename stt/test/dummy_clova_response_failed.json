@@ -1,0 +1,6 @@
+{
+  "_comment": "실패 응답 더미(구조 가정). result가 COMPLETED가 아닌 경우의 처리 확인용.",
+  "result": "FAILED",
+  "message": "Failed to recognize the audio",
+  "token": "dummy-token-0002"
+}

@@ -1,0 +1,19 @@
+{
+  "clova_invoke_url": "<CLOVA Speech Domain의 Invoke URL>",
+  "clova_secret_key": "<Secret Key - 실제 값은 config.json에만 저장, 공유 금지>",
+  "stt": {
+    "language": "ko-KR",
+    "completion": "sync",
+    "speaker_count_min": 2,
+    "speaker_count_max": 2,
+    "noise_filtering": true,
+    "poll_interval_sec": 5,
+    "poll_max_count": 60
+  },
+  "paths": {
+    "input_dir": "<음성 입력 폴더>",
+    "output_dir": "<결과 JSON 출력 폴더>",
+    "done_dir": "<처리 완료 폴더>",
+    "failed_dir": "<처리 실패 폴더>"
+  }
+}
