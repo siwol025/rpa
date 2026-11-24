@@ -1,10 +1,11 @@
-"""웹 상담 조회 유스케이스 (W-01 목록)."""
+"""웹 상담 조회 유스케이스 (W-01 목록, W-02 상세)."""
 
 from typing import Any
 
+from app.core.errors import AppError, ErrorCode
 from app.models import CallRecord
 from app.repositories.call_repository import CallRepository
-from app.schemas.call import CallBase, CallListItem, CallListQuery
+from app.schemas.call import CallBase, CallDetail, CallListItem, CallListQuery
 from app.schemas.common import Page, PageParams
 
 
@@ -31,3 +32,16 @@ class CallService:
         ]
         total = self._repository.count_calls(query)
         return Page(items=items, page=page.page, size=page.size, total=total)
+
+    def get_call(self, call_id: int) -> CallDetail:
+        call = self._repository.get_call(call_id)
+        if call is None:
+            raise AppError(ErrorCode.NOT_FOUND)
+        return CallDetail.model_validate(
+            {
+                **_base_fields(call),
+                "transcript": call.transcript,
+                "analysis": call.analysis,
+                "processing_log": self._repository.list_logs(call_id),
+            }
+        )

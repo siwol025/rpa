@@ -5,9 +5,9 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import ColumnElement, Row, Select, UnaryExpression, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from app.models import Analysis, CallRecord, Transcript
+from app.models import Analysis, CallRecord, ProcessingLog, Transcript
 from app.schemas.call import CATEGORY_DB_VALUES, CallListQuery, CallSort
 from app.schemas.common import KST
 
@@ -88,3 +88,21 @@ class CallRepository:
     def count_calls(self, query: CallListQuery) -> int:
         stmt = _filtered(select(func.count()).select_from(CallRecord), query)
         return self._session.execute(stmt).scalar_one()
+
+    def get_call(self, call_id: int) -> CallRecord | None:
+        """삭제되지 않은 건 + transcript·analysis(1:0..1)를 한 번에 읽는다."""
+        stmt = (
+            select(CallRecord)
+            .options(joinedload(CallRecord.transcript), joinedload(CallRecord.analysis))
+            .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
+        )
+        return self._session.scalars(stmt).one_or_none()
+
+    def list_logs(self, call_id: int) -> Sequence[ProcessingLog]:
+        # CallRecord.logs 관계에는 순서가 없어 별도 쿼리로 처리 순서를 보장한다.
+        stmt = (
+            select(ProcessingLog)
+            .where(ProcessingLog.call_id == call_id)
+            .order_by(ProcessingLog.created_at.asc(), ProcessingLog.id.asc())
+        )
+        return self._session.scalars(stmt).all()

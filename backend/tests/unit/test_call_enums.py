@@ -4,11 +4,14 @@ import pytest
 
 from app.models.analysis import ACTION_STATUSES, CATEGORIES
 from app.models.call_record import CALL_STATUSES, SOURCE_TYPES
+from app.models.processing_log import LOG_STATUSES, LOG_STEPS
 from app.schemas.call import (
     CATEGORY_DB_VALUES,
     ActionStatus,
     CallStatus,
     Category,
+    LogStatus,
+    LogStep,
     SourceType,
 )
 
@@ -19,6 +22,8 @@ from app.schemas.call import (
         (CallStatus, CALL_STATUSES),
         (SourceType, SOURCE_TYPES),
         (ActionStatus, ACTION_STATUSES),
+        (LogStep, LOG_STEPS),
+        (LogStatus, LOG_STATUSES),
     ],
 )
 def test_api_enum_matches_db_check_values(enum: type[StrEnum], db_values: tuple[str, ...]) -> None:

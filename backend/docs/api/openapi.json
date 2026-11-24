@@ -9,6 +9,229 @@
         "title": "ActionStatus",
         "type": "string"
       },
+      "AnalysisOut": {
+        "properties": {
+          "action_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Summary"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entities"
+          },
+          "follow_up_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Required"
+          },
+          "needs_review": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Needs Review"
+          },
+          "question_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Summary"
+          }
+        },
+        "required": [
+          "category",
+          "confidence",
+          "question_summary",
+          "action_summary",
+          "follow_up_required",
+          "action_status",
+          "entities",
+          "needs_review"
+        ],
+        "title": "AnalysisOut",
+        "type": "object"
+      },
+      "CallDetail": {
+        "properties": {
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "call_datetime": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Datetime"
+          },
+          "client_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Company"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_sec": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Sec"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "metadata_incomplete": {
+            "title": "Metadata Incomplete",
+            "type": "boolean"
+          },
+          "original_name": {
+            "title": "Original Name",
+            "type": "string"
+          },
+          "processing_log": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessingLogOut"
+            },
+            "title": "Processing Log",
+            "type": "array"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/SourceType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CallStatus"
+          },
+          "status_changed_at": {
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "original_name",
+          "duration_sec",
+          "agent_name",
+          "client_company",
+          "call_datetime",
+          "metadata_incomplete",
+          "status",
+          "status_changed_at",
+          "retry_count",
+          "created_at",
+          "transcript",
+          "analysis",
+          "processing_log"
+        ],
+        "title": "CallDetail",
+        "type": "object"
+      },
       "CallListItem": {
         "properties": {
           "action_status": {
@@ -212,6 +435,29 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "LogStatus": {
+        "enum": [
+          "SUCCESS",
+          "FAIL",
+          "RETRY"
+        ],
+        "title": "LogStatus",
+        "type": "string"
+      },
+      "LogStep": {
+        "enum": [
+          "REGISTER",
+          "QUEUE",
+          "STT",
+          "GENAI",
+          "STORE",
+          "EXCEL",
+          "CRM",
+          "RETRY"
+        ],
+        "title": "LogStep",
+        "type": "string"
+      },
       "Page_CallListItem_": {
         "properties": {
           "items": {
@@ -243,6 +489,40 @@
         "title": "Page[CallListItem]",
         "type": "object"
       },
+      "ProcessingLogOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LogStatus"
+          },
+          "step": {
+            "$ref": "#/components/schemas/LogStep"
+          }
+        },
+        "required": [
+          "step",
+          "status",
+          "message",
+          "created_at"
+        ],
+        "title": "ProcessingLogOut",
+        "type": "object"
+      },
       "SourceType": {
         "enum": [
           "DRIVE",
@@ -250,6 +530,23 @@
         ],
         "title": "SourceType",
         "type": "string"
+      },
+      "TranscriptOut": {
+        "properties": {
+          "segments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "segments"
+        ],
+        "title": "TranscriptOut",
+        "type": "object"
       },
       "ValidationErrorDetail": {
         "properties": {
@@ -546,6 +843,70 @@
           }
         },
         "summary": "List Calls",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/calls/{call_id}": {
+      "get": {
+        "operationId": "get_call",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Get Call",
         "tags": [
           "calls"
         ]

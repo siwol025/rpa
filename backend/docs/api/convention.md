@@ -149,6 +149,8 @@
 | `action_status` | `OPEN`, `DONE` |
 | `source_type` | `DRIVE`, `WEB` |
 | `speaker` | `AGENT`, `CUSTOMER` |
+| `processing_log.step` | `REGISTER`, `QUEUE`, `STT`, `GENAI`, `STORE`, `EXCEL`, `CRM`, `RETRY` |
+| `processing_log.status` | `SUCCESS`, `FAIL`, `RETRY` |
 
 - 정체(stale)는 상태 값이 아니다. 목록 항목의 `is_stale`(서버 계산)과 `stale` 필터로 표현한다. 두 항목은 정체 감지(R-11) 이후 추가된다(그전에는 응답에 없고 `stale` 파라미터는 무시된다).
 

@@ -1,7 +1,7 @@
 """라우터 단위 테스트: 서비스를 가짜로 바꿔 DB 없이 파라미터 검증·응답 형식·OpenAPI를 확인한다."""
 
 from collections.abc import Callable, Iterator
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -9,8 +9,29 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_call_service
-from app.schemas.call import CallListItem, CallListQuery, CallStatus, Category
+from app.core.errors import AppError, ErrorCode
+from app.schemas.call import CallDetail, CallListItem, CallListQuery, CallStatus, Category, LogStep
 from app.schemas.common import Page, PageParams
+
+_DETAIL = CallDetail.model_validate(
+    {
+        "id": 1,
+        "source_type": "WEB",
+        "original_name": "a.wav",
+        "duration_sec": None,
+        "agent_name": "김상담",
+        "client_company": None,
+        "call_datetime": datetime(2026, 11, 23, 5, 30, tzinfo=UTC),
+        "metadata_incomplete": False,
+        "status": "REGISTERED",
+        "status_changed_at": datetime(2026, 11, 23, 5, 30, tzinfo=UTC),
+        "retry_count": 0,
+        "created_at": datetime(2026, 11, 23, 5, 30, tzinfo=UTC),
+        "transcript": None,
+        "analysis": None,
+        "processing_log": [],
+    }
+)
 
 
 class FakeCallService:
@@ -20,6 +41,11 @@ class FakeCallService:
     def list_calls(self, query: CallListQuery, page: PageParams) -> Page[CallListItem]:
         self.calls.append((query, page))
         return Page(items=[], page=page.page, size=page.size, total=0)
+
+    def get_call(self, call_id: int) -> CallDetail:
+        if call_id == 1:
+            return _DETAIL
+        raise AppError(ErrorCode.NOT_FOUND)
 
 
 @pytest.fixture
@@ -130,6 +156,37 @@ def test_unknown_param_stale_is_ignored(api: TestClient, fake: FakeCallService) 
     assert fake.calls[0][0] == CallListQuery()
 
 
+def test_get_call_returns_detail(api: TestClient) -> None:
+    response = api.get("/api/calls/1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == 1
+    assert body["call_datetime"] == "2026-11-23T14:30:00+09:00"
+    assert body["transcript"] is None
+    assert body["analysis"] is None
+    assert body["processing_log"] == []
+
+
+def test_get_call_not_found(api: TestClient) -> None:
+    response = api.get("/api/calls/2")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "code": "NOT_FOUND",
+        "message": "대상을 찾을 수 없습니다.",
+        "detail": None,
+    }
+
+
+@pytest.mark.parametrize("call_id", ["abc", "0", "9223372036854775808"])
+def test_get_call_invalid_id_returns_422(api: TestClient, call_id: str) -> None:
+    response = api.get(f"/api/calls/{call_id}")
+
+    assert response.status_code == 422
+    assert ["path", "call_id"] in _error_locs(response.json())
+
+
 # ---------------------------------------------------------------- OpenAPI
 
 
@@ -159,9 +216,18 @@ def test_openapi_list_calls(spec: dict[str, Any]) -> None:
     assert ref.endswith("/Page_CallListItem_")
 
 
+def test_openapi_get_call(spec: dict[str, Any]) -> None:
+    operation = spec["paths"]["/api/calls/{call_id}"]["get"]
+
+    assert operation["operationId"] == "get_call"
+    assert set(operation["responses"]) == {"200", "404", "422", "500"}
+
+
 def test_openapi_enums(spec: dict[str, Any]) -> None:
     schemas = spec["components"]["schemas"]
 
     assert set(schemas["CallStatus"]["enum"]) == set(CallStatus)
     assert set(schemas["Category"]["enum"]) == set(Category)
+    assert set(schemas["LogStep"]["enum"]) == set(LogStep)
     assert "is_stale" not in schemas["CallListItem"]["properties"]
+    assert "processing_log" in schemas["CallDetail"]["required"]

@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from tests.integration.factories import make_analysis, make_call
+from tests.integration.factories import make_analysis, make_call, make_log, make_transcript
 
 pytestmark = pytest.mark.integration
 
@@ -40,3 +41,38 @@ def test_list_calls_page_beyond_last_returns_empty_items(
 
     assert body["items"] == []
     assert body["total"] == 1
+
+
+def test_get_call_detail_end_to_end(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session)
+    make_transcript(db_session, call)
+    make_analysis(db_session, call, confidence=Decimal("0.857"), raw_json={"x": 1})
+    make_log(db_session, call, created_at=T0)
+
+    response = api.get(f"/api/calls/{call.id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["transcript"]["segments"][0]["speaker"] == "AGENT"
+    assert body["analysis"]["confidence"] == 0.857
+    assert "raw_json" not in body["analysis"]
+    assert body["processing_log"][0]["created_at"] == "2026-11-23T14:30:05+09:00"
+
+
+def test_get_call_without_children(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session)
+
+    body = api.get(f"/api/calls/{call.id}").json()
+
+    assert body["transcript"] is None
+    assert body["analysis"] is None
+    assert body["processing_log"] == []
+
+
+def test_get_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, deleted_at=T0)
+
+    response = api.get(f"/api/calls/{call.id}")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"

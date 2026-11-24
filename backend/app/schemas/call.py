@@ -1,12 +1,12 @@
-"""상담 목록 API 스키마 (W-01)."""
+"""상담 목록·상세 API 스키마 (W-01, W-02)."""
 
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Query
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 from app.core.errors import AppError, ErrorCode
 from app.schemas.common import KstDatetime
@@ -41,6 +41,23 @@ class Category(StrEnum):
 class ActionStatus(StrEnum):
     OPEN = "OPEN"
     DONE = "DONE"
+
+
+class LogStep(StrEnum):
+    REGISTER = "REGISTER"
+    QUEUE = "QUEUE"
+    STT = "STT"
+    GENAI = "GENAI"
+    STORE = "STORE"
+    EXCEL = "EXCEL"
+    CRM = "CRM"
+    RETRY = "RETRY"
+
+
+class LogStatus(StrEnum):
+    SUCCESS = "SUCCESS"
+    FAIL = "FAIL"
+    RETRY = "RETRY"
 
 
 # DB `analysis.category` 저장 값(현재 한글, app/models/analysis.py CATEGORIES) ↔ API 코드.
@@ -119,7 +136,7 @@ class CallListQuery:
 
 
 class CallBase(BaseModel):
-    """목록 항목 공통 필드. `object_key`·`file_hash` 등 내부 값은 넣지 않는다."""
+    """목록·상세 공통 필드. `object_key`·`file_hash` 등 내부 값은 넣지 않는다."""
 
     id: int
     source_type: SourceType
@@ -140,3 +157,39 @@ class CallListItem(CallBase):
     category: CategoryOut | None
     question_summary: str | None
     action_status: ActionStatus | None
+
+
+class TranscriptOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    # 항목 구조({speaker, start, end, text})는 E-03 확정 전이라 엄격 모델로 두지 않는다.
+    segments: list[dict[str, Any]]
+
+
+class AnalysisOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    category: CategoryOut
+    confidence: float | None  # DB NUMERIC(4,3) → Decimal → float
+    question_summary: str | None
+    action_summary: str | None
+    # 아래 셋은 DB에서 NULL 허용(DEFAULT만 있음)이라 null일 수 있다.
+    follow_up_required: bool | None
+    action_status: ActionStatus | None
+    entities: dict[str, Any] | None
+    needs_review: bool | None
+
+
+class ProcessingLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    step: LogStep
+    status: LogStatus
+    message: str | None
+    created_at: KstDatetime
+
+
+class CallDetail(CallBase):
+    transcript: TranscriptOut | None
+    analysis: AnalysisOut | None
+    processing_log: list[ProcessingLogOut]

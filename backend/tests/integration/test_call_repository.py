@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.repositories.call_repository import CallRepository
 from app.schemas.call import CallListQuery, CallStatus, Category
 from app.schemas.common import KST
-from tests.integration.factories import make_analysis, make_call, make_transcript
+from tests.integration.factories import make_analysis, make_call, make_log, make_transcript
 
 pytestmark = pytest.mark.integration
 
@@ -148,3 +148,17 @@ def test_list_row_has_analysis_columns_or_none(db_session: Session) -> None:
     rows = CallRepository(db_session).list_calls(CallListQuery(), offset=0, limit=10)
 
     assert [tuple(row[1:]) for row in rows] == [("불만", "요약", "OPEN"), (None, None, None)]
+
+
+def test_get_call_excludes_deleted_and_logs_are_ordered(db_session: Session) -> None:
+    call = make_call(db_session)
+    deleted = make_call(db_session, deleted_at=T0)
+    second = make_log(db_session, call, step="QUEUE", created_at=T0 + timedelta(seconds=1))
+    first = make_log(db_session, call, step="REGISTER", created_at=T0)
+    make_log(db_session, deleted)
+    repo = CallRepository(db_session)
+
+    assert repo.get_call(call.id) is call
+    assert repo.get_call(deleted.id) is None
+    assert repo.get_call(999_999) is None
+    assert [log.id for log in repo.list_logs(call.id)] == [first.id, second.id]

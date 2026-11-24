@@ -45,7 +45,7 @@ def _build_test_app(**overrides: Any) -> FastAPI:
         raise RuntimeError("boom-secret")
 
     @app.get("/calls/{call_id}")  # 동기 엔드포인트에서 call_id 바인딩 + 앱 로그
-    def get_call(call_id: int, request: Request) -> dict[str, int]:
+    def bind_call(call_id: int, request: Request) -> dict[str, int]:
         bind_call_id(request, call_id)
         structlog.stdlib.get_logger("app.test").info("in endpoint")
         return {"call_id": call_id}

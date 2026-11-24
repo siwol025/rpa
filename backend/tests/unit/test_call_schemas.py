@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
+from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any
 
-from app.schemas.call import CallListItem
+from app.schemas.call import CallDetail, CallListItem
 
 _BASE: dict[str, Any] = {
     "id": 1,
@@ -36,3 +38,41 @@ def test_list_item_without_analysis_has_null_fields() -> None:
     assert body["category"] is None
     assert body["call_datetime"] is None
     assert body["status_changed_at"] == "2026-11-23T14:30:05+09:00"
+
+
+def test_detail_reads_orm_like_objects_and_serializes() -> None:
+    analysis = SimpleNamespace(
+        category="교육 내용",
+        confidence=Decimal("0.850"),
+        question_summary="환불 문의",
+        action_summary="환불 처리",
+        follow_up_required=None,
+        action_status=None,
+        entities=None,
+        needs_review=None,
+        raw_json={"secret": "x"},
+    )
+    log = SimpleNamespace(
+        step="REGISTER", status="SUCCESS", message=None, created_at=_BASE["created_at"]
+    )
+    detail = CallDetail.model_validate(
+        {**_BASE, "transcript": None, "analysis": analysis, "processing_log": [log]}
+    )
+
+    body = detail.model_dump(mode="json")
+    assert body["transcript"] is None
+    assert body["analysis"]["category"] == "EDUCATION"
+    assert body["analysis"]["confidence"] == 0.85
+    assert body["analysis"]["follow_up_required"] is None
+    assert body["analysis"]["action_status"] is None
+    assert "raw_json" not in body["analysis"]
+    assert body["processing_log"] == [
+        {
+            "step": "REGISTER",
+            "status": "SUCCESS",
+            "message": None,
+            "created_at": "2026-11-23T14:00:00+09:00",
+        }
+    ]
+    assert "object_key" not in body
+    assert "file_hash" not in body
