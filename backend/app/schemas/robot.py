@@ -1,11 +1,19 @@
 """로봇(UiPath) API 요청·응답 모델. 규약은 docs/api/convention.md."""
 
 import re
+from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
-from app.schemas.call import CallStatus, SourceType, Speaker
+from app.schemas.call import CallStatus, Category, SourceType, Speaker
 from app.schemas.common import KstDatetime
 
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
@@ -107,3 +115,55 @@ class RobotTranscriptRequest(BaseModel):
         description="마스킹 후 '[상담원] … / [고객] …' 전체 텍스트. 키워드 검색에 쓰인다.",
     )
     stt_engine: Annotated[str, Field(max_length=50)] | None = None
+
+
+class AnalysisType(StrEnum):
+    """GenAI 결과의 `type` 값 (`stt/schema/call_schema.json`). 코드 확정(BE-A05) 전 상태다."""
+
+    INQUIRY = "INQUIRY"
+    COMPLAINT = "COMPLAINT"
+    SUGGESTION = "SUGGESTION"
+    TRAINING = "TRAINING"
+    OTHER = "OTHER"
+
+
+# GenAI 코드 → 웹 API 코드 (docs/api/convention.md §5.3). DB에는 이 코드의 한글 값이 저장된다.
+CATEGORY_BY_ANALYSIS_TYPE: dict[AnalysisType, Category] = {
+    AnalysisType.INQUIRY: Category.INQUIRY,
+    AnalysisType.COMPLAINT: Category.COMPLAINT,
+    AnalysisType.SUGGESTION: Category.SUGGESTION,
+    AnalysisType.TRAINING: Category.EDUCATION,
+    AnalysisType.OTHER: Category.ETC,
+}
+
+
+class EntityIn(BaseModel):
+    type: str
+    value: Annotated[str, Field(min_length=1)]
+
+
+class ProcessingIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    prompt_version: Annotated[str, Field(max_length=20)] | None = None
+
+
+class RobotAnalysisRequest(BaseModel):
+    """`PUT /api/robot/calls/{id}/analysis` 본문: GenAI 결과 JSON을 그대로 보낸다.
+
+    서버가 쓰는 필드만 검증하고, 그 밖의 필드(summary·sentiment·keywords 등)는 허용해
+    `analysis.raw_json`에 원본으로 보존한다. 실패 건(`FAILED`)은 로그 API로 보고한다.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    # 형식이 바뀐 결과를 현재 매핑대로 잘못 저장하지 않도록 지원하는 버전만 받는다.
+    schema_version: Literal["1.0"]
+    status: Literal["SUCCESS", "NEEDS_REVIEW"]
+    type: AnalysisType
+    type_confidence: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    customer_question: str | None = None
+    agent_action: str | None = None
+    follow_up_required: bool | None = None
+    entities: list[EntityIn] = Field(default_factory=list)
+    processing: ProcessingIn | None = None

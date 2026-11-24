@@ -10,10 +10,15 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
 from app.infra.storage import AudioStorage
-from app.models import CallRecord, ProcessingLog, Transcript
-from app.schemas.call import CallStatus, LogStatus, LogStep
-from app.schemas.robot import RobotCallForm, RobotTranscriptRequest
-from app.services.state_machine import CallStateMachine
+from app.models import Analysis, CallRecord, ProcessingLog, Transcript
+from app.schemas.call import CATEGORY_DB_VALUES, CallStatus, LogStatus, LogStep
+from app.schemas.robot import (
+    CATEGORY_BY_ANALYSIS_TYPE,
+    RobotAnalysisRequest,
+    RobotCallForm,
+    RobotTranscriptRequest,
+)
+from app.services.state_machine import CallStateMachine, InvalidTransition
 
 # 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
 _EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
@@ -102,6 +107,41 @@ class RobotService:
         # 마스킹된 전체 텍스트를 corrected_text에 둔다 (키워드 검색 pg_trgm 대상).
         transcript.corrected_text = body.full_text
         transcript.stt_engine = body.stt_engine
+        self._db.commit()
+        return call
+
+    def put_analysis(self, call_id: int, body: RobotAnalysisRequest) -> CallRecord:
+        """분석 결과를 저장하고 `STT_DONE` → `STORED` / `NEEDS_REVIEW`로 전이한다 (R-07).
+
+        검토 필요 여부는 GenAI 결과의 `status`를 그대로 따른다 (임계값으로 다시 판정하지 않음).
+        멱등: 이미 같은 결과 상태면 전이 없이 분석만 덮어쓴다. 다른 상태면 409.
+        재분석 시 `action_status`는 사람이 바꿨을 수 있으므로 덮어쓰지 않는다.
+        """
+        call = self._lock_call(call_id)
+        target = CallStatus.NEEDS_REVIEW if body.status == "NEEDS_REVIEW" else CallStatus.STORED
+        if call.status == CallStatus.STT_DONE:
+            self._machine.transition(call_id, target, actor="robot")
+        elif call.status != target:
+            # NEEDS_REVIEW → STORED(검토 완료)는 웹의 몫이다. 로봇이 결과를 다시 보내 넘기지 못한다.
+            raise InvalidTransition(call.status, target)
+
+        analysis = self._db.scalars(
+            select(Analysis).where(Analysis.call_id == call_id)
+        ).one_or_none()
+        if analysis is None:
+            analysis = Analysis(call_id=call_id)
+            self._db.add(analysis)
+        category = CATEGORY_BY_ANALYSIS_TYPE[body.type]
+        analysis.category = CATEGORY_DB_VALUES[category]
+        analysis.confidence = body.type_confidence  # type: ignore[assignment]
+        analysis.question_summary = body.customer_question
+        analysis.action_summary = body.agent_action
+        analysis.follow_up_required = body.follow_up_required
+        analysis.entities = [entity.model_dump() for entity in body.entities]
+        analysis.prompt_version = body.processing.prompt_version if body.processing else None
+        analysis.needs_review = target == CallStatus.NEEDS_REVIEW
+        # 전사는 transcript 테이블에 이미 있으므로 원본에서 뺀다 (본문 중복 저장 방지).
+        analysis.raw_json = body.model_dump(mode="json", exclude={"transcript"})
         self._db.commit()
         return call
 

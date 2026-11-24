@@ -107,6 +107,18 @@
         "title": "AnalysisOut",
         "type": "object"
       },
+      "AnalysisType": {
+        "description": "GenAI 결과의 `type` 값 (`stt/schema/call_schema.json`). 코드 확정(BE-A05) 전 상태다.",
+        "enum": [
+          "INQUIRY",
+          "COMPLAINT",
+          "SUGGESTION",
+          "TRAINING",
+          "OTHER"
+        ],
+        "title": "AnalysisType",
+        "type": "string"
+      },
       "Body_register_call": {
         "allOf": [
           {
@@ -536,6 +548,25 @@
         "title": "DuplicateFileErrorResponse",
         "type": "object"
       },
+      "EntityIn": {
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "EntityIn",
+        "type": "object"
+      },
       "EntityOut": {
         "properties": {
           "type": {
@@ -656,6 +687,25 @@
         "title": "Page[CallListItem]",
         "type": "object"
       },
+      "ProcessingIn": {
+        "additionalProperties": true,
+        "properties": {
+          "prompt_version": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          }
+        },
+        "title": "ProcessingIn",
+        "type": "object"
+      },
       "ProcessingLogOut": {
         "properties": {
           "created_at": {
@@ -688,6 +738,98 @@
           "created_at"
         ],
         "title": "ProcessingLogOut",
+        "type": "object"
+      },
+      "RobotAnalysisRequest": {
+        "additionalProperties": true,
+        "description": "`PUT /api/robot/calls/{id}/analysis` 본문: GenAI 결과 JSON을 그대로 보낸다.\n\n서버가 쓰는 필드만 검증하고, 그 밖의 필드(summary·sentiment·keywords 등)는 허용해\n`analysis.raw_json`에 원본으로 보존한다. 실패 건(`FAILED`)은 로그 API로 보고한다.",
+        "properties": {
+          "agent_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Action"
+          },
+          "customer_question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Question"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/EntityIn"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "follow_up_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Required"
+          },
+          "processing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schema_version": {
+            "const": "1.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "SUCCESS",
+              "NEEDS_REVIEW"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/AnalysisType"
+          },
+          "type_confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type Confidence"
+          }
+        },
+        "required": [
+          "schema_version",
+          "status",
+          "type"
+        ],
+        "title": "RobotAnalysisRequest",
         "type": "object"
       },
       "RobotCallForm": {
@@ -1457,6 +1599,111 @@
           }
         },
         "summary": "Register Call",
+        "tags": [
+          "robot"
+        ]
+      }
+    },
+    "/api/robot/calls/{call_id}/analysis": {
+      "put": {
+        "description": "GenAI 분석 결과를 적재한다. `status`가 SUCCESS면 `STORED`, NEEDS_REVIEW면 `NEEDS_REVIEW`.\n\n같은 내용을 다시 보내도 같은 결과(멱등)다.",
+        "operationId": "put_analysis",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotCallStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Put Analysis",
         "tags": [
           "robot"
         ]
