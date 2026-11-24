@@ -16,6 +16,7 @@ from app.schemas.robot import (
     CATEGORY_BY_ANALYSIS_TYPE,
     RobotAnalysisRequest,
     RobotCallForm,
+    RobotLogRequest,
     RobotTranscriptRequest,
 )
 from app.services.state_machine import CallStateMachine, InvalidTransition
@@ -23,6 +24,9 @@ from app.services.state_machine import CallStateMachine, InvalidTransition
 # 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
 _EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
 _SIGNATURE_BYTES = 262  # filetype이 판별에 쓰는 최대 길이
+
+# 이 상태에서 보낸 FAIL은 전이 없이 로그만 남긴다 (처리는 끝났고 엑셀 기입 등 뒷단계만 실패).
+_LOG_ONLY_ON_FAIL = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW, CallStatus.FAILED})
 
 
 class _HashingReader:
@@ -142,6 +146,43 @@ class RobotService:
         analysis.needs_review = target == CallStatus.NEEDS_REVIEW
         # 전사는 transcript 테이블에 이미 있으므로 원본에서 뺀다 (본문 중복 저장 방지).
         analysis.raw_json = body.model_dump(mode="json", exclude={"transcript"})
+        self._db.commit()
+        return call
+
+    def add_log(self, call_id: int, body: RobotLogRequest) -> CallRecord:
+        """단계 로그를 기록한다. 처리 중인 건의 `FAIL`이면 `FAILED`로 전이한다 (R-08).
+
+        `STORED`·`NEEDS_REVIEW` 건의 `FAIL`(엑셀 기입 실패 등)은 상태를 두고 로그만 남긴다.
+        이미 `FAILED`인 건의 `FAIL` 재전송도 로그만 남긴다. 정체 후 재처리된
+        (`RETRY_REQUESTED`) 건에 이전 Queue 건이 뒤늦게 보낸 `FAIL`은 409다.
+        """
+        call = self._lock_call(call_id)
+        message = (
+            f"[{body.stage}] {body.message}"
+            if body.stage and body.message
+            else (f"[{body.stage}]" if body.stage else body.message)
+        )
+
+        if body.status == LogStatus.FAIL and call.status not in _LOG_ONLY_ON_FAIL:
+            self._machine.transition(
+                call_id,
+                CallStatus.FAILED,
+                actor="robot",
+                reason=message,
+                step=body.step,
+                log_status=LogStatus.FAIL,
+                orchestrator_job_id=body.orchestrator_job_id,
+            )
+        else:
+            self._db.add(
+                ProcessingLog(
+                    call_id=call_id,
+                    step=body.step,
+                    status=body.status,
+                    message=f"[robot] {message}" if message else "[robot]",
+                    orchestrator_job_id=body.orchestrator_job_id,
+                )
+            )
         self._db.commit()
         return call
 

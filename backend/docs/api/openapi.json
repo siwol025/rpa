@@ -633,6 +633,18 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "ErrorStage": {
+        "description": "실패한 처리 단계. GenAI 결과의 `error.stage`와 같은 값이다 (`call_schema.json`).",
+        "enum": [
+          "INPUT",
+          "STT",
+          "PII",
+          "GENAI",
+          "VALIDATION"
+        ],
+        "title": "ErrorStage",
+        "type": "string"
+      },
       "LogStatus": {
         "enum": [
           "SUCCESS",
@@ -935,6 +947,58 @@
           "status"
         ],
         "title": "RobotCallStatus",
+        "type": "object"
+      },
+      "RobotLogRequest": {
+        "description": "`POST /api/robot/calls/{id}/logs` 본문. 단계 로그이며, `FAIL`이면 실패 보고를 겸한다.\n\n재시도를 모두 쓴 뒤 최종 실패일 때만 `FAIL`을 한 번 보낸다. 사유(`message`)에는\nSecret Key·통화 원문을 넣지 않는다.",
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "orchestrator_job_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orchestrator Job Id"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorStage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "실패 단계 (`FAIL`일 때)"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LogStatus"
+          },
+          "step": {
+            "$ref": "#/components/schemas/LogStep"
+          }
+        },
+        "required": [
+          "step",
+          "status"
+        ],
+        "title": "RobotLogRequest",
         "type": "object"
       },
       "RobotQueuedRequest": {
@@ -1704,6 +1768,111 @@
           }
         },
         "summary": "Put Analysis",
+        "tags": [
+          "robot"
+        ]
+      }
+    },
+    "/api/robot/calls/{call_id}/logs": {
+      "post": {
+        "description": "단계 로그를 남긴다. 처리 중인 건에 `status=FAIL`을 보내면 `FAILED`로 바뀐다.",
+        "operationId": "post_call_log",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RobotLogRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotCallStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Post Call Log",
         "tags": [
           "robot"
         ]

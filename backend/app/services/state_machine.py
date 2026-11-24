@@ -86,6 +86,7 @@ class CallStateMachine:
         reason: str | None = None,
         step: LogStep | None = None,
         log_status: LogStatus | None = None,
+        orchestrator_job_id: str | None = None,
         now: datetime | None = None,
     ) -> CallRecord:
         """`call_id` 건을 `to_status`로 전이하고 `processing_log`에 기록한다.
@@ -120,6 +121,7 @@ class CallStateMachine:
                 step=step or self._default_step(current, target),
                 status=log_status or self._default_log_status(target),
                 message=self._message(actor, current, target, reason),
+                orchestrator_job_id=orchestrator_job_id,
             )
         )
         self._db.flush()

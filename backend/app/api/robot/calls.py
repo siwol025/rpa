@@ -14,6 +14,7 @@ from app.schemas.robot import (
     RobotCallForm,
     RobotCallRegistered,
     RobotCallStatus,
+    RobotLogRequest,
     RobotQueuedRequest,
     RobotTranscriptRequest,
 )
@@ -96,4 +97,21 @@ def put_analysis(
     """
     bind_call_id(request, call_id)
     call = service.put_analysis(call_id, body)
+    return RobotCallStatus(call_id=call.id, status=call.status)
+
+
+@router.post(
+    "/{call_id}/logs",
+    status_code=201,
+    responses=error_responses(ErrorCode.NOT_FOUND, ErrorCode.INVALID_STATE_TRANSITION),
+)
+def post_call_log(
+    call_id: CallIdPath,
+    body: RobotLogRequest,
+    request: Request,
+    service: RobotServiceDep,
+) -> RobotCallStatus:
+    """단계 로그를 남긴다. 처리 중인 건에 `status=FAIL`을 보내면 `FAILED`로 바뀐다."""
+    bind_call_id(request, call_id)
+    call = service.add_log(call_id, body)
     return RobotCallStatus(call_id=call.id, status=call.status)

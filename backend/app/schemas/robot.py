@@ -13,7 +13,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.schemas.call import CallStatus, Category, SourceType, Speaker
+from app.schemas.call import CallStatus, Category, LogStatus, LogStep, SourceType, Speaker
 from app.schemas.common import KstDatetime
 
 _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
@@ -167,3 +167,31 @@ class RobotAnalysisRequest(BaseModel):
     follow_up_required: bool | None = None
     entities: list[EntityIn] = Field(default_factory=list)
     processing: ProcessingIn | None = None
+
+
+class ErrorStage(StrEnum):
+    """실패한 처리 단계. GenAI 결과의 `error.stage`와 같은 값이다 (`call_schema.json`)."""
+
+    INPUT = "INPUT"
+    STT = "STT"
+    PII = "PII"
+    GENAI = "GENAI"
+    VALIDATION = "VALIDATION"
+
+
+class RobotLogRequest(BaseModel):
+    """`POST /api/robot/calls/{id}/logs` 본문. 단계 로그이며, `FAIL`이면 실패 보고를 겸한다.
+
+    재시도를 모두 쓴 뒤 최종 실패일 때만 `FAIL`을 한 번 보낸다. 사유(`message`)에는
+    Secret Key·통화 원문을 넣지 않는다.
+    """
+
+    step: LogStep
+    status: LogStatus
+    stage: ErrorStage | None = Field(default=None, description="실패 단계 (`FAIL`일 때)")
+    message: Annotated[
+        Annotated[str, Field(max_length=2000)] | None, BeforeValidator(_blank_to_none)
+    ] = None
+    orchestrator_job_id: Annotated[
+        Annotated[str, Field(max_length=64)] | None, BeforeValidator(_blank_to_none)
+    ] = None
