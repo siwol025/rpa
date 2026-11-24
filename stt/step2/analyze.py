@@ -19,10 +19,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROMPT_PATH = os.path.join(ROOT, "prompts", "prompt_v1.txt")
 
 TYPES = {"INQUIRY": "질의", "COMPLAINT": "불만", "SUGGESTION": "건의", "TRAINING": "교육 내용", "OTHER": "기타 문의"}
-SENTIMENTS = {"POSITIVE", "NEUTRAL", "NEGATIVE"}
 ENTITY_TYPES = {"PRODUCT", "ORG", "DATE", "AMOUNT", "REF_NO", "OTHER"}
 REQUIRED = ["type", "type_confidence", "customer_company", "customer_question", "agent_action", "summary",
-            "sentiment", "follow_up_required", "follow_up", "keywords", "entities"]
+            "follow_up_required", "follow_up", "keywords", "entities"]
 
 
 # ---------- 프롬프트 ----------
@@ -57,15 +56,15 @@ def mock_llm(system, user):
     cust_lines = re.findall(r"^\[고객\] (.+)$", script, flags=re.M)
 
     if _hits(cust, _COMPLAINT) >= 2:
-        t, conf, sent = "COMPLAINT", 0.9, "NEGATIVE"
+        t, conf = "COMPLAINT", 0.9
     elif _hits(cust, _SUGGEST) >= 1 and _hits(cust, _COMPLAINT) == 0:
-        t, conf, sent = "SUGGESTION", 0.85, "NEUTRAL"
+        t, conf = "SUGGESTION", 0.85
     elif _hits(cust, _TRAIN) >= 1:
-        t, conf, sent = "TRAINING", 0.8, "NEUTRAL"
+        t, conf = "TRAINING", 0.8
     elif _hits(cust, _INQUIRY) >= 1 and len(cust) > 40:
-        t, conf, sent = "INQUIRY", 0.85, "NEUTRAL"
+        t, conf = "INQUIRY", 0.85
     else:
-        t, conf, sent = "OTHER", 0.4, "NEUTRAL"
+        t, conf = "OTHER", 0.4
 
     q = cust_lines[0] if cust_lines else None
     action = next((l for l in agent_lines[1:] if re.search(r"안내|요청|약속|발송|전달|확인", l)), None)
@@ -77,7 +76,7 @@ def mock_llm(system, user):
         "customer_question": (q or "")[:200] or None,
         "agent_action": (action or "")[:200] or None,
         "summary": ("[모의 요약] 고객 발화 %d개, 상담원 발화 %d개. 주된 유형은 %s로 판단함." % (len(cust_lines), len(agent_lines), TYPES[t]))[:300],
-        "sentiment": sent, "follow_up_required": follow,
+        "follow_up_required": follow,
         "follow_up": ("상담원이 약속한 후속 연락/회신 필요" if follow else None),
         "keywords": kws, "entities": ents,
     }
@@ -104,8 +103,6 @@ def validate(d):
     c = d["type_confidence"]
     if not isinstance(c, (int, float)) or isinstance(c, bool) or not 0 <= c <= 1:
         errs.append("type_confidence 범위 위반")
-    if d["sentiment"] not in SENTIMENTS:
-        errs.append("sentiment enum 위반")
     if not isinstance(d["summary"], str) or not d["summary"] or len(d["summary"]) > 300:
         errs.append("summary 비었거나 300자 초과")
     for k in ("customer_question", "agent_action"):
@@ -130,7 +127,8 @@ def analyze(full_text, llm=mock_llm, max_retry=2, prompt_path=PROMPT_PATH):
             d = extract_json(llm(system, user))
             errs = validate(d)
             if not errs:
-                return d, None, attempt
+                # 정의된 필드만 남긴다(감정 분석 등 추출 대상이 아닌 필드를 모델이 덧붙여도 결과에 싣지 않음)
+                return {k: d[k] for k in REQUIRED}, None, attempt
             last = "; ".join(errs)
         except Exception as e:
             last = "응답 파싱 실패(%s)" % type(e).__name__

@@ -2,18 +2,18 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "call_schema.json",
   "title": "콜센터 통화 분석 결과 (STT + GenAI)",
-  "description": "③ UiPath GenAI & STT 파이프라인의 출력 스키마 v1.0. 모든 키는 항상 존재하며, 값이 없으면 null(빈 문자열 금지). 실패 건도 동일 구조로 출력한다.",
+  "description": "③ UiPath GenAI & STT 파이프라인의 출력 스키마 v1.0(감정 분석 sentiment 필드는 제거함: 객관적 정보만 추출. 소비자(④ RPA)가 1.0 만 받으므로 버전은 1.0 을 유지). 모든 키는 항상 존재하며, 값이 없으면 null(빈 문자열 금지). 실패 건도 동일 구조로 출력한다.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema_version", "call_id", "status", "error", "source", "call_datetime",
     "agent_name", "customer_company", "type", "type_label", "type_confidence",
-    "customer_question", "agent_action", "summary", "sentiment",
+    "customer_question", "agent_action", "summary",
     "follow_up_required", "follow_up", "keywords", "entities",
     "transcript", "pii", "processing"
   ],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
+    "schema_version": { "type": "string", "const": "1.0", "description": "버전은 1.0 유지. ④ RPA(Config.xlsx ResultSchemaVersion)가 정확히 1.0 만 받는다. 감정 분석(sentiment) 필드는 제거됨" },
     "call_id": {
       "type": "string",
       "pattern": "^[0-9]{8}_[0-9]{6}_[0-9]{3}$",
@@ -65,10 +65,6 @@
     "customer_question": { "type": ["string", "null"], "maxLength": 200 },
     "agent_action": { "type": ["string", "null"], "maxLength": 200 },
     "summary": { "type": ["string", "null"], "maxLength": 300 },
-    "sentiment": {
-      "type": ["string", "null"],
-      "enum": ["POSITIVE", "NEUTRAL", "NEGATIVE", null]
-    },
     "follow_up_required": { "type": ["boolean", "null"] },
     "follow_up": { "type": ["string", "null"] },
     "keywords": {

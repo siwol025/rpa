@@ -1,0 +1,64 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Run_All" VisualBasic.Settings="{x:Null}" xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation" xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation" xmlns:scg="clr-namespace:System.Collections.Generic;assembly=System.Private.CoreLib" xmlns:sco="clr-namespace:System.Collections.ObjectModel;assembly=System.Private.CoreLib" xmlns:ui="http://schemas.uipath.com/workflow/activities" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <TextExpression.NamespacesForImplementation>
+    <sco:Collection x:TypeArguments="x:String">
+      <x:String>System.Activities</x:String>
+      <x:String>System.Activities.Statements</x:String>
+      <x:String>System.Activities.Expressions</x:String>
+      <x:String>System.Activities.Validation</x:String>
+      <x:String>System.Activities.XamlIntegration</x:String>
+      <x:String>Microsoft.VisualBasic</x:String>
+      <x:String>Microsoft.VisualBasic.Activities</x:String>
+      <x:String>System</x:String>
+      <x:String>System.Collections</x:String>
+      <x:String>System.Collections.Generic</x:String>
+      <x:String>System.Collections.ObjectModel</x:String>
+      <x:String>System.Data</x:String>
+      <x:String>System.Diagnostics</x:String>
+      <x:String>System.Drawing</x:String>
+      <x:String>System.IO</x:String>
+      <x:String>System.Linq</x:String>
+      <x:String>System.Net.Mail</x:String>
+      <x:String>System.Xml</x:String>
+      <x:String>System.Xml.Linq</x:String>
+      <x:String>UiPath.Core</x:String>
+      <x:String>UiPath.Core.Activities</x:String>
+      <x:String>System.Windows.Markup</x:String>
+      <x:String>GlobalVariablesNamespace</x:String>
+      <x:String>GlobalConstantsNamespace</x:String>
+          <x:String>Newtonsoft.Json</x:String>
+      <x:String>Newtonsoft.Json.Linq</x:String>
+      <x:String>System.Text.RegularExpressions</x:String>
+    </sco:Collection>
+  </TextExpression.NamespacesForImplementation>
+  <TextExpression.ReferencesForImplementation>
+    <sco:Collection x:TypeArguments="AssemblyReference">
+      <AssemblyReference>System.Activities</AssemblyReference>
+      <AssemblyReference>Microsoft.VisualBasic</AssemblyReference>
+      <AssemblyReference>System.Private.CoreLib</AssemblyReference>
+      <AssemblyReference>mscorlib</AssemblyReference>
+      <AssemblyReference>System.Data</AssemblyReference>
+      <AssemblyReference>System</AssemblyReference>
+      <AssemblyReference>System.Linq</AssemblyReference>
+      <AssemblyReference>System.Data.Common</AssemblyReference>
+      <AssemblyReference>System.Drawing</AssemblyReference>
+      <AssemblyReference>System.Drawing.Primitives</AssemblyReference>
+      <AssemblyReference>System.Drawing.Common</AssemblyReference>
+      <AssemblyReference>System.Core</AssemblyReference>
+      <AssemblyReference>System.Xml</AssemblyReference>
+      <AssemblyReference>System.Xml.Linq</AssemblyReference>
+      <AssemblyReference>PresentationFramework</AssemblyReference>
+      <AssemblyReference>WindowsBase</AssemblyReference>
+      <AssemblyReference>PresentationCore</AssemblyReference>
+      <AssemblyReference>System.Xaml</AssemblyReference>
+      <AssemblyReference>UiPath.System.Activities</AssemblyReference>
+      <AssemblyReference>UiPath.UiAutomation.Activities</AssemblyReference>
+      <AssemblyReference>System.Data.DataSetExtensions</AssemblyReference>
+      <AssemblyReference>System.Net.Mail</AssemblyReference>
+      <AssemblyReference>System.ObjectModel</AssemblyReference>
+      <AssemblyReference>System.ComponentModel.TypeConverter</AssemblyReference>
+          <AssemblyReference>Newtonsoft.Json</AssemblyReference>
+      <AssemblyReference>System.Text.RegularExpressions</AssemblyReference>
+    </sco:Collection>
+  </TextExpression.ReferencesForImplementation>
+  <Sequence DisplayName="Run_All - Step1~8 테스트와 전체 흐름"><ui:LogMessage DisplayName="시작 로그" Level="Info" Message="[&quot;=== Run_All 시작: Step1~8 테스트 → Main_Step1to7(모델 호출) ===&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step1 프롬프트 조립 테스트" UnSafe="False" WorkflowFileName="Step1_BuildPrompt_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step1_BuildPrompt_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step2 응답 검증 테스트" UnSafe="False" WorkflowFileName="Step2_Validate_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step2_Validate_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step3 재시도 테스트" UnSafe="False" WorkflowFileName="Step3_Retry_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step3_Retry_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step4 마스킹 테스트" UnSafe="False" WorkflowFileName="Step4_Mask_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step4_Mask_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step5 최종 JSON 조립 테스트" UnSafe="False" WorkflowFileName="Step5_Assemble_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step5_Assemble_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step6 STT 호출 테스트 (fake_clova.py 실행 필요)" UnSafe="False" WorkflowFileName="Step6_SttCall_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step6_SttCall_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step7 STT 응답 파싱 테스트" UnSafe="False" WorkflowFileName="Step7_Parse_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step7_Parse_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="Step8 폴더 순회·파일 이동 테스트 (fake_clova.py 실행 필요)" UnSafe="False" WorkflowFileName="Step8_Folder_Test.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Step8_Folder_Test.xaml 완료&quot;]" /><ui:InvokeWorkflowFile DisplayName="전체 흐름 (저장된 STT 응답 사용, 실제 모델 호출 5건 이상): Main_Step1to7" UnSafe="False" WorkflowFileName="Main_Step1to7.xaml" /><ui:LogMessage DisplayName="완료 로그" Level="Info" Message="[&quot;Main_Step1to7.xaml 완료&quot;]" /><ui:LogMessage DisplayName="종료 로그" Level="Info" Message="[&quot;=== Run_All 끝. python compare_uipath.py --step all 과 --step main7 로 비교하세요 ===&quot;]" /></Sequence>
+</Activity>

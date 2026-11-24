@@ -18,7 +18,6 @@
   "customer_question": "주문한 물품이 일주일째 도착하지 않아 배송 상황과 보상 여부를 문의함",
   "agent_action": "배송사에 확인 후 내일 오전까지 회신하기로 안내함",
   "summary": "고객이 배송 지연에 대해 불만을 제기했다. 담당자는 사과 후 배송사 확인을 약속했다.",
-  "sentiment": "NEGATIVE",
   "follow_up_required": true,
   "follow_up": "11/25 오전까지 배송사 확인 결과 회신",
   "keywords": ["배송 지연", "보상", "회신"],

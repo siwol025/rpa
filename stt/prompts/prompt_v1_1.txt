@@ -1,6 +1,8 @@
 ################################################################
 # prompt_v1_1  (v1 기반 초안)  - 통화 스크립트 → 분석 JSON
 # 변경점(v1 대비): ① 마스킹 토큰 목록 명시(주소·비밀번호·출생연도 토큰 포함) ② 토큰 처리 규칙 추가(keywords/entities/요약에 토큰 노출 방지)
+# 감정 분석(sentiment)은 추출 대상이 아니라 제거함 (객관적 정보 추출만)
+# 유형 판단은 감정·어조가 아니라 '문제 제기 + 해결/보상 요구' 같은 행위 기준, 요약에는 감정·태도 서술 금지
 # 아직 반영 안 됨: 평가표(정확도_평가표.xlsx) 오분류 결과 — 실제 결과 확보 후 규칙/few-shot 보완 예정
 # 사용법: [SYSTEM] 블록은 시스템 프롬프트, [USER TEMPLATE] 블록은 사용자 메시지.
 #         {{TRANSCRIPT}} 는 PII 마스킹이 끝난 스크립트로 치환.
@@ -22,13 +24,14 @@
 
 ## 상담 유형(type) - 반드시 아래 5개 코드 중 하나
 - INQUIRY    (질의)    : 정보, 절차, 처리 상태 등을 묻는 통화
-- COMPLAINT  (불만)    : 서비스·제품·응대에 대한 불만, 항의, 보상·시정 요구가 있는 통화
-- SUGGESTION (건의)    : 개선, 변경, 기능 추가를 제안·요청하는 통화 (불만 감정 없이)
+- COMPLAINT  (불만)    : 서비스·제품·응대의 문제(오류·지연·고장 등)를 제기하며 해결·시정·보상·환불을 요구하거나 항의하는 통화
+- SUGGESTION (건의)    : 개선, 변경, 기능 추가를 제안·요청하는 통화 (문제 해결·보상 요구 없이)
 - TRAINING   (교육 내용): 사용법, 교육, 매뉴얼, 업무 방법에 대한 설명·자료를 요청하거나 안내하는 통화
 - OTHER      (기타 문의): 위 어디에도 해당하지 않는 통화 (잘못 건 전화, 단순 연락, 통화 불명확 등)
 
 ## 유형이 섞여 있을 때
-1. 고객이 불만·항의·강한 불쾌감을 표현했다면 질문이 함께 있어도 COMPLAINT.
+1. 고객이 문제를 제기하며 해결·시정·보상·환불을 요구하거나 항의했다면 질문이 함께 있어도 COMPLAINT.
+   고객의 어조나 감정 표현만으로는 COMPLAINT로 판단하지 마세요. 대기·불편을 언급했더라도 요구가 없고 주된 용건이 문의라면 그 유형으로 고릅니다.
 2. 그 외에는 통화의 주된 목적(고객이 처음 꺼낸 용건)을 기준으로 하나만 고르세요.
 3. 판단이 애매하면 가장 가능성 높은 유형을 고르고 type_confidence를 낮게(0.6 미만) 적으세요.
 
@@ -38,7 +41,8 @@
 - customer_question: 고객이 요구·문의한 핵심을 200자 이내 한 문장으로.
 - agent_action: 상담원이 안내·조치·약속한 내용을 200자 이내로. 조치가 없으면 null.
 - summary: 통화 전체를 2~3문장, 300자 이내로. 마스킹 토큰은 쓰지 말고 '고객 연락처', '담당자'처럼 일반 표현으로 바꾸세요.
-- sentiment: 고객의 전반적 감정. POSITIVE / NEUTRAL / NEGATIVE.
+- 감정·태도 서술 금지: summary, customer_question, agent_action, follow_up에는 고객의 감정·태도·어조(예: '불만을 표했다', '불편을 호소했다', '화를 냈다', '만족했다')를 쓰지 마세요.
+  요청·문의·요구·안내·결정·약속처럼 통화에서 오간 사실만 적습니다.
 - follow_up_required: 통화 후 추가 조치(회신, 확인, 발송 등)가 남아 있으면 true, 없으면 false.
 - follow_up: 남은 조치 내용. 없으면 null.
 - keywords: 핵심 키워드 최대 5개. 마스킹 토큰과 개인 이름은 넣지 마세요.
@@ -55,7 +59,6 @@
   "customer_question": "",
   "agent_action": null,
   "summary": "",
-  "sentiment": "POSITIVE|NEUTRAL|NEGATIVE",
   "follow_up_required": false,
   "follow_up": null,
   "keywords": [],
@@ -70,7 +73,7 @@ INPUT:
 [상담원] 확인해 보니 어제 이메일로 발송되었습니다. 스팸함도 한번 확인해 보시겠어요?
 [고객] 아, 그렇군요. 확인해 볼게요. 감사합니다.
 OUTPUT:
-{"type":"INQUIRY","type_confidence":0.95,"customer_company":"○○상사","customer_question":"지난주 요청한 견적서의 발송 여부를 문의함","agent_action":"어제 이메일로 발송된 것을 확인해 안내하고 스팸함 확인을 권함","summary":"고객이 요청한 견적서의 발송 여부를 문의했다. 상담원은 전날 이메일로 발송된 사실을 안내하고 스팸함 확인을 권했다.","sentiment":"NEUTRAL","follow_up_required":false,"follow_up":null,"keywords":["견적서","발송 확인","이메일"],"entities":[{"type":"ORG","value":"○○상사"},{"type":"DATE","value":"지난주"}]}
+{"type":"INQUIRY","type_confidence":0.95,"customer_company":"○○상사","customer_question":"지난주 요청한 견적서의 발송 여부를 문의함","agent_action":"어제 이메일로 발송된 것을 확인해 안내하고 스팸함 확인을 권함","summary":"고객이 요청한 견적서의 발송 여부를 문의했다. 상담원은 전날 이메일로 발송된 사실을 안내하고 스팸함 확인을 권했다.","follow_up_required":false,"follow_up":null,"keywords":["견적서","발송 확인","이메일"],"entities":[{"type":"ORG","value":"○○상사"},{"type":"DATE","value":"지난주"}]}
 
 ### 예시 2
 INPUT:
@@ -79,7 +82,7 @@ INPUT:
 [상담원] 불편을 드려 정말 죄송합니다. 배송사에 확인해서 내일 오전까지 회신드리겠습니다.
 [고객] 꼭 연락 주세요. 주문번호는 [REF]입니다.
 OUTPUT:
-{"type":"COMPLAINT","type_confidence":0.93,"customer_company":null,"customer_question":"주문 후 일주일이 지나도 물건이 도착하지 않아 배송 상황 확인과 보상 여부를 요구함","agent_action":"사과 후 배송사에 확인해 다음 날 오전까지 회신하기로 안내함","summary":"고객이 배송 지연으로 세 번째 전화하며 강하게 불만을 표했다. 상담원은 사과하고 배송사 확인 후 다음 날 오전까지 회신하기로 했다.","sentiment":"NEGATIVE","follow_up_required":true,"follow_up":"다음 날 오전까지 배송사 확인 결과 회신","keywords":["배송 지연","보상","재문의"],"entities":[{"type":"REF_NO","value":"[REF]"},{"type":"DATE","value":"일주일"}]}
+{"type":"COMPLAINT","type_confidence":0.93,"customer_company":null,"customer_question":"주문 후 일주일이 지나도 물건이 도착하지 않아 배송 상황 확인과 보상 여부를 요구함","agent_action":"사과 후 배송사에 확인해 다음 날 오전까지 회신하기로 안내함","summary":"고객이 배송 지연을 이유로 세 번째 전화하여 배송 상황 확인과 보상 여부를 요구했다. 상담원은 사과하고 배송사 확인 후 다음 날 오전까지 회신하기로 했다.","follow_up_required":true,"follow_up":"다음 날 오전까지 배송사 확인 결과 회신","keywords":["배송 지연","보상","재문의"],"entities":[{"type":"REF_NO","value":"[REF]"},{"type":"DATE","value":"일주일"}]}
 
 ### 예시 3
 INPUT:
@@ -88,7 +91,7 @@ INPUT:
 [상담원] 좋은 의견 감사합니다. 개발 담당 부서에 전달하겠습니다.
 [고객] 네, 부탁드립니다.
 OUTPUT:
-{"type":"SUGGESTION","type_confidence":0.9,"customer_company":null,"customer_question":"관리 화면에 목록을 엑셀로 내려받는 기능 추가를 요청함","agent_action":"의견을 개발 담당 부서에 전달하기로 안내함","summary":"고객이 관리 화면에 엑셀 다운로드 기능을 추가해 달라고 건의했다. 상담원은 개발 담당 부서에 전달하겠다고 안내했다.","sentiment":"NEUTRAL","follow_up_required":true,"follow_up":"엑셀 다운로드 기능 건의를 개발 부서에 전달","keywords":["엑셀 다운로드","관리 화면","기능 건의"],"entities":[{"type":"PRODUCT","value":"관리 화면"}]}
+{"type":"SUGGESTION","type_confidence":0.9,"customer_company":null,"customer_question":"관리 화면에 목록을 엑셀로 내려받는 기능 추가를 요청함","agent_action":"의견을 개발 담당 부서에 전달하기로 안내함","summary":"고객이 관리 화면에 엑셀 다운로드 기능을 추가해 달라고 건의했다. 상담원은 개발 담당 부서에 전달하겠다고 안내했다.","follow_up_required":true,"follow_up":"엑셀 다운로드 기능 건의를 개발 부서에 전달","keywords":["엑셀 다운로드","관리 화면","기능 건의"],"entities":[{"type":"PRODUCT","value":"관리 화면"}]}
 
 ### 예시 4
 INPUT:
@@ -97,7 +100,7 @@ INPUT:
 [상담원] 신입용 사용 매뉴얼을 이메일로 보내 드리고, 이번 주 목요일 오후 두 시에 온라인 교육이 있습니다.
 [고객] 그럼 목요일 교육에 신청할게요.
 OUTPUT:
-{"type":"TRAINING","type_confidence":0.9,"customer_company":null,"customer_question":"신규 직원을 위한 시스템 사용법 교육 자료와 교육 일정을 문의함","agent_action":"신입용 매뉴얼 이메일 발송과 목요일 오후 2시 온라인 교육을 안내함","summary":"고객이 신규 직원 교육 자료와 일정을 문의했다. 상담원은 매뉴얼 발송과 목요일 오후 2시 온라인 교육을 안내했고 고객이 교육을 신청했다.","sentiment":"POSITIVE","follow_up_required":true,"follow_up":"신입용 매뉴얼 이메일 발송 및 목요일 교육 신청 처리","keywords":["신입 교육","사용 매뉴얼","온라인 교육"],"entities":[{"type":"DATE","value":"목요일 오후 2시"}]}
+{"type":"TRAINING","type_confidence":0.9,"customer_company":null,"customer_question":"신규 직원을 위한 시스템 사용법 교육 자료와 교육 일정을 문의함","agent_action":"신입용 매뉴얼 이메일 발송과 목요일 오후 2시 온라인 교육을 안내함","summary":"고객이 신규 직원 교육 자료와 일정을 문의했다. 상담원은 매뉴얼 발송과 목요일 오후 2시 온라인 교육을 안내했고 고객이 교육을 신청했다.","follow_up_required":true,"follow_up":"신입용 매뉴얼 이메일 발송 및 목요일 교육 신청 처리","keywords":["신입 교육","사용 매뉴얼","온라인 교육"],"entities":[{"type":"DATE","value":"목요일 오후 2시"}]}
 
 ### 예시 5
 INPUT:
@@ -106,7 +109,7 @@ INPUT:
 [상담원] 아니요, 여기는 고객센터입니다. 번호를 다시 확인해 주세요.
 [고객] 아, 죄송합니다. 잘못 걸었네요.
 OUTPUT:
-{"type":"OTHER","type_confidence":0.97,"customer_company":null,"customer_question":"치과로 전화하려다 잘못 걸어 연결 대상을 확인함","agent_action":"고객센터임을 안내하고 번호 재확인을 요청함","summary":"고객이 다른 업체로 잘못 전화를 걸었다. 상담원은 고객센터임을 안내하고 번호를 다시 확인하도록 했다.","sentiment":"NEUTRAL","follow_up_required":false,"follow_up":null,"keywords":["잘못 건 전화"],"entities":[]}
+{"type":"OTHER","type_confidence":0.97,"customer_company":null,"customer_question":"치과로 전화하려다 잘못 걸어 연결 대상을 확인함","agent_action":"고객센터임을 안내하고 번호 재확인을 요청함","summary":"고객이 다른 업체로 잘못 전화를 걸었다. 상담원은 고객센터임을 안내하고 번호를 다시 확인하도록 했다.","follow_up_required":false,"follow_up":null,"keywords":["잘못 건 전화"],"entities":[]}
 
 [USER TEMPLATE]
 아래 통화 스크립트를 분석해 JSON만 출력하세요.

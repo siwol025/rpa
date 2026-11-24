@@ -42,10 +42,13 @@ FIELD_MAP = {
 DB_CATEGORIES = ("질의", "불만", "건의", "교육 내용", "기타 문의")
 STT_CODE_TO_LABEL = {"INQUIRY": "질의", "COMPLAINT": "불만", "SUGGESTION": "건의", "TRAINING": "교육 내용", "OTHER": "기타 문의"}
 
-# raw_json(GenAI 원본)에 보관할 STT 분석 필드. 백엔드 컬럼이 없는 summary·sentiment·follow_up·keywords도 여기에 남는다.
+# 지원하는 call_schema 버전 (④ RPA 와 같이 1.0 만. 감정 분석 필드가 없는 결과와 있는 결과를 모두 받는다)
+SUPPORTED_SCHEMA_VERSIONS = ("1.0",)
+
+# raw_json(GenAI 원본)에 보관할 STT 분석 필드. 백엔드 컬럼이 없는 summary·follow_up·keywords도 여기에 남는다.
 RAW_JSON_FIELDS = (
     "type", "type_label", "type_confidence", "customer_company", "customer_question", "agent_action",
-    "summary", "sentiment", "follow_up_required", "follow_up", "keywords", "entities",
+    "summary", "follow_up_required", "follow_up", "keywords", "entities",
 )
 
 
@@ -128,8 +131,8 @@ def to_analysis_payload(doc):
 def to_backend(doc):
     """call_schema.json 형식의 STT 결과 한 건 → {call, transcript, analysis, failure}.
     FAILED 건: analysis=None, failure={stage, reason}(로그 API용). 적재 불가 값이면 NotLoadable."""
-    if doc.get("schema_version") != "1.0":
-        raise NotLoadable("지원하지 않는 schema_version: %r (이 변환은 1.0 기준)" % (doc.get("schema_version"),))
+    if doc.get("schema_version") not in SUPPORTED_SCHEMA_VERSIONS:
+        raise NotLoadable("지원하지 않는 schema_version: %r (지원: %s)" % (doc.get("schema_version"), ", ".join(SUPPORTED_SCHEMA_VERSIONS)))
     return {
         "call": to_call_update(doc),
         "transcript": to_transcript_payload(doc),

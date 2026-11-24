@@ -97,16 +97,18 @@ d = copy.deepcopy(ok); d["entities"] = []
 check("6. 빈 배열은 빈 배열", tb.to_backend(d)["analysis"]["entities"] == [])
 
 # 그 밖의 안전장치
-check("raw_json: 백엔드 컬럼이 없는 summary·sentiment·keywords 보존", all(k in an["raw_json"] for k in ("summary", "sentiment", "keywords", "follow_up")))
+check("raw_json: 백엔드 컬럼이 없는 summary·keywords·follow_up 보존, 감정(sentiment)은 없음", all(k in an["raw_json"] for k in ("summary", "keywords", "follow_up")) and "sentiment" not in an["raw_json"])
 check("prompt_version 전달", an["prompt_version"] == ok["processing"]["prompt_version"])
 fo = tb.to_backend(bad)
 check("FAILED: analysis 없음, failure에 사유", fo["analysis"] is None and fo["failure"]["stage"] == "STT" and fo["transcript"] is None)
-d = copy.deepcopy(ok); d["schema_version"] = "1.1"
-try:
-    tb.to_backend(d)
-    check("schema_version 1.0이 아니면 거부", False)
-except tb.NotLoadable:
-    check("schema_version 1.0이 아니면 거부", True)
+check("schema_version 1.0 변환 가능", tb.to_backend(copy.deepcopy(ok))["analysis"] is not None)
+for bad_v in ("1.1", "2.0", None):
+    d = copy.deepcopy(ok); d["schema_version"] = bad_v
+    try:
+        tb.to_backend(d)
+        check("지원하지 않는 schema_version 거부: %r" % (bad_v,), False)
+    except tb.NotLoadable:
+        check("지원하지 않는 schema_version 거부: %r" % (bad_v,), True)
 d = copy.deepcopy(ok); d["type"] = None; d["type_label"] = None
 try:
     tb.to_backend(d)

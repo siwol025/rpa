@@ -81,4 +81,30 @@ lowc = run_dummy.process(json.load(open(os.path.join(T, "sample_response_1.json"
                          llm=lambda s, u: json.dumps({**json.loads(good), "type_confidence": 0.4}))
 check("확신도 0.4 → NEEDS_REVIEW", lowc["status"] == "NEEDS_REVIEW")
 
+# 6. 감정 분석(sentiment) 제거 확인
+check("REQUIRED에 sentiment 없음", "sentiment" not in analyze.REQUIRED and not hasattr(analyze, "SENTIMENTS"))
+for pf in ("prompt_v1.txt", "prompt_v1_1.txt"):
+    body = "\n".join(l for l in open(os.path.join(os.path.dirname(HERE), "prompts", pf), encoding="utf-8").read().splitlines() if not l.lstrip().startswith("#"))
+    check("%s: 감정 규칙·출력 필드·예시 값 없음" % pf, not any(w in body for w in ("sentiment", "POSITIVE", "NEGATIVE", "NEUTRAL", "고객의 전반적 감정")))
+sch = open(os.path.join(os.path.dirname(HERE), "schema", "call_schema.json"), encoding="utf-8").read()
+check("call_schema.json: sentiment 속성·필수 항목 없음", '"sentiment"' not in sch)
+for d in docs:
+    check("결과 JSON에 sentiment 키 없음", "sentiment" not in d)
+stray = json.loads(good); stray["sentiment"] = "NEGATIVE"
+r, e, retry = analyze.analyze("x", llm=lambda s, u: json.dumps(stray))
+check("모델이 sentiment를 덧붙여도 결과에서 제거(재시도 없이 통과)", e is None and retry == 0 and "sentiment" not in r and set(r) == set(analyze.REQUIRED))
+check("sentiment가 없는 응답이 정상 통과", analyze.analyze("x", llm=lambda s, u: json.dumps({k: v for k, v in json.loads(good).items() if k != "sentiment"}))[1] is None)
+
+# 7. 유형 규칙은 행위 기준, 요약은 감정·태도 서술 금지
+import re as _re2
+for pf in ("prompt_v1.txt", "prompt_v1_1.txt"):
+    lines = [l for l in open(os.path.join(os.path.dirname(HERE), "prompts", pf), encoding="utf-8").read().splitlines() if not l.lstrip().startswith("#")]
+    body = "\n".join(lines)
+    check("%s: 유형 규칙에 감정·어조 기준 없음('불쾌감'·'불만 감정')" % pf, "불쾌" not in body and "불만 감정" not in body)
+    check("%s: COMPLAINT는 문제 제기 + 해결·보상 요구 기준, 어조만으로 판단 금지" % pf, "해결·시정·보상·환불을 요구" in body and "감정 표현만으로는 COMPLAINT로 판단하지 마세요" in body)
+    check("%s: 요약 등에 감정·태도 서술 금지 규칙 있음" % pf, "감정·태도 서술 금지" in body and "summary, customer_question, agent_action, follow_up" in body)
+    ex = [l for l in lines if l.startswith('{"type"')]
+    check("%s: 예시 5개의 출력에 감정·태도 서술 없음" % pf, len(ex) == 5 and not any(_re2.search(r"불만을|불편을|호소|화를 냈|화가 났|만족|짜증|강하게", l) for l in ex))
+    check("%s: 예시 2(COMPLAINT)는 요구 사실로 서술" % pf, any('"type":"COMPLAINT"' in l and "보상 여부를 요구했다" in l for l in ex))
+
 print("\n통과: %d" % passed)

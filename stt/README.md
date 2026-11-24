@@ -76,7 +76,7 @@ python test_step2.py                                           # 32개 테스트
 ## 7. 입력·출력
 
 - **입력:** `calls\in`의 음성 파일 (`.mp3 .wav .m4a .aac .ogg .flac .mp4` — 실제 지원 형식은 CLOVA 콘솔 가이드로 확인 필요)
-- **출력:** `schema\call_schema.json` 형식 JSON. 주요 필드: `status`(SUCCESS/NEEDS_REVIEW/FAILED), `type`(INQUIRY 질의 / COMPLAINT 불만 / SUGGESTION 건의 / TRAINING 교육 내용 / OTHER 기타 문의), `type_confidence`, `summary`, `sentiment`, `follow_up`, `keywords`, `entities`, `transcript`, `pii`, `processing`, `error`
+- **출력:** `schema\call_schema.json` 형식 JSON. 주요 필드: `status`(SUCCESS/NEEDS_REVIEW/FAILED), `type`(INQUIRY 질의 / COMPLAINT 불만 / SUGGESTION 건의 / TRAINING 교육 내용 / OTHER 기타 문의), `type_confidence`, `summary`, `follow_up`, `keywords`, `entities`, `transcript`, `pii`, `processing`, `error`
 - `NEEDS_REVIEW`: 유형 확신도 0.6 미만이거나 화자 구분이 불확실(`speaker_confidence=LOW`)한 건.
 - 예시: `schema\sample_success.json`, `schema\sample_failed.json`
 - **백엔드 적재 변환:** `call_schema.json`(v1.0)은 그대로 두고, 백엔드와 다른 부분은 적재할 때 `step2	o_backend.py`에서 바꿉니다. 테스트: `python test_to_backend.py`.
