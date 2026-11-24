@@ -7,7 +7,9 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.repositories.call_repository import CallRepository
+from app.repositories.stats_repository import StatsRepository
 from app.services.call_service import CallService
+from app.services.stats_service import StatsService
 
 
 def get_db(request: Request) -> Iterator[Session]:
@@ -22,3 +24,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 def get_call_service(session: DbSession) -> CallService:
     return CallService(CallRepository(session))
+
+
+def get_stats_service(session: DbSession) -> StatsService:
+    return StatsService(StatsRepository(session))
