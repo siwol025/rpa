@@ -138,7 +138,7 @@ A안에서는 저장소가 두 종류로 나뉜다.
 |---|---|
 | 인증 | 모든 `/api/robot/*`는 `X-API-Key` 헤더. 키는 Orchestrator Credential Asset에 저장 |
 | 등록 요청 | multipart: `file`, `file_hash`(SHA-256), `original_name`, `source_type`, `source_ref`, `call_datetime`, `agent_name`, `client_company` |
-| 중복 | 해시 중복 시 `409 {existing_id, status}`. 로봇은 기존 건의 상태에 따라 처리: `REGISTERED`(이전 실행이 Queue 추가 전에 중단됨) → Queue 추가부터 이어서 진행 / `STORED`·`NEEDS_REVIEW` → `done/` / `FAILED` → `failed/` / 그 외(처리 중) → 그대로 둠 (`input_flow.md` §6.2) |
+| 중복 | 해시 중복 시 `409 DUPLICATE_FILE`(기존 건 정보는 에러 본문의 `detail.existing_id`·`detail.status`). 로봇은 기존 건의 상태에 따라 처리: `REGISTERED`(이전 실행이 Queue 추가 전에 중단됨) → Queue 추가부터 이어서 진행 / `STORED`·`NEEDS_REVIEW` → `done/` / `FAILED` → `failed/` / 그 외(처리 중) → 그대로 둠 (`input_flow.md` §6.2) |
 | 메타데이터 누락 | 파일명에서 담당자·통화 일시를 못 뽑으면 해당 필드를 비워 등록 → 서버가 `metadata_incomplete=true` 표시, 처리는 정상 진행, 웹에서 보정 |
 | 멱등 | `PUT` 적재 API는 같은 내용 재전송 시 결과 동일. Queue 재시도로 같은 단계가 다시 호출돼도 안전 |
 | 타임아웃·재시도 | 로봇의 HTTP 호출은 타임아웃 30초, 5xx·네트워크 오류 시 2회 재시도 후 Queue 예외 처리 **[가정]** |
@@ -281,7 +281,7 @@ REGISTERED / QUEUED / STT_DONE (정체 시) ──(웹 재처리 요청)──�
 
 | Method | Endpoint | 호출자 | 설명 |
 |---|---|---|---|
-| POST | `/api/robot/calls` | Dispatcher | 등록 (음성 사본 + 메타데이터 + 해시) → `{call_id}`, 중복 시 `409 {existing_id, status}` |
+| POST | `/api/robot/calls` | Dispatcher | 등록 (음성 사본 + 메타데이터 + 해시) → `{call_id}`, 중복 시 `409 DUPLICATE_FILE` (`detail.existing_id`, `detail.status`) |
 | PATCH | `/api/robot/calls/{id}/status` | Dispatcher | `QUEUED` 전이 (`queue_item_id` 포함). `REGISTERED`·`RETRY_REQUESTED`에서만 허용 |
 | GET | `/api/robot/calls?status=RETRY_REQUESTED` | Dispatcher | 재처리 대상 조회 (`call_id`, `retry_count` 반환) |
 | GET | `/api/robot/calls/{id}/audio` | Performer | 재처리 시 음성 사본 다운로드 |

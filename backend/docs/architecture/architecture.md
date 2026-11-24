@@ -127,6 +127,8 @@ backend/
 │   └── infra/
 │       ├── storage/             # base.py, local.py, gcs.py
 │       └── inbox/               # base.py, drive.py, local.py(개발용)
+├── scripts/export_openapi.py    # OpenAPI → docs/api/openapi.json
+├── docs/api/                    # convention.md(API 규약), openapi.json(계약, 커밋)
 ├── alembic/                     # 마이그레이션
 ├── templates/report.xlsx        # 역할 ④ 제공 엑셀 템플릿
 ├── tests/                       # unit / integration (testcontainers-postgres)
@@ -169,8 +171,8 @@ sequenceDiagram
     D->>I: 신규 파일 확인 → processing/ 이동 (선점)
     D->>A: POST /api/robot/calls (음성 + 메타데이터 + 해시 + Drive 파일 ID)
     A->>DB: 해시 중복 확인
-    alt 중복 (409 {existing_id, status})
-        A-->>D: 409 {existing_id, status}
+    alt 중복 (409 DUPLICATE_FILE)
+        A-->>D: 409 DUPLICATE_FILE (detail.existing_id, detail.status)
         Note over D: status=REGISTERED → 아래 Queue 추가부터 이어서 진행<br/>STORED·NEEDS_REVIEW → done/ 이동 / FAILED → failed/ 이동<br/>그 외(처리 중) → 그대로 둠
     else 신규
         A->>S: 음성 사본 저장 (UUID key)
@@ -377,11 +379,13 @@ erDiagram
 | `/api/uploads`, `/api/calls`, `/api/stats`, `/api/reports` | 웹 | 없음 | VM 방화벽 IP 허용 목록 |
 | `/api/robot/*` | Dispatcher · Performer | `X-API-Key` | 키는 Orchestrator Credential Asset 보관 |
 | `/health` | 모니터링 | 없음 | DB·음성 저장소·Drive `inbox/` 접근 확인 |
-| `/docs` | 개발자 | 운영 환경에서는 비활성 또는 IP 제한 | OpenAPI = 팀 간 계약서 |
+| `/docs` | 개발자 | 운영 환경에서는 비활성(`DOCS_ENABLED=false`) | OpenAPI = 팀 간 계약서. 커밋된 `backend/docs/api/openapi.json`으로 공유 |
 
 엔드포인트 목록은 `research.md` §5, 로봇 API 상세는 `input_flow.md` §9 참조.
 
 ### 7.2 공통 규약
+세부 규약(필드 표기, 상태 코드, 목록·정렬·기간 필터, 시간·enum 표기, OpenAPI 공유)은 `backend/docs/api/convention.md`를 따른다.
+
 ```json
 // 에러
 { "code": "DUPLICATE_FILE", "message": "이미 등록된 파일입니다.", "detail": { "existing_id": 123, "status": "REGISTERED" } }
@@ -404,7 +408,7 @@ erDiagram
 | `METHOD_NOT_ALLOWED` | 405 | 경로가 지원하지 않는 HTTP 메서드 |
 | `INTERNAL_ERROR` | 500 | 처리되지 않은 서버 오류 |
 
-- 시간은 모두 `TIMESTAMPTZ` 저장, API는 ISO 8601(+09:00) 반환
+- 시간은 모두 `TIMESTAMPTZ` 저장, API는 초 단위 ISO 8601(+09:00) 반환. 오프셋 없는 입력은 KST로 해석
 - 모든 응답에 `X-Request-Id` 포함, 로봇은 이 값과 `call_id`를 UiPath 로그에 남김
 
 ---
@@ -522,6 +526,7 @@ flowchart TB
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
 | `CORS_ORIGINS` | 프론트 주소 |
 | `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |
+| `DOCS_ENABLED` | `/docs`·`/redoc`·`/openapi.json` 노출 (기본 `true`, 운영 `false`) |
 
 ---
 

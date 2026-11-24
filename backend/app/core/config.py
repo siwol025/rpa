@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173"]
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    docs_enabled: bool = True
 
     @field_validator("cors_origins", mode="before")
     @classmethod
