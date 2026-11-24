@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
+from app.api.robot.auth import RobotAuthMiddleware
 from app.api.web import calls, stats
 from app.core.config import Settings, get_settings
 from app.core.db import create_session_factory
@@ -49,8 +50,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stats.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.
-    # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → BodySizeLimit → 라우터
+    # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → RobotAuth → BodySizeLimit → 라우터
+    # 인증 전에는 본문을 읽지 않도록 RobotAuth를 BodySizeLimit보다 바깥에 둔다.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_upload_bytes)
+    app.add_middleware(
+        RobotAuthMiddleware,
+        api_keys=settings.robot_api_keys,
+        allowed_ips=settings.robot_allowed_ips,
+    )
     app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
