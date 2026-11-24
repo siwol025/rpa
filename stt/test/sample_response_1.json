@@ -1,0 +1,437 @@
+{
+  "_comment": "더미 응답(녹음 대본 기반). 실제 CLOVA Speech 응답 구조를 가정해 만든 테스트용 파일. 실제 응답 확보 후 구조 차이를 비교할 것. start/end 단위는 ms 가정. 전화번호·이메일은 가상 값(마스킹 테스트용).",
+  "result": "COMPLETED",
+  "message": "Succeeded",
+  "token": "dummy-token-0101",
+  "version": "dummy",
+  "params": {
+    "language": "ko-KR",
+    "completion": "sync",
+    "diarization": {
+      "enable": true,
+      "speakerCountMin": 2,
+      "speakerCountMax": 2
+    },
+    "noiseFiltering": true,
+    "fullText": true
+  },
+  "progress": 100,
+  "keywords": {},
+  "segments": [
+    {
+      "start": 600,
+      "end": 8118,
+      "text": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 김하늘입니다. 무엇을 도와드릴까요?",
+      "confidence": 0.96,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 김하늘입니다. 무엇을 도와드릴까요?"
+    },
+    {
+      "start": 8680,
+      "end": 10065,
+      "text": "네, 안녕하세요.",
+      "confidence": 0.96,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 안녕하세요."
+    },
+    {
+      "start": 10445,
+      "end": 19361,
+      "text": "이번 달부터 서비스를 쓰기 시작했는데요, 세금계산서는 언제 발행되는지 궁금해서 전화드렸어요.",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "이번 달부터 서비스를 쓰기 시작했는데요, 세금계산서는 언제 발행되는지 궁금해서 전화드렸어요."
+    },
+    {
+      "start": 19916,
+      "end": 23415,
+      "text": "세금계산서 발행 일정 문의 주셨네요.",
+      "confidence": 0.93,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "세금계산서 발행 일정 문의 주셨네요."
+    },
+    {
+      "start": 23764,
+      "end": 30035,
+      "text": "저희는 매월 말일에 해당 월 이용 요금 기준으로 발행해 드립니다.",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "저희는 매월 말일에 해당 월 이용 요금 기준으로 발행해 드립니다."
+    },
+    {
+      "start": 30664,
+      "end": 36150,
+      "text": "아, 말일이요. 그러면 다음 달 초에나 받게 되는 건가요?",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "아, 말일이요. 그러면 다음 달 초에나 받게 되는 건가요?"
+    },
+    {
+      "start": 36969,
+      "end": 43852,
+      "text": "아닙니다. 말일 당일에 발행되고, 등록하신 이메일로 바로 발송됩니다.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "아닙니다. 말일 당일에 발행되고, 등록하신 이메일로 바로 발송됩니다."
+    },
+    {
+      "start": 44429,
+      "end": 48740,
+      "text": "이메일로 온다고요? 그럼 따로 신청해야 하나요?",
+      "confidence": 0.93,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "이메일로 온다고요? 그럼 따로 신청해야 하나요?"
+    },
+    {
+      "start": 49421,
+      "end": 52626,
+      "text": "따로 신청하실 필요는 없습니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "따로 신청하실 필요는 없습니다."
+    },
+    {
+      "start": 52886,
+      "end": 58382,
+      "text": "가입하실 때 입력하신 담당자 이메일로 자동 발송됩니다.",
+      "confidence": 0.96,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "가입하실 때 입력하신 담당자 이메일로 자동 발송됩니다."
+    },
+    {
+      "start": 59066,
+      "end": 65754,
+      "text": "그렇군요. 그런데 담당자가 바뀌면 받는 이메일 주소는 어떻게 바꾸나요?",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "그렇군요. 그런데 담당자가 바뀌면 받는 이메일 주소는 어떻게 바꾸나요?"
+    },
+    {
+      "start": 66690,
+      "end": 74434,
+      "text": "마이페이지의 사업자 정보 메뉴에서 세금계산서 수신 이메일을 수정하실 수 있습니다.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "마이페이지의 사업자 정보 메뉴에서 세금계산서 수신 이메일을 수정하실 수 있습니다."
+    },
+    {
+      "start": 75181,
+      "end": 78743,
+      "text": "마이페이지에서 사업자 정보 메뉴요.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "마이페이지에서 사업자 정보 메뉴요."
+    },
+    {
+      "start": 78904,
+      "end": 90592,
+      "text": "알겠습니다. 지금 등록된 주소가 hello@example.com 으로 되어 있을 텐데, 맞는지 확인해 주실 수 있을까요?",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "알겠습니다. 지금 등록된 주소가 hello@example.com 으로 되어 있을 텐데, 맞는지 확인해 주실 수 있을까요?"
+    },
+    {
+      "start": 91604,
+      "end": 99105,
+      "text": "네, 확인해 보겠습니다. 잠시만 기다려 주세요. 네, 등록된 주소와 일치합니다.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 확인해 보겠습니다. 잠시만 기다려 주세요. 네, 등록된 주소와 일치합니다."
+    },
+    {
+      "start": 99717,
+      "end": 106147,
+      "text": "감사합니다. 그리고 발행된 계산서를 나중에 다시 볼 수도 있나요?",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "감사합니다. 그리고 발행된 계산서를 나중에 다시 볼 수도 있나요?"
+    },
+    {
+      "start": 107019,
+      "end": 114378,
+      "text": "네, 같은 메뉴의 세금계산서 내역에서 PDF로 다시 내려받으실 수 있습니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 같은 메뉴의 세금계산서 내역에서 PDF로 다시 내려받으실 수 있습니다."
+    },
+    {
+      "start": 115030,
+      "end": 121050,
+      "text": "아, 그건 편하네요. 혹시 말일에 메일이 안 오면 어떻게 하죠?",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "아, 그건 편하네요. 혹시 말일에 메일이 안 오면 어떻게 하죠?"
+    },
+    {
+      "start": 121963,
+      "end": 129264,
+      "text": "먼저 스팸 메일함을 확인해 보시고, 그래도 없으면 고객센터로 말씀해 주세요.",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "먼저 스팸 메일함을 확인해 보시고, 그래도 없으면 고객센터로 말씀해 주세요."
+    },
+    {
+      "start": 129431,
+      "end": 131701,
+      "text": "바로 재발송해 드립니다.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "바로 재발송해 드립니다."
+    },
+    {
+      "start": 132519,
+      "end": 135059,
+      "text": "재발송은 전화로만 되나요?",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "재발송은 전화로만 되나요?"
+    },
+    {
+      "start": 136084,
+      "end": 143036,
+      "text": "마이페이지에서 재발송 버튼을 누르셔도 되고, 전화로 요청하셔도 됩니다.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "마이페이지에서 재발송 버튼을 누르셔도 되고, 전화로 요청하셔도 됩니다."
+    },
+    {
+      "start": 143999,
+      "end": 149084,
+      "text": "네, 이해했습니다. 그럼 말일에 메일 확인해 볼게요.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 이해했습니다. 그럼 말일에 메일 확인해 볼게요."
+    },
+    {
+      "start": 149833,
+      "end": 156488,
+      "text": "네, 추가로 궁금하신 점 있으시면 언제든 연락 주세요. 감사합니다.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 추가로 궁금하신 점 있으시면 언제든 연락 주세요. 감사합니다."
+    },
+    {
+      "start": 157153,
+      "end": 158718,
+      "text": "네, 수고하세요.",
+      "confidence": 0.93,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 수고하세요."
+    }
+  ],
+  "text": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 김하늘입니다. 무엇을 도와드릴까요? 네, 안녕하세요. 이번 달부터 서비스를 쓰기 시작했는데요, 세금계산서는 언제 발행되는지 궁금해서 전화드렸어요. 세금계산서 발행 일정 문의 주셨네요. 저희는 매월 말일에 해당 월 이용 요금 기준으로 발행해 드립니다. 아, 말일이요. 그러면 다음 달 초에나 받게 되는 건가요? 아닙니다. 말일 당일에 발행되고, 등록하신 이메일로 바로 발송됩니다. 이메일로 온다고요? 그럼 따로 신청해야 하나요? 따로 신청하실 필요는 없습니다. 가입하실 때 입력하신 담당자 이메일로 자동 발송됩니다. 그렇군요. 그런데 담당자가 바뀌면 받는 이메일 주소는 어떻게 바꾸나요? 마이페이지의 사업자 정보 메뉴에서 세금계산서 수신 이메일을 수정하실 수 있습니다. 마이페이지에서 사업자 정보 메뉴요. 알겠습니다. 지금 등록된 주소가 hello@example.com 으로 되어 있을 텐데, 맞는지 확인해 주실 수 있을까요? 네, 확인해 보겠습니다. 잠시만 기다려 주세요. 네, 등록된 주소와 일치합니다. 감사합니다. 그리고 발행된 계산서를 나중에 다시 볼 수도 있나요? 네, 같은 메뉴의 세금계산서 내역에서 PDF로 다시 내려받으실 수 있습니다. 아, 그건 편하네요. 혹시 말일에 메일이 안 오면 어떻게 하죠? 먼저 스팸 메일함을 확인해 보시고, 그래도 없으면 고객센터로 말씀해 주세요. 바로 재발송해 드립니다. 재발송은 전화로만 되나요? 마이페이지에서 재발송 버튼을 누르셔도 되고, 전화로 요청하셔도 됩니다. 네, 이해했습니다. 그럼 말일에 메일 확인해 볼게요. 네, 추가로 궁금하신 점 있으시면 언제든 연락 주세요. 감사합니다. 네, 수고하세요.",
+  "confidence": 0.9556,
+  "speakers": [
+    {
+      "label": "1",
+      "name": "A",
+      "edited": false
+    },
+    {
+      "label": "2",
+      "name": "B",
+      "edited": false
+    }
+  ],
+  "eventTexts": []
+}

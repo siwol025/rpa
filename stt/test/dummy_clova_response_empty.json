@@ -1,0 +1,8 @@
+{
+  "_comment": "무음/빈 음성 더미(구조 가정). COMPLETED이지만 segments가 비어 있는 경우.",
+  "result": "COMPLETED",
+  "message": "Succeeded",
+  "token": "dummy-token-0003",
+  "segments": [],
+  "text": ""
+}

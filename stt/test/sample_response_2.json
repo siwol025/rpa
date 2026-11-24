@@ -1,0 +1,469 @@
+{
+  "_comment": "더미 응답(녹음 대본 기반). 실제 CLOVA Speech 응답 구조를 가정해 만든 테스트용 파일. 실제 응답 확보 후 구조 차이를 비교할 것. start/end 단위는 ms 가정. 전화번호·이메일은 가상 값(마스킹 테스트용).",
+  "result": "COMPLETED",
+  "message": "Succeeded",
+  "token": "dummy-token-0102",
+  "version": "dummy",
+  "params": {
+    "language": "ko-KR",
+    "completion": "sync",
+    "diarization": {
+      "enable": true,
+      "speakerCountMin": 2,
+      "speakerCountMax": 2
+    },
+    "noiseFiltering": true,
+    "fullText": true
+  },
+  "progress": 100,
+  "keywords": {},
+  "segments": [
+    {
+      "start": 600,
+      "end": 8539,
+      "text": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 박서준입니다. 무엇을 도와드릴까요?",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 박서준입니다. 무엇을 도와드릴까요?"
+    },
+    {
+      "start": 9013,
+      "end": 13531,
+      "text": "저, 같은 문제로 전화하는 게 벌써 두 번째예요.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "저, 같은 문제로 전화하는 게 벌써 두 번째예요."
+    },
+    {
+      "start": 13767,
+      "end": 20193,
+      "text": "파일 업로드할 때 오류가 계속 나는데, 이게 오늘로 3일째입니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "파일 업로드할 때 오류가 계속 나는데, 이게 오늘로 3일째입니다."
+    },
+    {
+      "start": 20878,
+      "end": 27938,
+      "text": "불편을 드려 정말 죄송합니다. 어떤 오류가 발생하는지 말씀해 주시겠어요?",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "불편을 드려 정말 죄송합니다. 어떤 오류가 발생하는지 말씀해 주시겠어요?"
+    },
+    {
+      "start": 28653,
+      "end": 35926,
+      "text": "업로드 버튼을 누르면 \"처리 중 오류가 발생했습니다\"라고만 뜨고 끝이에요.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "업로드 버튼을 누르면 \"처리 중 오류가 발생했습니다\"라고만 뜨고 끝이에요."
+    },
+    {
+      "start": 36296,
+      "end": 38822,
+      "text": "어제도 그제도 똑같았어요.",
+      "confidence": 0.95,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "어제도 그제도 똑같았어요."
+    },
+    {
+      "start": 39672,
+      "end": 43550,
+      "text": "3일 연속으로 같은 오류가 나는 거군요.",
+      "confidence": 0.99,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "3일 연속으로 같은 오류가 나는 거군요."
+    },
+    {
+      "start": 43957,
+      "end": 50144,
+      "text": "정말 죄송합니다. 혹시 파일 크기나 형식에는 이상이 없으셨을까요?",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "정말 죄송합니다. 혹시 파일 크기나 형식에는 이상이 없으셨을까요?"
+    },
+    {
+      "start": 50744,
+      "end": 54057,
+      "text": "평소에 쓰던 엑셀 파일 그대로예요.",
+      "confidence": 0.99,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "평소에 쓰던 엑셀 파일 그대로예요."
+    },
+    {
+      "start": 54401,
+      "end": 59267,
+      "text": "설정은 건드린 게 없어요. 지난주까지는 잘 됐고요.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "설정은 건드린 게 없어요. 지난주까지는 잘 됐고요."
+    },
+    {
+      "start": 60020,
+      "end": 61106,
+      "text": "알겠습니다.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "알겠습니다."
+    },
+    {
+      "start": 61374,
+      "end": 70236,
+      "text": "이전 문의 내용을 확인해 보니 어제 접수된 건이 있는데, 아직 해결 완료로 처리되지 않았네요.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "이전 문의 내용을 확인해 보니 어제 접수된 건이 있는데, 아직 해결 완료로 처리되지 않았네요."
+    },
+    {
+      "start": 70793,
+      "end": 76229,
+      "text": "아니, 접수됐다는 것만 알려 주고 아무 연락이 없었어요.",
+      "confidence": 0.82,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "아니, 접수됐다는 것만 알려 주고 아무 연락이 없었어요."
+    },
+    {
+      "start": 76665,
+      "end": 80883,
+      "text": "업무에 계속 지장이 있는데 이게 말이 됩니까?",
+      "confidence": 0.78,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "업무에 계속 지장이 있는데 이게 말이 됩니까?"
+    },
+    {
+      "start": 81763,
+      "end": 84952,
+      "text": "충분히 답답하셨을 것 같습니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "충분히 답답하셨을 것 같습니다."
+    },
+    {
+      "start": 85288,
+      "end": 94717,
+      "text": "정말 죄송합니다. 먼저 개발팀에 우선순위를 올려서 오늘 중으로 원인을 확인하도록 요청하겠습니다.",
+      "confidence": 0.97,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "정말 죄송합니다. 먼저 개발팀에 우선순위를 올려서 오늘 중으로 원인을 확인하도록 요청하겠습니다."
+    },
+    {
+      "start": 95530,
+      "end": 102712,
+      "text": "그래서 언제 고쳐지나요? 오늘 안에 되는 건가요, 아니면 또 며칠 걸리나요?",
+      "confidence": 0.99,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "그래서 언제 고쳐지나요? 오늘 안에 되는 건가요, 아니면 또 며칠 걸리나요?"
+    },
+    {
+      "start": 103552,
+      "end": 109762,
+      "text": "정확한 수정 시점은 개발팀 확인 후에 안내해 드릴 수 있습니다.",
+      "confidence": 0.96,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "정확한 수정 시점은 개발팀 확인 후에 안내해 드릴 수 있습니다."
+    },
+    {
+      "start": 110162,
+      "end": 114779,
+      "text": "확인 결과는 오늘 오후 안에 꼭 연락드리겠습니다.",
+      "confidence": 0.99,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "확인 결과는 오늘 오후 안에 꼭 연락드리겠습니다."
+    },
+    {
+      "start": 115698,
+      "end": 120248,
+      "text": "매번 확인하겠다고만 하시니까 신뢰가 안 가요.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "매번 확인하겠다고만 하시니까 신뢰가 안 가요."
+    },
+    {
+      "start": 120630,
+      "end": 124165,
+      "text": "이번엔 정말 연락 주시는 거 맞죠?",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "이번엔 정말 연락 주시는 거 맞죠?"
+    },
+    {
+      "start": 125034,
+      "end": 132855,
+      "text": "네, 약속드립니다. 연락받으실 번호는 010-1234-5678 번이 맞으실까요?",
+      "confidence": 0.99,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 약속드립니다. 연락받으실 번호는 010-1234-5678 번이 맞으실까요?"
+    },
+    {
+      "start": 133737,
+      "end": 137849,
+      "text": "네, 맞아요. 그 번호로 꼭 연락 주세요.",
+      "confidence": 0.94,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 맞아요. 그 번호로 꼭 연락 주세요."
+    },
+    {
+      "start": 138500,
+      "end": 139748,
+      "text": "알겠습니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "알겠습니다."
+    },
+    {
+      "start": 140035,
+      "end": 149805,
+      "text": "오늘 오후 안에 개발팀 확인 결과를 전화로 안내해 드리겠습니다. 다시 한번 불편을 드려 죄송합니다.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "오늘 오후 안에 개발팀 확인 결과를 전화로 안내해 드리겠습니다. 다시 한번 불편을 드려 죄송합니다."
+    },
+    {
+      "start": 150518,
+      "end": 154433,
+      "text": "알겠습니다. 이번에는 꼭 부탁드릴게요.",
+      "confidence": 0.98,
+      "diarization": {
+        "label": "2"
+      },
+      "speaker": {
+        "label": "2",
+        "name": "B",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "알겠습니다. 이번에는 꼭 부탁드릴게요."
+    },
+    {
+      "start": 155378,
+      "end": 156968,
+      "text": "네, 감사합니다.",
+      "confidence": 0.96,
+      "diarization": {
+        "label": "1"
+      },
+      "speaker": {
+        "label": "1",
+        "name": "A",
+        "edited": false
+      },
+      "words": [],
+      "textEdited": "네, 감사합니다."
+    }
+  ],
+  "text": "안녕하십니까, 위드컴퍼니 고객지원센터 상담원 박서준입니다. 무엇을 도와드릴까요? 저, 같은 문제로 전화하는 게 벌써 두 번째예요. 파일 업로드할 때 오류가 계속 나는데, 이게 오늘로 3일째입니다. 불편을 드려 정말 죄송합니다. 어떤 오류가 발생하는지 말씀해 주시겠어요? 업로드 버튼을 누르면 \"처리 중 오류가 발생했습니다\"라고만 뜨고 끝이에요. 어제도 그제도 똑같았어요. 3일 연속으로 같은 오류가 나는 거군요. 정말 죄송합니다. 혹시 파일 크기나 형식에는 이상이 없으셨을까요? 평소에 쓰던 엑셀 파일 그대로예요. 설정은 건드린 게 없어요. 지난주까지는 잘 됐고요. 알겠습니다. 이전 문의 내용을 확인해 보니 어제 접수된 건이 있는데, 아직 해결 완료로 처리되지 않았네요. 아니, 접수됐다는 것만 알려 주고 아무 연락이 없었어요. 업무에 계속 지장이 있는데 이게 말이 됩니까? 충분히 답답하셨을 것 같습니다. 정말 죄송합니다. 먼저 개발팀에 우선순위를 올려서 오늘 중으로 원인을 확인하도록 요청하겠습니다. 그래서 언제 고쳐지나요? 오늘 안에 되는 건가요, 아니면 또 며칠 걸리나요? 정확한 수정 시점은 개발팀 확인 후에 안내해 드릴 수 있습니다. 확인 결과는 오늘 오후 안에 꼭 연락드리겠습니다. 매번 확인하겠다고만 하시니까 신뢰가 안 가요. 이번엔 정말 연락 주시는 거 맞죠? 네, 약속드립니다. 연락받으실 번호는 010-1234-5678 번이 맞으실까요? 네, 맞아요. 그 번호로 꼭 연락 주세요. 알겠습니다. 오늘 오후 안에 개발팀 확인 결과를 전화로 안내해 드리겠습니다. 다시 한번 불편을 드려 죄송합니다. 알겠습니다. 이번에는 꼭 부탁드릴게요. 네, 감사합니다.",
+  "confidence": 0.957,
+  "speakers": [
+    {
+      "label": "1",
+      "name": "A",
+      "edited": false
+    },
+    {
+      "label": "2",
+      "name": "B",
+      "edited": false
+    }
+  ],
+  "eventTexts": []
+}

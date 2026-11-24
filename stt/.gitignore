@@ -1,0 +1,7 @@
+# Secret Key가 들어 있는 파일은 공유·커밋 금지
+config.json
+__pycache__/
+# AI Hub 샘플 음성·STT 원본 결과는 재배포 제한 가능성이 있어 제외
+*.wav
+test/out/stt/
+test/out/stt_norm/
