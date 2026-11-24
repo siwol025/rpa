@@ -32,7 +32,7 @@ services:
       POSTGRES_PASSWORD: callcenter
       POSTGRES_DB: callcenter
     ports:
-      - "5432:5432"   # 개발 환경에서만 노출
+      - "5433:5432"   # 개발 환경에서만 노출 (호스트 5432 는 로컬 PostgreSQL 과 충돌하기 쉬워 5433 사용)
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
