@@ -76,3 +76,28 @@ def test_detail_reads_orm_like_objects_and_serializes() -> None:
     ]
     assert "object_key" not in body
     assert "file_hash" not in body
+
+
+def test_detail_serializes_entities_as_list_of_type_value() -> None:
+    # STT 결과(stt/schema/call_schema.json)의 entities는 [{type, value}] 배열이다.
+    analysis = SimpleNamespace(
+        category="불만",
+        confidence=None,
+        question_summary=None,
+        action_summary=None,
+        follow_up_required=None,
+        action_status=None,
+        entities=[
+            {"type": "REF_NO", "value": "주문번호 [REF]"},
+            {"type": "DATE", "value": "일주일 전"},
+        ],
+        needs_review=None,
+    )
+    detail = CallDetail.model_validate(
+        {**_BASE, "transcript": None, "analysis": analysis, "processing_log": []}
+    )
+
+    assert detail.model_dump(mode="json")["analysis"]["entities"] == [
+        {"type": "REF_NO", "value": "주문번호 [REF]"},
+        {"type": "DATE", "value": "일주일 전"},
+    ]

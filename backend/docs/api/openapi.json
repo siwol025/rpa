@@ -49,8 +49,10 @@
           "entities": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "items": {
+                  "$ref": "#/components/schemas/EntityOut"
+                },
+                "type": "array"
               },
               {
                 "type": "null"
@@ -386,6 +388,24 @@
         ],
         "title": "Category",
         "type": "string"
+      },
+      "EntityOut": {
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "EntityOut",
+        "type": "object"
       },
       "ErrorCode": {
         "enum": [
