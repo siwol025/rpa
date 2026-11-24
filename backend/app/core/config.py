@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     inbox_backend: Literal["drive", "local", "disabled"] = "disabled"
     inbox_local_path: Path = Path("./data/inbox")
     drive_inbox_folder_id: str | None = None
+    # 이 시간(분)을 넘게 같은 처리 중 상태에 머문 건은 정체로 본다 (R-02 재처리 허용, R-11 감지).
+    stale_threshold_min: int = Field(default=30, gt=0)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
