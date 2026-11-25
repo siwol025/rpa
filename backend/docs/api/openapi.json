@@ -1034,6 +1034,16 @@
             "title": "Schema Version",
             "type": "string"
           },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "SUCCESS",
@@ -1380,6 +1390,26 @@
           "text"
         ],
         "title": "SegmentOut",
+        "type": "object"
+      },
+      "SourceIn": {
+        "additionalProperties": true,
+        "properties": {
+          "duration_sec": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "통화 길이(초, 소수)",
+            "title": "Duration Sec"
+          }
+        },
+        "title": "SourceIn",
         "type": "object"
       },
       "SourceType": {
