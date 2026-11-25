@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
+from app.api import health
 from app.api.robot import calls as robot_calls
 from app.api.robot.auth import RobotAuthMiddleware
 from app.api.web import calls, retry, stats, uploads
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stats.router)
     app.include_router(uploads.router)
     app.include_router(retry.router)
+    app.include_router(health.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.
     # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → RobotAuth → BodySizeLimit → 라우터

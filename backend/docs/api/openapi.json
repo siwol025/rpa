@@ -526,6 +526,15 @@
         "title": "CategoryCounts",
         "type": "object"
       },
+      "ComponentStatus": {
+        "enum": [
+          "OK",
+          "FAIL",
+          "DISABLED"
+        ],
+        "title": "ComponentStatus",
+        "type": "string"
+      },
       "DuplicateFileDetail": {
         "properties": {
           "existing_id": {
@@ -660,6 +669,52 @@
           "VALIDATION"
         ],
         "title": "ErrorStage",
+        "type": "string"
+      },
+      "HealthChecks": {
+        "properties": {
+          "audio_storage": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "db": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          },
+          "inbox": {
+            "$ref": "#/components/schemas/ComponentStatus"
+          }
+        },
+        "required": [
+          "db",
+          "audio_storage",
+          "inbox"
+        ],
+        "title": "HealthChecks",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "전체 상태와 구성요소별 상태. 실패 원인은 응답에 없고 로그(`health_check_failed`)에만 있다.",
+        "properties": {
+          "checks": {
+            "$ref": "#/components/schemas/HealthChecks"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "HealthStatus": {
+        "enum": [
+          "OK",
+          "DEGRADED",
+          "FAIL"
+        ],
+        "title": "HealthStatus",
         "type": "string"
       },
       "LogStatus": {
@@ -2503,6 +2558,57 @@
         "summary": "Upload Files",
         "tags": [
           "uploads"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "get_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "필수 구성요소(DB·음성 저장소) 실패"
+          }
+        },
+        "summary": "Get Health",
+        "tags": [
+          "health"
         ]
       }
     }
