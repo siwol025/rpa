@@ -18,7 +18,6 @@ dependencies = [
   "google-auth-httplib2",
   "httplib2",
   "openpyxl",
-  "filetype",
   "structlog",
 ]
 
@@ -72,7 +71,7 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["googleapiclient.*", "google.oauth2.*", "google_auth_httplib2.*", "httplib2.*", "openpyxl.*", "filetype.*", "testcontainers.*"]
+module = ["googleapiclient.*", "google.oauth2.*", "google_auth_httplib2.*", "httplib2.*", "openpyxl.*", "testcontainers.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------- pytest

@@ -152,6 +152,42 @@ def test_optional_fields_can_be_missing(robot_client: TestClient, db: Session) -
     assert analysis.question_summary is None
     assert analysis.entities == []
     assert analysis.prompt_version is None
+    db.refresh(call)
+    assert call.duration_sec is None
+
+
+# ------------------------------------------------------------------ 통화 길이
+
+
+@pytest.mark.parametrize(
+    ("seconds", "expected"),
+    [(142.6, 143), (88.3, 88), (2.5, 3), (0.4, 0), (60, 60)],
+)
+def test_duration_is_stored_as_whole_seconds_rounding_half_up(
+    robot_client: TestClient, db: Session, seconds: float, expected: int
+) -> None:
+    call = make_call_record(db, status=S.STT_DONE)
+    payload = sample("case01_success")
+    payload["source"]["duration_sec"] = seconds
+
+    response = put(robot_client, call.id, payload)
+
+    assert response.status_code == 200
+    db.refresh(call)
+    assert call.duration_sec == expected
+    assert robot_client.get(f"/api/calls/{call.id}").json()["duration_sec"] == expected
+
+
+def test_missing_duration_keeps_the_existing_value(robot_client: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.STT_DONE, duration_sec=90)
+    payload = sample("case01_success")
+    payload["source"]["duration_sec"] = None
+
+    response = put(robot_client, call.id, payload)
+
+    assert response.status_code == 200
+    db.refresh(call)
+    assert call.duration_sec == 90
 
 
 # ------------------------------------------------------------------ 멱등·재분석
@@ -313,6 +349,8 @@ def test_sample_with_null_metadata_fields_is_accepted(
         ({"entities": [{"type": "ORG", "value": ""}]}, "value"),
         ({"entities": "none"}, "entities"),
         ({"processing": {"prompt_version": "v" * 21}}, "prompt_version"),
+        ({"source": {"duration_sec": -1}}, "duration_sec"),
+        ({"source": {"duration_sec": "2분"}}, "duration_sec"),
     ],
 )
 def test_invalid_field_is_422_and_changes_nothing(

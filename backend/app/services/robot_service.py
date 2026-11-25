@@ -1,6 +1,7 @@
 """로봇(UiPath)이 호출하는 등록·적재 유스케이스 (R-04~R-08)."""
 
 import hashlib
+import math
 from pathlib import Path
 from typing import BinaryIO, cast
 
@@ -158,6 +159,10 @@ class RobotService:
         analysis.entities = [entity.model_dump() for entity in body.entities]
         analysis.prompt_version = body.processing.prompt_version if body.processing else None
         analysis.needs_review = target == CallStatus.NEEDS_REVIEW
+        duration = body.source.duration_sec if body.source else None
+        if duration is not None:
+            # 컬럼은 정수 초. Python round()는 2.5→2라서 ③ to_backend.py와 같이 .5를 올린다.
+            call.duration_sec = math.floor(duration + 0.5)
         # 전사는 transcript 테이블에 이미 있으므로 원본에서 뺀다 (본문 중복 저장 방지).
         analysis.raw_json = body.model_dump(mode="json", exclude={"transcript"})
         self._db.commit()

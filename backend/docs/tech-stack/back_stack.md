@@ -150,7 +150,6 @@ dependencies = [
   "google-api-python-client",
   "google-auth",
   "openpyxl",
-  "filetype",
   "structlog",
 ]
 

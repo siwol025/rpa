@@ -148,6 +148,14 @@ class ProcessingIn(BaseModel):
     prompt_version: Annotated[str, Field(max_length=20)] | None = None
 
 
+class SourceIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    duration_sec: float | None = Field(
+        default=None, ge=0, allow_inf_nan=False, description="통화 길이(초, 소수)"
+    )
+
+
 class RobotAnalysisRequest(BaseModel):
     """`PUT /api/robot/calls/{id}/analysis` 본문: GenAI 결과 JSON을 그대로 보낸다.
 
@@ -166,6 +174,7 @@ class RobotAnalysisRequest(BaseModel):
     agent_action: str | None = None
     follow_up_required: bool | None = None
     entities: list[EntityIn] = Field(default_factory=list)
+    source: SourceIn | None = None
     processing: ProcessingIn | None = None
 
 
