@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useCalls } from '../api/calls'
 import { useBreakdown } from '../api/stats'
-import { CATEGORIES, PAGE_MAX, STATUSES, type CallListParams, type CallSort } from '../api/types'
+import { CATEGORIES, PAGE_MAX, Q_MAX_LENGTH, STATUSES, type CallListParams, type CallSort } from '../api/types'
 import { CategoryChip } from '../components/CategoryChip'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
@@ -10,7 +10,7 @@ import { PeriodInput } from '../components/PeriodInput'
 import { StatusBadges } from '../components/StatusBadge'
 import { formatDateTime, formatSeconds } from '../lib/format'
 import { actionLabel, categoryLabel, STATUS_LABEL } from '../lib/status'
-import { dateParam, oneOf, useUrlParams } from '../lib/useUrlParams'
+import { dateParam, oneOf, periodProblem, useUrlParams } from '../lib/useUrlParams'
 
 const PAGE_SIZE = 20
 const HEADERS = ['통화 일시', '담당자', '고객사', '유형', '질문 요약', '통화 시간', '조치 상태', '처리 상태']
@@ -46,14 +46,15 @@ function FilterSelect({ label, value = '', options, onChange }: SelectProps) {
 /** 담당자·고객사 목록 API가 없어서 통계(담당자별·고객사별) 응답의 이름을 쓴다 */
 function useNames(by: 'agent' | 'client') {
   const { data } = useBreakdown({}, by)
-  return (data?.items ?? []).map((i) => ({ value: i.name, label: i.name })).sort((a, b) => a.label.localeCompare(b.label))
+  const names = (data?.items ?? []).flatMap((i) => i.name ?? [])
+  return names.map((n) => ({ value: n, label: n })).sort((a, b) => a.label.localeCompare(b.label))
 }
 
 export function CallsPage() {
   const { sp, set } = useUrlParams()
   const { search } = useLocation()
   const page = Math.min(PAGE_MAX, Math.max(1, Math.floor(Number(sp.get('page'))) || 1))
-  const urlQ = sp.get('q') ?? ''
+  const urlQ = [...(sp.get('q') ?? '')].slice(0, Q_MAX_LENGTH).join('')
   const params = {
     from: dateParam(sp, 'from'),
     to: dateParam(sp, 'to'),
@@ -68,7 +69,11 @@ export function CallsPage() {
     size: PAGE_SIZE,
     sort: oneOf(sp, 'sort', ['call_datetime']) ?? SORTS[0].value,
   } satisfies CallListParams
-  const { data, error, isPending, isFetching, isPlaceholderData, refetch } = useCalls(params)
+  const problem = periodProblem(params)
+  const { data, error, isPending, isFetching, isPlaceholderData, refetch } = useCalls(params, !problem)
+  // 정체 감지가 없는 서버는 is_stale을 주지 않고 stale 조건을 무시한다 (규약 §5.3)
+  const staleUnknown = data?.items.some((c) => c.is_stale === undefined) ?? false
+  const notice = problem ?? (params.stale && staleUnknown ? '아직 정체 건만 골라 볼 수 없어요' : null)
   const agents = useNames('agent')
   const clients = useNames('client')
 
@@ -93,12 +98,12 @@ export function CallsPage() {
       <div className="mb-4 flex items-end justify-between gap-4">
         <h1 className="m-0 text-[22px] font-bold tracking-tight">상담 목록</h1>
         <output aria-label="검색 결과 수" className="num text-muted">
-          {data && !error ? `${data.total}건` : ''}
+          {data && !error && !notice ? `${data.total}건` : ''}
         </output>
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input type="search" aria-label="키워드" placeholder="키워드" className="field w-56 max-w-full" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+        <input type="search" aria-label="키워드" placeholder="키워드" maxLength={Q_MAX_LENGTH} className="field w-56 max-w-full" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
         <PeriodInput value={params} onChange={set} />
         <FilterSelect label="유형" value={params.category} onChange={(v) => set('category', v)} options={CATEGORIES.map((c) => ({ value: c, label: categoryLabel(c) }))} />
         <FilterSelect label="담당자" value={params.agent} onChange={(v) => set('agent', v)} options={agents} />
@@ -109,7 +114,7 @@ export function CallsPage() {
           메타데이터 확인 필요
         </label>
         <label className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-1.5 text-[13px] text-fg-2">
-          <input type="checkbox" checked={params.stale ?? false} onChange={(e) => set('stale', e.target.checked ? 'true' : '')} />
+          <input type="checkbox" checked={params.stale ?? false} disabled={staleUnknown && !params.stale} onChange={(e) => set('stale', e.target.checked ? 'true' : '')} />
           정체
         </label>
         <select aria-label="정렬" className="field" value={params.sort} onChange={(e) => set('sort', e.target.value === SORTS[0].value ? '' : e.target.value)}>
@@ -121,7 +126,18 @@ export function CallsPage() {
         </select>
       </div>
 
-      {error ? (
+      {notice ? (
+        <EmptyState
+          title={notice}
+          action={
+            !problem && (
+              <button type="button" className="btn text-fg" onClick={() => set('stale', '')}>
+                정체 조건 지우기
+              </button>
+            )
+          }
+        />
+      ) : error ? (
         <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} />
       ) : (
         <div className="tablewrap">
@@ -179,7 +195,7 @@ export function CallsPage() {
         </div>
       )}
 
-      {data && !error && data.items.length > 0 && pages > 1 && (
+      {data && !error && !notice && data.items.length > 0 && pages > 1 && (
         <nav aria-label="페이지" className="mt-3 flex items-center justify-center gap-2.5 text-[13px]">
           <button type="button" className="btn" disabled={page <= 1} onClick={() => goPage(page - 1)}>
             이전

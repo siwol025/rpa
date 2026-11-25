@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse } from 'msw'
-import { CATEGORIES, PAGE_MAX, PAGE_SIZE_MAX, type CallDetail, type CallListItem, type CallPatch, type RetryResult } from '../api/types'
+import { CATEGORIES, PAGE_MAX, PAGE_SIZE_MAX, Q_MAX_LENGTH, STATUSES, type CallDetail, type CallListItem, type CallPatch, type RetryResult, type TrendItem } from '../api/types'
 import { canRetry } from '../lib/status'
+import { periodProblem } from '../lib/useUrlParams'
 import { MOCK_CALLS } from './data'
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
@@ -50,11 +51,24 @@ function bucket(iso: string, g: string | null): string {
   return d.toISOString().slice(0, 10)
 }
 
-function countBy(values: string[]): [string, number][] {
-  const m = new Map<string, number>()
-  for (const v of values) m.set(v, (m.get(v) ?? 0) + 1)
-  return [...m]
+const TREND_MAX = 400
+
+function nextBucket(period: string, g: string | null): string {
+  const d = new Date(`${period}T00:00:00Z`)
+  if (g === 'month') d.setUTCMonth(d.getUTCMonth() + 1)
+  else d.setUTCDate(d.getUTCDate() + (g === 'week' ? 7 : 1))
+  return d.toISOString().slice(0, 10)
 }
+
+const rangeTooLarge = () =>
+  HttpResponse.json(
+    {
+      code: 'VALIDATION_ERROR',
+      message: '요청 형식이 올바르지 않습니다.',
+      detail: { errors: [{ loc: ['query', 'from'], msg: `기간이 너무 깁니다. 구간은 최대 ${TREND_MAX}개입니다`, type: 'range_too_large' }] },
+    },
+    { status: 422 },
+  )
 
 /** 소리 없는 2초짜리 wav (재생 화면 확인용) */
 function silentWav(): ArrayBuffer {
@@ -83,15 +97,24 @@ export const handlers = [
   http.get(`*${BASE}/calls`, async ({ request }) => {
     await delay(WAIT)
     const sp = new URL(request.url).searchParams
-    const q = sp.get('q')
+    const q = (sp.get('q') ?? '').trim().toLowerCase()
     const is = (key: string, value: string | null | undefined) => !sp.get(key) || sp.get(key) === value
     const statuses = sp.getAll('status')
+    const badCode = (key: string, allowed: readonly string[]) => sp.getAll(key).some((v) => !allowed.includes(v))
+    if (
+      periodProblem({ from: sp.get('from') ?? undefined, to: sp.get('to') ?? undefined }) ||
+      [...(sp.get('q') ?? '')].length > Q_MAX_LENGTH ||
+      badCode('category', CATEGORIES) ||
+      badCode('status', STATUSES)
+    ) {
+      return invalidRequest()
+    }
     const sort = sp.get('sort') ?? '-created_at'
     const dir = sort.startsWith('-') ? -1 : 1
     const field = sort.replace('-', '')
     if (!['call_datetime', 'created_at', 'status_changed_at'].includes(field)) return invalidRequest()
     const key = (c: CallDetail) =>
-      field === 'call_datetime' ? c.call_datetime : field === 'status_changed_at' ? c.status_changed_at : c.processing_log[0].created_at
+      field === 'call_datetime' ? c.call_datetime : field === 'status_changed_at' ? c.status_changed_at : c.created_at
     const rows = db
       .filter(
         (c) =>
@@ -105,6 +128,7 @@ export const handlers = [
           (!q ||
             [c.analysis?.question_summary, c.analysis?.action_summary, ...(c.transcript?.segments.map((s) => s.text) ?? [])]
               .join(' ')
+              .toLowerCase()
               .includes(q)),
       )
       .sort((a, b) => {
@@ -185,7 +209,7 @@ export const handlers = [
       needs_review: n((c) => c.status === 'NEEDS_REVIEW'),
       metadata_incomplete: n((c) => c.metadata_incomplete),
       failed: n((c) => c.status === 'FAILED'),
-      stale: n((c) => c.is_stale),
+      stale: n((c) => c.is_stale === true),
     })
   }),
 
@@ -193,18 +217,40 @@ export const handlers = [
     await delay(WAIT)
     const sp = new URL(request.url).searchParams
     const g = sp.get('granularity')
-    const rows = countBy(db.filter((c) => inPeriod(c, sp)).flatMap((c) => (c.call_datetime ? [bucket(c.call_datetime, g)] : [])))
-    return HttpResponse.json({ items: rows.sort(([a], [b]) => a.localeCompare(b)).map(([period, count]) => ({ period, count })) })
+    const counts = new Map<string, number>()
+    for (const c of db.filter((x) => inPeriod(x, sp))) {
+      if (!c.call_datetime) continue
+      const b = bucket(c.call_datetime, g)
+      counts.set(b, (counts.get(b) ?? 0) + 1)
+    }
+    const [from, to] = [sp.get('from'), sp.get('to')]
+    const found = [...counts.keys()].sort()
+    const first = from ? bucket(from, g) : found[0]
+    const last = to ? bucket(to, g) : found.at(-1)
+    const items: TrendItem[] = []
+    for (let p = first; p && last && p <= last; p = nextBucket(p, g)) {
+      if (items.length === TREND_MAX) return rangeTooLarge()
+      items.push({ period: p, count: counts.get(p) ?? 0 })
+    }
+    return HttpResponse.json({ granularity: g ?? 'day', items: found.length ? items : [] })
   }),
 
   http.get(`*${BASE}/stats/breakdown`, async ({ request }) => {
     await delay(WAIT)
     const sp = new URL(request.url).searchParams
     const key = sp.get('by') === 'client' ? 'client_company' : 'agent_name'
-    const rows = countBy(db.filter((c) => inPeriod(c, sp)).flatMap((c) => c[key] ?? []))
-    return HttpResponse.json({
-      items: rows.sort(([an, a], [bn, b]) => b - a || an.localeCompare(bn)).map(([name, count]) => ({ name, count })),
-    })
+    const groups = new Map<string | null, CallDetail[]>()
+    for (const c of db.filter((x) => inPeriod(x, sp))) {
+      const name = c[key]?.trim() ? c[key] : null
+      groups.set(name, [...(groups.get(name) ?? []), c])
+    }
+    const items = [...groups].map(([name, calls]) => ({
+      name,
+      count: calls.length,
+      by_category: Object.fromEntries(CATEGORIES.map((k) => [k, calls.filter((c) => c.analysis?.category === k).length])),
+    }))
+    items.sort((a, b) => Number(a.name === null) - Number(b.name === null) || b.count - a.count || (a.name ?? '').localeCompare(b.name ?? ''))
+    return HttpResponse.json({ by: sp.get('by'), items })
   }),
 
   http.get(`*${BASE}/reports/excel`, async () => {

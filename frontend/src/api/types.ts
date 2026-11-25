@@ -1,12 +1,10 @@
 /*
- * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), research.md §4·§5, architecture.md §5·§7.
- * 엔드포인트별 필드의 최종 기준은 openapi.json인데 아직 비어 있다(paths: {}). 채워지면 이 파일과 대조한다.
+ * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), openapi.json, architecture.md §5·§7.
+ * 목록·상세(GET /calls, GET /calls/{id})와 통계 추이·분류(GET /stats/trend, /stats/breakdown)는 openapi.json과 대조했다 (main 7e3eab1).
  *
- * [확인 필요] 규약에 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
- *  1. 목록 항목에 들어가는 필드(CallListItem), 상세 응답의 구조와 로그의 이름(processing_log)
- *  2. 상세 응답에도 is_stale이 있는지
- *  3. 검토 완료를 알리는 필드(CallPatch.review_completed)
- *  4. 통계 응답의 필드(StatsSummary, TrendItem, BreakdownItem)
+ * [확인 필요] 아직 API가 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
+ *  1. 검토 완료를 알리는 필드(CallPatch.review_completed)
+ *  2. 통계 요약 응답의 필드(StatsSummary)
  */
 
 export const CATEGORIES = ['INQUIRY', 'COMPLAINT', 'SUGGESTION', 'EDUCATION', 'ETC'] as const
@@ -30,7 +28,9 @@ export interface CallBase {
   status: CallStatus
   status_changed_at: string
   retry_count: number
-  is_stale: boolean
+  created_at: string
+  /** 정체 감지(R-11)가 생기기 전에는 응답에 없다 */
+  is_stale?: boolean
 }
 
 export interface CallListItem extends CallBase {
@@ -40,17 +40,16 @@ export interface CallListItem extends CallBase {
 }
 
 export interface Segment {
-  speaker: 'AGENT' | 'CUSTOMER'
-  start: number
-  end: number
+  speaker: 'AGENT' | 'CUSTOMER' | 'UNKNOWN'
+  start_sec: number
+  end_sec: number
   text: string
 }
 
-export interface Entities {
-  client_company?: string
-  products?: string[]
-  dates?: string[]
-  keywords?: string[]
+/** type: PRODUCT, ORG, DATE, AMOUNT, REF_NO, OTHER. 나중에 늘어날 수 있다 */
+export interface Entity {
+  type: string
+  value: string
 }
 
 export interface Analysis {
@@ -58,10 +57,10 @@ export interface Analysis {
   confidence: number | null
   question_summary: string | null
   action_summary: string | null
-  follow_up_required: boolean
-  action_status: ActionStatus
-  entities: Entities | null
-  needs_review: boolean
+  follow_up_required: boolean | null
+  action_status: ActionStatus | null
+  entities: Entity[] | null
+  needs_review: boolean | null
 }
 
 export interface ProcessingLog {
@@ -98,6 +97,9 @@ export interface RetryResult {
 
 export const PAGE_MAX = 10_000
 export const PAGE_SIZE_MAX = 100
+export const Q_MAX_LENGTH = 100
+export const DATE_MIN = '2000-01-01'
+export const DATE_MAX = '2100-12-31'
 
 export interface Page<T> {
   items: T[]
@@ -147,7 +149,9 @@ export interface TrendItem {
   count: number
 }
 
+/** name: 담당자·고객사가 없는 상담을 묶은 행은 null (맨 뒤). by_category: 분석 전인 상담은 빠진다 */
 export interface BreakdownItem {
-  name: string
+  name: string | null
   count: number
+  by_category: Record<Category, number>
 }

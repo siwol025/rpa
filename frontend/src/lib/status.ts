@@ -19,8 +19,8 @@ export function statusTone(status: CallStatus): StatusTone {
   return 'running'
 }
 
-/** 재처리 요청이 허용되는 상태 (architecture.md §5) */
-export function canRetry(status: CallStatus, stale: boolean): boolean {
+/** 재처리 요청이 허용되는 상태 (architecture.md §5). 정체 여부를 모르면 정체가 아닌 것으로 본다 */
+export function canRetry(status: CallStatus, stale = false): boolean {
   if (status === 'FAILED' || status === 'NEEDS_REVIEW' || status === 'STORED') return true
   return stale && status !== 'RETRY_REQUESTED'
 }
@@ -58,4 +58,14 @@ export const STEP_LABEL: Record<string, string> = {
   EXCEL: '엑셀',
   CRM: 'CRM',
   RETRY: '재처리',
+}
+
+/** 개체명 종류 (stt/schema/call_schema.json). 보여주는 순서 */
+export const ENTITY_LABEL: Record<string, string> = {
+  PRODUCT: '제품·서비스',
+  ORG: '기관·회사',
+  DATE: '일정',
+  AMOUNT: '금액',
+  REF_NO: '접수 번호',
+  OTHER: '기타',
 }

@@ -2,17 +2,17 @@ import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { audioUrl, useCall, useDeleteCall, useRetryCall, useUpdateCall } from '../api/calls'
 import { ApiError } from '../api/client'
-import { ACTION_STATUSES, CATEGORIES, type ActionStatus, type CallDetail, type CallPatch, type Category } from '../api/types'
+import { ACTION_STATUSES, CATEGORIES, type ActionStatus, type CallDetail, type CallPatch, type Category, type Entity } from '../api/types'
 import { CategoryChip } from '../components/CategoryChip'
 import { ErrorState } from '../components/ErrorState'
 import { Badge, StatusBadges } from '../components/StatusBadge'
 import { formatDateTime, formatSeconds, fromInputValue, toInputValue } from '../lib/format'
-import { ACTION_LABEL, canRetry, categoryLabel, STEP_LABEL, type StatusTone } from '../lib/status'
+import { ACTION_LABEL, canRetry, categoryLabel, ENTITY_LABEL, STEP_LABEL, type StatusTone } from '../lib/status'
 import { useToast } from '../lib/toast'
 
-const MASK = /([0-9A-Za-z-]*\*{3,}[0-9A-Za-z*-]*)/g
+const MASK = /([0-9A-Za-z-]*\*{3,}[0-9A-Za-z*-]*|\[[A-Z]+\])/g
 
-/** 가려진 개인정보(*** 포함)를 강조한다 */
+/** 가려진 개인정보(*** 포함, [PHONE] 같은 STT 표시)를 강조한다 */
 function withMasks(text: string): ReactNode[] {
   return text.split(MASK).map((part, i) =>
     i % 2 === 1 ? (
@@ -77,9 +77,10 @@ function Transcript({ c }: { c: CallDetail }) {
     <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
       {c.transcript.segments.map((s, i) => {
         const agent = s.speaker === 'AGENT'
+        const who = agent ? '상담원' : s.speaker === 'CUSTOMER' ? '고객' : '화자 미상'
         return (
           <li key={i} className={`flex max-w-[84%] flex-col gap-0.5 ${agent ? 'items-start self-start' : 'items-end self-end'}`}>
-            <span className="num text-[11px] font-medium text-muted">{`${agent ? '상담원' : '고객'} · ${formatSeconds(s.start)}`}</span>
+            <span className="num text-[11px] font-medium text-muted">{`${who} · ${formatSeconds(s.start_sec)}`}</span>
             <div className={`rounded-[10px] px-3 py-2 text-[13.5px] leading-relaxed ${agent ? 'rounded-tl-sm bg-accent-soft' : 'rounded-tr-sm bg-surface-2'}`}>{withMasks(s.text)}</div>
           </li>
         )
@@ -154,19 +155,22 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   )
 }
 
+/** 정해진 종류 순서대로, 모르는 종류는 뒤에 코드 그대로 */
+function entityRows(entities: Entity[]): [string, string][] {
+  const types = [...new Set([...Object.keys(ENTITY_LABEL), ...entities.map((e) => e.type)])]
+  return types.flatMap((type) => {
+    const values = entities.filter((e) => e.type === type).map((e) => e.value)
+    return values.length ? [[ENTITY_LABEL[type] ?? type, values.join(', ')] as [string, string]] : []
+  })
+}
+
 function AnalysisFacts({ c }: { c: CallDetail }) {
   const a = c.analysis!
   const rows: [string, string][] = [
     ['신뢰도', a.confidence === null ? '-' : Number(a.confidence).toFixed(2)],
-    ['후속 조치', a.follow_up_required ? '필요' : '필요 없음'],
+    ['후속 조치', a.follow_up_required === null ? '-' : a.follow_up_required ? '필요' : '필요 없음'],
+    ...entityRows(a.entities ?? []),
   ]
-  for (const [label, list] of [
-    ['제품·서비스', a.entities?.products],
-    ['일정', a.entities?.dates],
-    ['키워드', a.entities?.keywords],
-  ] as const) {
-    if (list?.length) rows.push([label, list.join(', ')])
-  }
   return (
     <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-1 text-[13px]">
       {rows.map(([k, v]) => (
@@ -231,6 +235,7 @@ function EditForm({ c }: { c: CallDetail }) {
             </Field>
             <Field id="f-action_status" label="조치 상태">
               <select {...bind('action_status')}>
+                {!saved.action_status && <option value="">-</option>}
                 {ACTION_STATUSES.map((k) => (
                   <option key={k} value={k}>
                     {ACTION_LABEL[k]}
@@ -343,7 +348,7 @@ function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
 
 export function CallDetailPage() {
   const id = Number(useParams().id)
-  const valid = Number.isInteger(id) && id > 0
+  const valid = Number.isSafeInteger(id) && id > 0
   const from = (useLocation().state as { from?: string } | null)?.from ?? ''
   const backTo = `/calls${from}`
   const { data: c, error, isFetching, refetch } = useCall(id, valid)

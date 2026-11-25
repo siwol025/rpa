@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { DATE_MAX, DATE_MIN, type Period } from '../api/types'
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -7,6 +8,13 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/
 export function dateParam(sp: URLSearchParams, key: string): string | undefined {
   const v = sp.get(key)
   return v && DATE.test(v) ? v : undefined
+}
+
+/** 서버가 받지 않는 기간이면 안내 문구 (규약 §4.3) */
+export function periodProblem({ from, to }: Period): string | null {
+  if ([from, to].some((d) => d && (d < DATE_MIN || d > DATE_MAX))) return '날짜는 2000년부터 2100년까지 고를 수 있어요'
+  if (from && to && from > to) return '시작일이 종료일보다 늦어요'
+  return null
 }
 
 /** 주소의 값이 허용된 값일 때만 쓴다 */

@@ -31,7 +31,7 @@ describe('상담 상세: 보기', () => {
     expect(screen.getByLabelText('조치 내역')).toHaveValue(c.analysis!.action_summary)
     expect(screen.getByLabelText('조치 상태')).toHaveValue('DONE')
     expect(screen.getByText('0.93')).toBeInTheDocument()
-    expect(screen.getByText('해외 결제, 차단 해제')).toBeInTheDocument()
+    expect(screen.getByText('제품·서비스').nextSibling).toBeInTheDocument()
     const log = screen.getByRole('region', { name: '처리 이력' })
     expect(within(log).getByText('AI 분석')).toBeInTheDocument()
   })
@@ -75,6 +75,74 @@ describe('상담 상세: 보기', () => {
     expect(screen.getByLabelText('질문 요약')).toHaveValue('')
   })
 
+  it('정해지지 않은 후속 조치·조치 상태를 정해진 것처럼 보여주지 않는다', async () => {
+    const c = call(1)
+    server.use(
+      http.get('*/api/calls/1', () =>
+        HttpResponse.json({ ...c, analysis: { ...c.analysis!, follow_up_required: null, action_status: null, needs_review: null } }),
+      ),
+    )
+    await openDetail(1)
+    expect(screen.queryByText('필요 없음')).not.toBeInTheDocument()
+    expect(screen.getByText('후속 조치').nextSibling).toHaveTextContent('-')
+    expect(screen.getByLabelText('조치 상태')).toHaveDisplayValue('-')
+    expect(button('저장')).toBeDisabled()
+  })
+
+  it('조치 상태가 정해져 있으면 빈 선택지는 없다', async () => {
+    await openDetail(1)
+    expect(within(screen.getByLabelText('조치 상태')).getAllByRole('option').map((o) => o.textContent)).toEqual(['미조치', '조치 완료'])
+  })
+
+  it('전사 구간의 시작 시각과 화자 미상', async () => {
+    const c = call(1)
+    server.use(
+      http.get('*/api/calls/1', () =>
+        HttpResponse.json({
+          ...c,
+          transcript: { segments: [{ speaker: 'AGENT', start_sec: 61.4, end_sec: 63, text: '여보세요' }, { speaker: 'UNKNOWN', start_sec: 64.2, end_sec: 65, text: '네' }] },
+        }),
+      ),
+    )
+    await openDetail(1)
+    const conv = screen.getByRole('region', { name: '전사 원문' })
+    expect(within(conv).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['상담원 · 1:01여보세요', '화자 미상 · 1:04네'])
+  })
+
+  it('개체명은 종류별로 묶고, 나중에 추가된 종류는 코드를 그대로 보여준다', async () => {
+    const c = call(1)
+    const entities = [
+      { type: 'OTHER', value: '한도' }, { type: 'PRODUCT', value: '법인카드' }, { type: 'NEW_TYPE', value: '새 값' }, { type: 'PRODUCT', value: '이체' },
+      { type: 'ORG', value: 'B회사' }, { type: 'DATE', value: '내일' }, { type: 'AMOUNT', value: '300만원' }, { type: 'REF_NO', value: '[REF]' },
+    ]
+    server.use(http.get('*/api/calls/1', () => HttpResponse.json({ ...c, analysis: { ...c.analysis!, entities } })))
+    await openDetail(1)
+    const shown = screen.getAllByRole('term').map((t) => [t.textContent, t.nextSibling?.textContent])
+    expect(shown.slice(shown.findIndex(([k]) => k === '후속 조치') + 1)).toEqual([
+      ['제품·서비스', '법인카드, 이체'], ['기관·회사', 'B회사'], ['일정', '내일'], ['금액', '300만원'], ['접수 번호', '[REF]'], ['기타', '한도'], ['NEW_TYPE', '새 값'],
+    ])
+  })
+
+  it('[PHONE] 같은 개인정보 표시도 강조한다', async () => {
+    const c = call(1)
+    server.use(
+      http.get('*/api/calls/1', () =>
+        HttpResponse.json({ ...c, transcript: { segments: [{ speaker: 'CUSTOMER', start_sec: 0, end_sec: 1, text: '번호는 [PHONE]이고 [공지] 확인' }] } }),
+      ),
+    )
+    await openDetail(1)
+    expect(screen.getByText('[PHONE]').tagName).toBe('MARK')
+    expect(document.querySelectorAll('mark')).toHaveLength(1)
+  })
+
+  it('정체 여부를 모르는 처리 중 상담은 재처리를 요청할 수 없다', async () => {
+    const { is_stale: _, ...noStale } = call(25)
+    server.use(http.get('*/api/calls/25', () => HttpResponse.json(noStale)))
+    await openDetail(25)
+    expect(button('재처리 요청')).toBeDisabled()
+    expect(within(header()).queryByText('정체')).not.toBeInTheDocument()
+  })
+
   it('모르는 처리 단계와 결과도 그대로 보여준다', async () => {
     server.use(
       http.get('*/api/calls/1', () =>
@@ -86,7 +154,7 @@ describe('상담 상세: 보기', () => {
     expect(screen.getByText('NEW')).toBeInTheDocument()
   })
 
-  it.each(['/calls/99999', '/calls/abc', '/calls/0'])('없는 상담 %s', async (route) => {
+  it.each(['/calls/99999', '/calls/abc', '/calls/0', '/calls/99999999999999999999'])('없는 상담 %s', async (route) => {
     let asked = 0
     server.use(
       http.get('*/api/calls/:id', ({ params }) => {

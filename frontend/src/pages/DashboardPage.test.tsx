@@ -26,7 +26,22 @@ describe('대시보드', () => {
     await open()
     expect(within(panel('유형별 건수')).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['질의7건', '불만5건', '건의3건', '교육 내용3건', '기타 문의2건'])
     await waitFor(() => expect(within(panel('담당자별 현황')).getAllByRole('listitem')[0]).toHaveTextContent('김상담9건'))
-    await waitFor(() => expect(within(panel('고객사별 현황')).getAllByRole('listitem')).toHaveLength(5))
+    await waitFor(() => expect(within(panel('고객사별 현황')).getAllByRole('listitem').at(-1)).toHaveTextContent('미지정1건'))
+  })
+
+  it('일 단위로 그리기에 너무 긴 기간이면 단위를 바꾸라고 안내한다', async () => {
+    await open('/?from=2024-01-01&to=2026-11-24')
+    expect(await within(panel('기간별 추이')).findByText('기간이 길어서 이 단위로는 볼 수 없어요. 주나 월로 바꾸거나 기간을 줄여 주세요')).toBeInTheDocument()
+    expect(within(panel('기간별 추이')).queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '월' }))
+    expect(await within(panel('기간별 추이')).findByRole('img')).toBeInTheDocument()
+  })
+
+  it('요약 API가 아직 없어도 나머지 통계는 보인다', async () => {
+    server.use(http.get('*/api/stats/summary', () => HttpResponse.json({ code: 'NOT_FOUND', message: '대상을 찾을 수 없습니다.', detail: null }, { status: 404 })))
+    renderWithProviders(<App />, { route: '/' })
+    expect(await within(panel('기간별 추이')).findByRole('img')).toBeInTheDocument()
+    expect(await within(panel('담당자별 현황')).findByText('김상담')).toBeInTheDocument()
   })
 
   it('정체 경고에서 정체 목록으로 간다', async () => {
@@ -46,6 +61,21 @@ describe('대시보드', () => {
     await userEvent.type(screen.getByLabelText('시작일'), '2026-11-23')
     await waitFor(() => expect(location()).toContain('from=2026-11-23'))
     await waitFor(() => expect(kpi('총 건수')).toHaveTextContent('7건'))
+  })
+
+  it('서버가 받지 않는 기간은 보내지 않고 안내한다', async () => {
+    let asked = 0
+    server.use(
+      http.get('*/api/stats/*', () => {
+        asked += 1
+        return HttpResponse.json({ items: [] })
+      }),
+    )
+    renderWithProviders(<App />, { route: '/?from=2026-11-20&to=2026-11-10' })
+    expect(await screen.findByText('시작일이 종료일보다 늦어요')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: '총 건수' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '엑셀 다운로드' })).toBeDisabled()
+    expect(asked).toBe(0)
   })
 
   it('추이 단위를 바꾼다', async () => {

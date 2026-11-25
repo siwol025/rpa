@@ -9,8 +9,8 @@ export const deleteCall = (id: number) => apiSend('DELETE', `/calls/${id}`)
 export const retryCall = (id: number) => apiSend<RetryResult>('POST', `/calls/${id}/retry`)
 export const audioUrl = (id: number) => apiUrl(`/calls/${id}/audio`)
 
-export function useCalls(p: CallListParams) {
-  return useQuery({ queryKey: ['calls', p], queryFn: () => fetchCalls(p), placeholderData: keepPreviousData })
+export function useCalls(p: CallListParams, enabled = true) {
+  return useQuery({ queryKey: ['calls', p], queryFn: () => fetchCalls(p), placeholderData: keepPreviousData, enabled })
 }
 
 export function useCall(id: number, enabled = true) {

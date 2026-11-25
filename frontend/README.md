@@ -35,21 +35,25 @@ npm run build      # 배포용 빌드 (dist/). 예시 데이터는 들어가지 
 
 ## 백엔드와 맞춘 것
 
-백엔드 `backend/docs/api/convention.md` v0.1 (API 규약)을 따른다. 2026-11-24 기준 `feat/api-convention` 브랜치에 있고 `main`에 합쳐지기 전이다.
+백엔드 `backend/docs/api/convention.md` v0.1 (API 규약)을 따른다. 목록·상세·통계 추이·통계 분류는 `main`(`7e3eab1`)의 `backend/docs/api/openapi.json`과 대조했고, 그 FastAPI 앱에 연결해 확인했다 (DB 조회만 메모리 데이터로 바꿈. 실제 PostgreSQL로는 아직 확인하지 않음).
 
 - 에러는 `{code, message, detail}`. 화면에는 `message`, 분기는 `code`로 한다
 - 유형은 코드(`INQUIRY` 등)로 주고받고 한글 이름은 `src/lib/status.ts`에서 붙인다. 나중에 추가된 값은 코드를 그대로 보여준다
 - 정렬은 `sort=-call_datetime` 형식. 서버 기본값이 등록순이라 목록은 정렬을 항상 보낸다
 - 여러 값은 같은 이름을 반복한다 (`?status=FAILED&status=QUEUED`)
 - `page` 최대 10000, `size` 최대 100
-- 정체 여부는 `is_stale`, 정체 필터는 `stale`
+- 정체 여부는 `is_stale`, 정체 필터는 `stale`. 정체 감지(R-11)가 생기기 전에는 응답에 없고 필터도 무시되므로, 그동안 화면은 정체 조건을 막고 정체 표시를 하지 않는다
+- 시작일이 종료일보다 늦거나 2000~2100년 밖이면 서버가 422를 주므로 보내지 않고 안내한다. 키워드는 100자까지
+- 후속 조치 여부와 조치 상태는 비어 있을 수 있다 (`-`로 표시)
+- 전사 구간은 `start_sec`·`end_sec`(소수 초), 화자는 `AGENT`·`CUSTOMER`·`UNKNOWN`. 개체명은 `[{type, value}]` 배열이고 모르는 종류는 코드를 그대로 보여준다
+- 개인정보 표시는 `***`와 `[PHONE]` 같은 STT 표시를 강조한다
+- 통계 분류에서 담당자·고객사가 없는 상담은 `name`이 `null`인 한 행이다. 대시보드는 "미지정", 목록의 선택지에서는 뺀다
+- 통계 추이는 구간이 400개를 넘으면 422(`range_too_large`). 단위를 바꾸라고 안내한다
 
 ## 백엔드 확인이 필요한 것
 
-규약에 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위와 `src/api/uploads.ts`에 있다.
+아직 API가 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위와 `src/api/uploads.ts`에 있다.
 
-1. 목록 항목의 필드, 상세 응답의 구조와 로그의 이름
-2. 상세 응답에도 `is_stale`이 있는지
-3. 검토 완료를 알리는 필드 (`PATCH`의 `review_completed`)
-4. 통계 응답의 필드
-5. 업로드 폼의 필드 이름 (`files`)
+1. 검토 완료를 알리는 필드 (`PATCH`의 `review_completed`)
+2. 통계 요약(`/stats/summary`) 응답의 필드
+3. 업로드 폼의 필드 이름 (`files`)

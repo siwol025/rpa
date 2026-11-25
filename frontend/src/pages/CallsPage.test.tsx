@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import App from '../App'
@@ -106,6 +106,18 @@ describe('상담 목록', () => {
     expect(within(last).getAllByText('-')).toHaveLength(3)
   })
 
+  it('이름이 없는 통계 행(null)은 담당자·고객사 선택지에 넣지 않는다', async () => {
+    server.use(
+      http.get('*/api/stats/breakdown', () =>
+        HttpResponse.json({ by: 'agent', items: [{ name: '이상담', count: 2, by_category: {} }, { name: null, count: 1, by_category: {} }] }),
+      ),
+    )
+    await openList()
+    const agent = screen.getByLabelText('담당자')
+    await within(agent).findByRole('option', { name: '이상담' })
+    expect(within(agent).getAllByRole('option').map((o) => o.textContent)).toEqual(['담당자 전체', '이상담'])
+  })
+
   it('분석 전이거나 통화 시간이 없어도 깨지지 않는다', async () => {
     const base = { ...MOCK_CALLS[0], category: null, question_summary: null, action_status: null, duration_sec: null }
     server.use(http.get('*/api/calls', () => HttpResponse.json({ items: [base], page: 1, size: 20, total: 1 })))
@@ -164,6 +176,64 @@ describe('상담 목록', () => {
     renderWithProviders(<App />, { route: '/calls?page=99999999' })
     expect(await screen.findByText('조건에 맞는 상담이 없어요')).toBeInTheDocument()
     expect(sent).toBe('10000')
+  })
+
+  describe('서버가 아직 정체 여부(is_stale)를 주지 않을 때', () => {
+    const { is_stale: _, ...noStale } = { ...MOCK_CALLS[0], category: null, question_summary: null, action_status: null }
+    beforeEach(() => server.use(http.get('*/api/calls', () => HttpResponse.json({ items: [noStale], page: 1, size: 20, total: 1 }))))
+
+    it('정체 조건을 고를 수 없다', async () => {
+      await openList()
+      expect(screen.getByLabelText('정체')).toBeDisabled()
+      expect(bodyRows()).toHaveLength(1)
+    })
+
+    it('정체 목록 주소로 들어오면 전체 상담을 정체인 것처럼 보여주지 않고, 조건을 지울 수 있다', async () => {
+      renderWithProviders(<App />, { route: '/calls?stale=true' })
+      expect(await screen.findByText('아직 정체 건만 골라 볼 수 없어요')).toBeInTheDocument()
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(count()).toBeEmptyDOMElement()
+      await userEvent.click(screen.getByRole('button', { name: '정체 조건 지우기' }))
+      await waitFor(() => expect(location()).toBe('/calls'))
+      expect(bodyRows()).toHaveLength(1)
+    })
+  })
+
+  describe('서버가 받지 않는 조회 조건', () => {
+    let sent: string[] = []
+    beforeEach(() => {
+      sent = []
+      server.use(
+        http.get('*/api/calls', ({ request }) => {
+          sent.push(new URL(request.url).searchParams.get('q') ?? '')
+          return HttpResponse.json({ items: [], page: 1, size: 20, total: 0 })
+        }),
+      )
+    })
+
+    it.each([
+      ['from=2026-11-20&to=2026-11-10', '시작일이 종료일보다 늦어요'],
+      ['from=0202-11-10', '날짜는 2000년부터 2100년까지 고를 수 있어요'],
+      ['to=2101-01-01', '날짜는 2000년부터 2100년까지 고를 수 있어요'],
+    ])('기간 %s는 보내지 않고 안내한다', async (query, message) => {
+      renderWithProviders(<App />, { route: `/calls?${query}` })
+      expect(await screen.findByText(message)).toBeInTheDocument()
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(sent).toEqual([])
+    })
+
+    it('같은 날과 범위의 양 끝은 허용한다', async () => {
+      await openList('/calls?from=2000-01-01&to=2100-12-31')
+      cleanup()
+      await openList('/calls?from=2026-11-10&to=2026-11-10')
+      expect(sent).toHaveLength(2)
+    })
+
+    it('키워드는 100자까지만 보낸다', async () => {
+      await openList(`/calls?q=${'가'.repeat(101)}`)
+      expect(sent).toEqual(['가'.repeat(100)])
+      expect(screen.getByLabelText('키워드')).toHaveAttribute('maxlength', '100')
+    })
   })
 
   it('서버 오류면 서버 문구와 다시 시도 버튼', async () => {

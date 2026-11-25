@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, type UseQueryResult } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { ApiError } from '../api/client'
 import { fetchExcel, useBreakdown, useSummary, useTrend } from '../api/stats'
 import { CATEGORIES, type Granularity, type Period, type StatsSummary } from '../api/types'
 import { BarList } from '../components/BarList'
@@ -11,7 +12,7 @@ import { TrendChart } from '../components/TrendChart'
 import { saveBlob } from '../lib/saveBlob'
 import { categoryLabel } from '../lib/status'
 import { useToast } from '../lib/toast'
-import { dateParam, useUrlParams } from '../lib/useUrlParams'
+import { dateParam, periodProblem, useUrlParams } from '../lib/useUrlParams'
 
 const KPIS: [label: string, value: (s: StatsSummary) => number][] = [
   ['총 건수', (s) => s.total],
@@ -54,7 +55,14 @@ function Loaded<T>({ query, isEmpty, children }: { query: UseQueryResult<T>; isE
   return <div className={query.isPlaceholderData ? 'opacity-60' : ''}>{children(query.data)}</div>
 }
 
-function ExcelButton({ period }: { period: Period }) {
+/** 추이의 구간이 서버 한도(400개)를 넘음 (규약 §4.3) */
+function isRangeTooLarge(error: Error | null): boolean {
+  if (!(error instanceof ApiError) || error.code !== 'VALIDATION_ERROR') return false
+  const errors = (error.detail as { errors?: { type?: string }[] } | null)?.errors
+  return Array.isArray(errors) && errors.some((e) => e.type === 'range_too_large')
+}
+
+function ExcelButton({ period, disabled }: { period: Period; disabled: boolean }) {
   const toast = useToast()
   const excel = useMutation({
     mutationFn: () => fetchExcel(period),
@@ -65,15 +73,13 @@ function ExcelButton({ period }: { period: Period }) {
     onError: (e) => toast(e.message),
   })
   return (
-    <button type="button" className="btn" disabled={excel.isPending} onClick={() => excel.mutate()}>
+    <button type="button" className="btn" disabled={disabled || excel.isPending} onClick={() => excel.mutate()}>
       {excel.isPending ? '만드는 중' : '엑셀 다운로드'}
     </button>
   )
 }
 
-export function DashboardPage() {
-  const { sp, set } = useUrlParams()
-  const period: Period = { from: dateParam(sp, 'from'), to: dateParam(sp, 'to') }
+function Stats({ period }: { period: Period }) {
   const [unit, setUnit] = useState<Granularity>('day')
   const summary = useSummary(period)
   const trend = useTrend(period, unit)
@@ -83,14 +89,6 @@ export function DashboardPage() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
-        <h1 className="m-0 text-[22px] font-bold tracking-tight">대시보드</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <PeriodInput value={period} onChange={set} />
-          <ExcelButton period={period} />
-        </div>
-      </div>
-
       {stale > 0 && !summary.error && (
         <div className="alert mb-3.5">
           <span>오래 처리가 멈춘 상담이 {stale}건 있어요</span>
@@ -137,9 +135,13 @@ export function DashboardPage() {
             </div>
           }
         >
-          <Loaded query={trend} isEmpty={(d) => d.items.length === 0}>
-            {(d) => <TrendChart items={d.items} granularity={d.granularity} />}
-          </Loaded>
+          {isRangeTooLarge(trend.error) ? (
+            <EmptyState title="기간이 길어서 이 단위로는 볼 수 없어요. 주나 월로 바꾸거나 기간을 줄여 주세요" />
+          ) : (
+            <Loaded query={trend} isEmpty={(d) => d.items.length === 0}>
+              {(d) => <TrendChart items={d.items} granularity={d.granularity} />}
+            </Loaded>
+          )}
         </Panel>
         <Panel title="유형별 건수">
           <Loaded query={summary}>{(s) => <BarList rows={categoryRows(s)} />}</Loaded>
@@ -158,6 +160,25 @@ export function DashboardPage() {
           </Loaded>
         </Panel>
       </div>
+    </>
+  )
+}
+
+export function DashboardPage() {
+  const { sp, set } = useUrlParams()
+  const period: Period = { from: dateParam(sp, 'from'), to: dateParam(sp, 'to') }
+  const problem = periodProblem(period)
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
+        <h1 className="m-0 text-[22px] font-bold tracking-tight">대시보드</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodInput value={period} onChange={set} />
+          <ExcelButton period={period} disabled={!!problem} />
+        </div>
+      </div>
+      {problem ? <EmptyState title={problem} /> : <Stats period={period} />}
     </>
   )
 }

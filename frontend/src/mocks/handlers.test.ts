@@ -25,7 +25,7 @@ describe('mock: 목록', () => {
     ['담당자', { agent: '김상담' }, (c) => c.agent_name === '김상담'],
     ['고객사', { client: 'B물류' }, (c) => c.client_company === 'B물류'],
     ['상태', { status: ['FAILED', 'QUEUED'] }, (c) => ['FAILED', 'QUEUED'].includes(c.status)],
-    ['정체', { stale: true }, (c) => c.is_stale],
+    ['정체', { stale: true }, (c) => c.is_stale === true],
     ['메타데이터', { metadata_incomplete: true }, (c) => c.metadata_incomplete],
     ['기간', { from: '2026-11-16', to: '2026-11-17' }, (c) => /^2026-11-1[67]/.test(c.call_datetime ?? '')],
   ])('%s 필터', async (_, params, ok) => {
@@ -36,6 +36,34 @@ describe('mock: 목록', () => {
 
   it('키워드는 요약·조치·전사에서 찾는다', async () => {
     expect((await list({ q: '분실' })).total).toBe(1)
+  })
+
+  it('항목에 등록 시각이 있다', async () => {
+    const { items } = await list()
+    expect(items.every((c) => !Number.isNaN(Date.parse(c.created_at)))).toBe(true)
+    expect(await fetchCall(1)).toHaveProperty('created_at')
+  })
+
+  it('정렬을 보내지 않으면 등록순(최근 먼저)', async () => {
+    const times = (await list()).items.map((c) => Date.parse(c.created_at))
+    expect([...times].sort((a, b) => b - a)).toEqual(times)
+  })
+
+  it('키워드는 앞뒤 공백을 지우고 대소문자를 구분하지 않는다', async () => {
+    expect((await list({ q: ' 분실 ' })).total).toBe(1)
+    const upper = await list({ q: 'OTP' })
+    expect(upper.total).toBeGreaterThan(0)
+    expect((await list({ q: 'otp' })).total).toBe(upper.total)
+  })
+
+  it.each<[string, Partial<CallListParams>]>([
+    ['시작일이 늦음', { from: '2026-11-20', to: '2026-11-10' }],
+    ['범위 밖 날짜', { from: '1999-12-31' }],
+    ['긴 키워드', { q: '가'.repeat(101) }],
+    ['모르는 유형', { category: '질의' as never }],
+    ['모르는 상태', { status: 'SUCCESS' as never }],
+  ])('백엔드처럼 422: %s', async (_, params) => {
+    await expect(list(params)).rejects.toMatchObject({ status: 422, code: 'VALIDATION_ERROR' })
   })
 
   it('범위를 넘는 페이지는 빈 목록', async () => {
@@ -88,6 +116,20 @@ describe('mock: 통계', () => {
       { period: '2026-11-16', count: 11 },
       { period: '2026-11-23', count: 7 },
     ])
-    expect((await fetchBreakdown({ by: 'agent' })).items[0]).toEqual({ name: '김상담', count: 9 })
+    const { items } = await fetchBreakdown({ by: 'agent' })
+    expect(items[0]).toMatchObject({ name: '김상담', count: 9 })
+    expect(items.at(-1)).toMatchObject({ name: null, count: 2 })
+    expect(items.reduce((n, i) => n + i.count, 0)).toBe(MOCK_CALLS.length)
+    expect(items.reduce((n, i) => n + i.by_category.INQUIRY, 0)).toBe(7)
+  })
+  it('추이는 기간 안의 빈 구간도 0으로 준다', async () => {
+    const { items } = await fetchTrend({ granularity: 'day', from: '2026-11-13', to: '2026-11-16' })
+    expect(items.map((i) => i.period)).toEqual(['2026-11-13', '2026-11-14', '2026-11-15', '2026-11-16'])
+    expect(items[1].count).toBe(0)
+    expect((await fetchTrend({ granularity: 'day', from: '2020-01-01', to: '2020-01-05' })).items).toEqual([])
+  })
+  it('백엔드처럼 구간이 400개를 넘으면 422', async () => {
+    await expect(fetchTrend({ granularity: 'day', from: '2025-01-01', to: '2026-02-05' })).rejects.toMatchObject({ status: 422, detail: { errors: [{ type: 'range_too_large' }] } })
+    expect((await fetchTrend({ granularity: 'month', from: '2025-01-01', to: '2026-11-30' })).items).toHaveLength(23)
   })
 })

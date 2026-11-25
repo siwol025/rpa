@@ -29,6 +29,10 @@ describe('재처리 가능 조건 (architecture §5)', () => {
     expect(canRetry(s, false)).toBe(false)
     expect(canRetry(s, true)).toBe(true)
   })
+  it('정체 여부를 모르면 정체가 아닌 것으로 본다', () => {
+    expect(canRetry('QUEUED', undefined)).toBe(false)
+    expect(canRetry('FAILED', undefined)).toBe(true)
+  })
   it('RETRY_REQUESTED는 정체여도 불가', () => {
     expect(canRetry('RETRY_REQUESTED', true)).toBe(false)
   })
