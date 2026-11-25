@@ -126,6 +126,27 @@ class RobotSimulator:
             return DispatchResult(action, call_id)
         raise AssertionError(f"등록 실패 {response.status_code}: {response.text}")
 
+    def retry_targets(self) -> list[dict[str, int]]:
+        """`GET /api/robot/calls?status=RETRY_REQUESTED`: 다음 주기에 다시 Queue에 넣을 건."""
+        response = self.client.get("/api/robot/calls", params={"status": "RETRY_REQUESTED"})
+        self._expect(response, 200)
+        items: list[dict[str, int]] = response.json()["items"]
+        return items
+
+    def download_audio(self, call_id: int) -> httpx.Response:
+        """`GET .../audio`: 재처리 때 서버의 음성 사본을 내려받는다."""
+        return self.client.get(f"/api/robot/calls/{call_id}/audio")
+
+    def redispatch(self) -> list[DispatchResult]:
+        """Dispatcher의 재처리 주기: 대상 조회 → 음성 다운로드 → Queue 추가·QUEUED 보고."""
+        results = []
+        for target in self.retry_targets():
+            call_id = target["call_id"]
+            self._expect(self.download_audio(call_id), 200)
+            self._expect(self.queue(call_id), 200)
+            results.append(DispatchResult(DispatchAction.QUEUED, call_id))
+        return results
+
     # ------------------------------------------------------------ Performer
 
     def put_transcript(self, call_id: int, result: dict[str, Any]) -> httpx.Response:

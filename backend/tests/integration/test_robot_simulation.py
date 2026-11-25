@@ -139,6 +139,37 @@ def test_failed_call_is_retried_and_new_result_replaces_the_old(
     assert robot_client.get(f"/api/calls/{call_id}").json()["analysis"]["category"] == "COMPLAINT"
 
 
+def test_dispatcher_retry_cycle_downloads_audio_and_requeues_failed_call(
+    robot: RobotSimulator, db: Session
+) -> None:
+    audio = make_wav("cycle", size=4096)
+    call_id = robot.dispatch(audio).call_id
+    robot.perform(call_id, load_sample("case03_failed"))
+    web_retry(db, call_id)
+
+    assert robot.retry_targets() == [{"call_id": call_id, "retry_count": 1}]
+    assert robot.download_audio(call_id).content == audio  # 원본 폴더 없이 서버 사본으로 재처리
+    assert [r.call_id for r in robot.redispatch()] == [call_id]
+    assert robot.retry_targets() == []  # QUEUED가 되어 목록에서 빠진다
+    assert robot.perform(call_id, load_sample("case01_success")).json()["status"] == "STORED"
+
+
+def test_retry_cycle_picks_up_stuck_calls_after_web_requests_retry(
+    robot: RobotSimulator, db: Session
+) -> None:
+    stuck = robot.dispatch(make_wav("cycle-stuck")).call_id
+    call = call_of(db, stuck)
+    call.status_changed_at = datetime.now(UTC) - timedelta(minutes=45)
+    db.flush()
+    assert robot.retry_targets() == []  # 웹이 재처리를 요청하기 전에는 대상이 아니다
+
+    web_retry(db, stuck)
+    robot.redispatch()
+
+    assert robot.status(stuck) == "QUEUED"
+    assert robot.perform(stuck, load_sample("case01_success")).json()["status"] == "STORED"
+
+
 def test_stored_call_can_be_reprocessed_and_result_is_overwritten(
     robot: RobotSimulator, robot_client: TestClient, db: Session
 ) -> None:

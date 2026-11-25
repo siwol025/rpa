@@ -1,6 +1,7 @@
 """로봇(UiPath)이 호출하는 등록·적재 유스케이스 (R-04~R-08)."""
 
 import hashlib
+from pathlib import Path
 from typing import BinaryIO, cast
 
 import filetype
@@ -9,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
-from app.infra.storage import AudioStorage
+from app.infra.storage import AudioNotFoundError, AudioStorage, InvalidKeyError
 from app.models import Analysis, CallRecord, ProcessingLog, Transcript
 from app.schemas.call import CATEGORY_DB_VALUES, CallStatus, LogStatus, LogStep
 from app.schemas.robot import (
@@ -23,11 +24,12 @@ from app.services.state_machine import CallStateMachine, InvalidTransition
 
 # 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
 _EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
+RETRY_TARGET_LIMIT = 100  # 재처리 대상 조회 상한 (convention.md §4)
 _SIGNATURE_BYTES = 262  # filetype이 판별에 쓰는 최대 길이
 
-# 이 상태에서 보낸 FAIL은 전이 없이 로그만 남긴다 (처리는 끝났고 엑셀 기입 등 뒷단계만 실패).
 # 처리 결과가 저장된 상태. 이후 로봇의 재전송은 같은 내용일 때만 받는다.
 _RESULT_STATES = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW})
+# 이 상태에서 보낸 FAIL은 전이 없이 로그만 남긴다 (처리는 끝났고 엑셀 기입 등 뒷단계만 실패).
 _LOG_ONLY_ON_FAIL = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW, CallStatus.FAILED})
 
 
@@ -199,6 +201,36 @@ class RobotService:
             )
         self._db.commit()
         return call
+
+    def list_retry_targets(self, limit: int = RETRY_TARGET_LIMIT) -> list[CallRecord]:
+        """`RETRY_REQUESTED` 건을 오래 기다린 순으로 돌려준다 (R-09)."""
+        return list(
+            self._db.scalars(
+                select(CallRecord)
+                .where(
+                    CallRecord.status == CallStatus.RETRY_REQUESTED, CallRecord.deleted_at.is_(None)
+                )
+                .order_by(CallRecord.status_changed_at, CallRecord.id)
+                .limit(limit)
+            )
+        )
+
+    def open_audio(self, call_id: int) -> tuple[BinaryIO, int, str]:
+        """음성 사본의 (스트림, 크기, 확장자)를 돌려준다 (R-10). 호출자가 스트림을 닫는다.
+
+        건이 없거나 삭제됐거나 사본이 저장소에 없으면 404.
+        """
+        call = self._db.scalars(
+            select(CallRecord).where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
+        ).one_or_none()
+        if call is None:
+            raise AppError(ErrorCode.NOT_FOUND)
+        try:
+            size = self._storage.size(call.object_key)
+            stream = self._storage.open(call.object_key)
+        except (AudioNotFoundError, InvalidKeyError):
+            raise AppError(ErrorCode.NOT_FOUND) from None
+        return stream, size, Path(call.object_key).suffix
 
     def _lock_call(self, call_id: int) -> CallRecord:
         """행 잠금을 걸고 건을 읽는다. 없거나 소프트 삭제된 건은 404."""
