@@ -113,13 +113,14 @@ backend/
 │   │   └── security.py          # 로봇 API Key 검증
 │   ├── api/
 │   │   ├── deps.py              # DB 세션, 서비스 주입
-│   │   ├── web/                 # uploads.py, calls.py, stats.py, reports.py
+│   │   ├── web/                 # uploads.py, calls.py, retry.py, stats.py, reports.py
 │   │   └── robot/               # calls.py
-│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, common
+│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, retry, common
 │   ├── models/                  # SQLAlchemy ORM
 │   ├── repositories/
 │   ├── services/
-│   │   ├── call_service.py      # 웹 조회·수정·삭제·재처리 요청
+│   │   ├── call_service.py      # 웹 조회·수정·삭제
+│   │   ├── retry_service.py     # 웹 재처리 요청 (상태 머신 호출)
 │   │   ├── robot_service.py     # 등록·상태·적재·실패 보고
 │   │   ├── upload_service.py    # 웹 업로드 검증 → InboxWriter
 │   │   ├── state_machine.py
