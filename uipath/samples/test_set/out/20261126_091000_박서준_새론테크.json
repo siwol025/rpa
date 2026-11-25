@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261126_091000_002",
+  "status": "NEEDS_REVIEW",
+  "error": null,
+  "source": {
+    "file_name": "20261126_091000_박서준_새론테크.wav",
+    "file_path": "C:/CallCenter/processing/20261126_091000_박서준_새론테크.wav",
+    "duration_sec": 88.3,
+    "received_at": "2026-11-24T15:45:30+09:00"
+  },
+  "call_datetime": "2026-11-26T09:10:00+09:00",
+  "agent_name": "박서준",
+  "customer_company": "새론테크",
+  "type": "OTHER",
+  "type_label": "기타 문의",
+  "type_confidence": 0.55,
+  "customer_question": "담당자 변경 여부와 연락처를 확인하려는 것으로 보이나 내용이 불분명함",
+  "agent_action": "확인 후 다시 연락하겠다고 안내함",
+  "summary": "음질이 좋지 않아 고객 요청이 명확하지 않았다. 담당자는 확인 후 재연락하기로 했다.",
+  "sentiment": "NEUTRAL",
+  "follow_up_required": true,
+  "follow_up": "고객 요청 내용 재확인 후 회신",
+  "keywords": ["담당자 변경", "연락처"],
+  "entities": [],
+  "transcript": {
+    "full_text": "[상담원] 안녕하세요, 고객센터입니다.\n[고객] 저기 담당자가 바뀌었다고 들었는데요.",
+    "segments": [
+      { "speaker": "AGENT", "start_sec": 0.5, "end_sec": 2.8, "text": "안녕하세요, 고객센터입니다." },
+      { "speaker": "UNKNOWN", "start_sec": 3.4, "end_sec": 7.9, "text": "저기 담당자가 바뀌었다고 들었는데요." }
+    ],
+    "speaker_confidence": "LOW"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 0, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 0 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v1.2",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T15:46:41+09:00"
+  }
+}
