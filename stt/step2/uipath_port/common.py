@@ -481,6 +481,22 @@ def compare_step8b(actual_dir):
     return rows
 
 
+def compare_step8d(actual_dir):
+    """입출력 폴더를 config.json 의 paths 에서 읽는 코드 조각 검증"""
+    exp_root = os.path.join(TEST, "expected", "step8d")
+    rows = []
+    for fn in sorted(os.listdir(exp_root)):
+        case = fn[:-5]
+        e = _load(os.path.join(exp_root, fn))
+        ap = os.path.join(actual_dir, "step8d", fn)
+        if not os.path.exists(ap):
+            rows.append((case, ["결과 파일 없음"]))
+            continue
+        a = _load(ap)
+        rows.append((case, ["%s 다름: 정답=%s / 실제=%s" % (k, e[k], a.get(k)) for k in e if e[k] != a.get(k)]))
+    return rows
+
+
 def compare_step8c(actual_dir):
     """결과 문서(Step5 정답 11건)에서 docStatus/errStage/errReason/retryCount 를 읽는 코드 조각 검증"""
     exp_root = os.path.join(TEST, "expected", "step5")

@@ -5,6 +5,7 @@ Step8(폴더 순회·파일 이동) 테스트 입력과 Python 정답을 만든�
 step8   : 입력 폴더 한 묶음(성공·검토 필요·분석 실패·STT 실패·입력 오류·이름 충돌·무시할 파일)을 만들고,
           Python 기준 구현(run_folder.py)을 가짜 CLOVA 서버에 실제로 돌려 정답(폴더별 파일 목록 + 결과 문서)을 만든다.
 step8b  : 코드 조각(목록·이동) 단위의 파일 시스템 케이스. Python 정답은 run_folder 의 함수로 계산한다.
+step8d  : 입출력 폴더를 config.json 의 paths 에서 읽는 코드 조각 케이스. Python 정답은 run_folder.resolve_folders 로 계산한다.
 """
 import copy
 import json
@@ -160,4 +161,50 @@ def build_step8b():
     for name, case in cases.items():
         C.write_text(os.path.join(C.TEST, "step8b", name + ".json"), json.dumps(case, ensure_ascii=False))
         C.write_text(os.path.join(C.TEST, "expected", "step8b", name + ".json"), json.dumps(expected_step8b(case), ensure_ascii=False))
+    return list(cases)
+
+
+# ---------------------------------------------------------------- step8d: 입출력 폴더 설정 (paths)
+BASE_MARK = "C:\\__BASE__"   # 정답 계산용 가짜 기준 폴더 (VB 쪽은 실제 임시 폴더를 "<BASE>"로 바꿔 비교)
+
+
+def step8d_cases():
+    """config: 객체=그 내용의 config.json, 문자열=그대로 쓴 파일(깨진 JSON 등), None=파일 없음"""
+    full = {"input_dir": "inbox", "output_dir": "results\\out", "done_dir": "archive\\done", "failed_dir": "archive\\failed"}
+    return {
+        "no_config_file": {"config": None},
+        "no_paths_key": {"config": {"clova_invoke_url": "x"}},
+        "all_relative": {"config": {"paths": full}},
+        "all_absolute": {"config": {"paths": {"input_dir": "C:\\robot\\in", "output_dir": "C:\\robot\\out", "done_dir": "C:\\robot\\done", "failed_dir": "C:\\robot\\failed"}}},
+        "partial_two": {"config": {"paths": {"input_dir": "inbox", "output_dir": "D:\\share\\result"}}},
+        "placeholders_and_empty": {"config": {"paths": {"input_dir": "<음성 입력 폴더>", "output_dir": "", "done_dir": "   ", "failed_dir": "여기에_실패폴더"}}},
+        "bad_json": {"config": "{not json"},
+        "root_is_array": {"config": "[1, 2]"},
+        "paths_not_object": {"config": {"paths": "calls"}},
+        "non_string_value": {"config": {"paths": {"input_dir": 5, "output_dir": None, "done_dir": ["x"], "failed_dir": "bad"}}},
+        "dotdot_inside": {"config": {"paths": {"input_dir": "sub\\..\\in", "output_dir": "a/b/c"}}},
+        "spaces_trimmed": {"config": {"paths": {"input_dir": "  inbox  "}}},
+        "korean_names": {"config": {"paths": {"input_dir": "접수\\음성", "done_dir": "처리 완료"}}},
+    }
+
+
+def expected_step8d(case):
+    d = tempfile.mkdtemp(prefix="p8d_")
+    try:
+        cfg_path = os.path.join(d, "config.json")
+        cfg = case["config"]
+        if cfg is not None:
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                f.write(cfg if isinstance(cfg, str) else json.dumps(cfg, ensure_ascii=False))
+        got = run_folder.resolve_folders(cfg_path, BASE_MARK)
+        return {k: v.replace(BASE_MARK, "<BASE>") for k, v in got.items()}
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def build_step8d():
+    cases = step8d_cases()
+    for name, case in cases.items():
+        C.write_text(os.path.join(C.TEST, "step8d", name + ".json"), json.dumps(case, ensure_ascii=False))
+        C.write_text(os.path.join(C.TEST, "expected", "step8d", name + ".json"), json.dumps(expected_step8d(case), ensure_ascii=False))
     return list(cases)

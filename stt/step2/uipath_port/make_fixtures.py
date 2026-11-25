@@ -258,12 +258,13 @@ def main():
     import fixtures_folder
     fixtures_folder.build_step8()
     names8b = fixtures_folder.build_step8b()
+    names8d = fixtures_folder.build_step8d()
 
     # 케이스 목록(XAML 생성기가 사용)
     C.write_text(os.path.join(C.TEST, "cases.json"), jdump({"step1": list(cases1), "step2": list(cases2), "step3": list(sc3), "step4": list(cases4), "step5": list(sc5), "step6": names6, "step7": names7, "step8b": names8b}, indent=1))
     print("Step1 %d건, Step2 %d건, Step3 %d건, Step4 %d건, Step5 %d건 생성 → %s" % (n1, len(cases2), len(sc3), len(cases4), len(sc5), C.TEST))
     print("  Step5 정답 status 분포:", stat)
-    print("Step6 %d건, Step7 %d건, Step8b %d건 생성" % (len(names6), len(names7), len(names8b)))
+    print("Step6 %d건, Step7 %d건, Step8b %d건, Step8d %d건 생성" % (len(names6), len(names7), len(names8b), len(names8d)))
     ok = sum(1 for n in cases2 if C.expected_step2(cases2[n])["isValid"])
     print("  Step2 정답 분포: 통과 %d / 실패 %d" % (ok, len(cases2) - ok))
 

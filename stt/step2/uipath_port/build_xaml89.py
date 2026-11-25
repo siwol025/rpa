@@ -114,6 +114,11 @@ def folder_flow(test):
     if test:
         pre = [invoke_code("테스트 폴더 초기화 (Invoke Code)", "reset_dirs.vb", [("In", S, "srcRoot", "srcRoot"), ("In", S, "runRoot", "runRoot"), ("Out", S, "resetError", "resetError")]),
                if_("초기화 실패?", 'resetError <> ""', throw("초기화 실패", "New System.InvalidOperationException(resetError)"))]
+    if not test:
+        # 입출력 폴더: 기본은 프로젝트 폴더의 calls\in|out|done|failed, config.json 의 paths 가 있으면 그 값 (snippets\read_paths.vb)
+        pre = [invoke_code("입출력 폴더 정하기 (Invoke Code)", "read_paths.vb",
+                           [("In", S, "configPath", "configPath"), ("In", S, "baseDir", "System.Environment.CurrentDirectory"),
+                            ("Out", S, "inDir", "inDir"), ("Out", S, "outDir", "outDir"), ("Out", S, "doneDir", "doneDir"), ("Out", S, "failedDir", "failedDir")])]
     body_children = pre + [
         make_dir("입력 폴더 준비", "inDir"), make_dir("결과 폴더 준비", "outDir"), make_dir("완료 폴더 준비", "doneDir"), make_dir("실패 폴더 준비", "failedDir"),
         read_text("프롬프트 템플릿 읽기", "promptPath", "promptText"),

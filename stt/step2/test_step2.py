@@ -107,4 +107,36 @@ for pf in ("prompt_v1.txt", "prompt_v1_1.txt", "prompt_v1_2.txt"):
     check("%s: 예시 5개의 출력에 감정·태도 서술 없음" % pf, len(ex) == 5 and not any(_re2.search(r"불만을|불편을|호소|화를 냈|화가 났|만족|짜증|강하게", l) for l in ex))
     check("%s: 예시 2(COMPLAINT)는 요구 사실로 서술" % pf, any('"type":"COMPLAINT"' in l and "보상 여부를 요구했다" in l for l in ex))
 
+# 8. 입출력 폴더를 config.json 의 paths 에서 읽기 (run_folder.resolve_folders)
+import tempfile as _tf
+import run_folder as _rf
+_d = _tf.mkdtemp(prefix="tp8_")
+_base = os.path.join(_d, "proj")
+_cfg = os.path.join(_d, "config.json")
+
+
+def _folders(obj):
+    if obj is None:
+        if os.path.exists(_cfg):
+            os.remove(_cfg)
+    else:
+        open(_cfg, "w", encoding="utf-8").write(obj if isinstance(obj, str) else json.dumps(obj, ensure_ascii=False))
+    return _rf.resolve_folders(_cfg, _base)
+
+
+_dflt = {"inDir": os.path.join(_base, "calls", "in"), "outDir": os.path.join(_base, "calls", "out"),
+         "doneDir": os.path.join(_base, "calls", "done"), "failedDir": os.path.join(_base, "calls", "failed")}
+check("폴더 설정: 설정 파일이 없으면 calls\\in|out|done|failed", _folders(None) == _dflt)
+check("폴더 설정: paths 가 없으면 기본값", _folders({"clova_invoke_url": "x"}) == _dflt)
+check("폴더 설정: 깨진 JSON이어도 기본값(예외 없음)", _folders("{not json") == _dflt)
+_abs = os.path.join(_d, "robot", "in")
+_r = _folders({"paths": {"input_dir": _abs, "output_dir": "res", "done_dir": "<자리표시자>", "failed_dir": ""}})
+check("폴더 설정: 절대 경로는 그대로", _r["inDir"] == os.path.normpath(_abs))
+check("폴더 설정: 상대 경로는 프로젝트 폴더 기준", _r["outDir"] == os.path.join(_base, "res"))
+check("폴더 설정: 자리표시자·빈 값은 기본값", _r["doneDir"] == _dflt["doneDir"] and _r["failedDir"] == _dflt["failedDir"])
+check("폴더 설정: config.example.json 의 자리표시자는 모두 기본값",
+      _rf.resolve_folders(os.path.join(os.path.dirname(HERE), "config.example.json"), _base) == _dflt)
+import shutil as _sh
+_sh.rmtree(_d, ignore_errors=True)
+
 print("\n통과: %d" % passed)
