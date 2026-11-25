@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "call_id": "20261126_110000_007",
+  "status": "SUCCESS",
+  "error": null,
+  "source": {
+    "file_name": "20261126_110000_한소영_해든푸드.wav",
+    "file_path": "C:/CallCenter/processing/20261126_110000_한소영_해든푸드.wav",
+    "duration_sec": 142.6,
+    "received_at": "2026-11-24T15:30:12+09:00"
+  },
+  "call_datetime": "2026-11-26T11:00:00+09:00",
+  "agent_name": "한소영",
+  "customer_company": "해든푸드",
+  "type": "COMPLAINT",
+  "type_label": "불만",
+  "type_confidence": 0.92,
+  "customer_question": "주문한 물품이 일주일째 도착하지 않아 배송 상황과 보상 여부를 문의함",
+  "agent_action": "배송사에 확인 후 내일 오전까지 회신하기로 안내함",
+  "summary": "고객이 배송 지연에 대해 불만을 제기했다. 담당자는 사과 후 배송사 확인을 약속했다.",
+  "sentiment": "NEGATIVE",
+  "follow_up_required": true,
+  "follow_up": "11/25 오전까지 배송사 확인 결과 회신",
+  "keywords": ["배송 지연", "보상", "회신"],
+  "entities": [
+    { "type": "REF_NO", "value": "주문번호 [REF]" },
+    { "type": "DATE", "value": "일주일 전" }
+  ],
+  "transcript": {
+    "full_text": "[상담원] 안녕하세요, 한빛물산 고객센터입니다.\n[고객] 주문한 물건이 아직 안 왔어요.",
+    "segments": [
+      { "speaker": "AGENT", "start_sec": 0.4, "end_sec": 3.1, "text": "안녕하세요, 한빛물산 고객센터입니다." },
+      { "speaker": "CUSTOMER", "start_sec": 3.6, "end_sec": 6.0, "text": "주문한 물건이 아직 안 왔어요." }
+    ],
+    "speaker_confidence": "HIGH"
+  },
+  "pii": {
+    "masked": true,
+    "counts": { "phone": 1, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 1 }
+  },
+  "processing": {
+    "stt_engine": "clova-speech",
+    "genai_model": "gpt-sample",
+    "prompt_version": "v1.2",
+    "retry_count": 0,
+    "processed_at": "2026-11-24T15:31:48+09:00"
+  }
+}

@@ -96,3 +96,8 @@ Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`�
 - API 키(`CALLCENTER_API_KEY`)가 없으면 서버 호출은 건너뛰고 엑셀만 기입한다.
 - 결과 JSON이 아직 없으면 시스템 오류로 기록 → 큐 자동 재시도. 서버 409(상태 충돌)는 실패 보고 없이 해당 큐 건만 종료.
 - 업무 오류(검증 실패)는 재시도 없이 R-08(VALIDATION)로 보고 후 error/failed로 이동.
+## 설정 파일 (Config\config.json)
+- 큐 이름, 폴더 위치(inbox/processing/done/failed/out/processed/error), 정체 판단 시간(staleMinutes)을 `Config\config.json`에서 바꾼다. `Flow_LoadConfig.xaml`이 읽는다.
+- 파일이 없거나 항목을 지우면 기본값을 쓴다. 상대 경로는 프로젝트 폴더 기준, 절대 경로(예: 구글 드라이브 폴더)도 가능하다.
+- 서버 주소·API 키·프로젝트 폴더는 환경변수(`CALLCENTER_API_URL`, `CALLCENTER_API_KEY`, `CALLCENTER_BASE`)로 둔다(키는 파일에 적지 않는다).
+- 보고서·양식 경로와 확인필요 임계값(대시보드 셀)은 기존 위치 그대로다.
