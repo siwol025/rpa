@@ -445,7 +445,7 @@ class InboxWriter(Protocol):
 업로드 규칙
 - Drive API 업로드(resumable)로 전송. Drive는 업로드가 끝난 파일만 목록에 나타나므로 Dispatcher가 전송 중인 파일을 집지 않음
 - 공유 드라이브 대상이므로 API 호출 시 `supportsAllDrives=true`
-- 원래 파일명 유지(파일명 규칙으로 메타데이터 추출). Drive는 같은 이름을 허용하므로 별도 접미사 불필요
+- 원래 파일명 유지(파일명 규칙으로 메타데이터 추출, 경로 성분 제거·NFC 정규화·확장자 소문자, Windows에서 쓸 수 없는 이름은 거절). Drive는 같은 이름을 허용하므로 별도 접미사 불필요
 - 공개 파일 속성 `properties.source=web` 기록(`appProperties`는 요청한 앱만 읽을 수 있어 Dispatcher가 읽지 못할 수 있음) → Dispatcher가 등록 시 `source_type=WEB`으로 전달
 - 웹 업로드 시 DB 등록은 하지 않음 (등록은 Dispatcher 단일 경로)
 - 실패 시 지수 백오프로 2회 재시도 후 `503 INBOX_UNAVAILABLE` (어댑터는 `InboxUnavailableError`, 서비스가 503으로 변환)
@@ -525,7 +525,7 @@ flowchart TB
 | `ROBOT_API_KEYS` | 로봇 API 키 (쉼표 구분, 교체 기간 중 2개 허용) |
 | `MAX_UPLOAD_MB` | 요청 전체 크기 한도(MiB, 기본 100), 모든 API 공통, 앱에서 검사 |
 | `ROBOT_ALLOWED_IPS` | `/api/robot/*` 호출 허용 IP (로봇 PC) |
-| `ALLOWED_EXTENSIONS` | `wav,mp3` |
+| `ALLOWED_EXTENSIONS` | 웹 업로드 허용 확장자(쉼표 구분, 기본 `wav,mp3`). 내용 판정 규칙이 있는 형식만 가능(그 밖의 값은 시작 실패) |
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
 | `CORS_ORIGINS` | 프론트 주소 |
 | `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |
@@ -542,7 +542,7 @@ flowchart TB
 | API → 클라우드 폴더 | 서비스 계정은 공유 드라이브(또는 `inbox/` 폴더) **기여자** 역할 **[확인 필요: E-01]**, 키 파일 서버 외부 반출 금지·주기적 교체 |
 | 클라우드 폴더 자체 | 공유 드라이브 멤버를 담당자·RPA 계정·서비스 계정으로 한정, 링크 공유 금지, `done/` 보관 기간 단축 |
 | API → DB | 전용 DB 계정(앱 권한만), 마이그레이션 계정 분리 |
-| 업로드 파일 (웹·로봇) | 확장자 + MIME + 매직 바이트 검증, 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |
+| 업로드 파일 (웹·로봇) | 확장자 + 매직 바이트 검증(둘이 같은 형식이어야 함, 클라이언트 MIME은 판정에 쓰지 않고 판정 형식의 정규 MIME 사용)(웹 업로드 기준), 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |
 | 데이터 | 마스킹된 텍스트만 저장, 음성 재생·다운로드 접근 로그 기록 |
 | 오조작 | 소프트 삭제, `edit_history`, 일일 백업 |
 | 비밀 | `.env`(Git 제외) → 클라우드에서는 Secret Manager |

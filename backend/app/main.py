@@ -9,7 +9,7 @@ from fastapi.routing import APIRoute
 
 from app.api.robot import calls as robot_calls
 from app.api.robot.auth import RobotAuthMiddleware
-from app.api.web import calls, stats
+from app.api.web import calls, stats, uploads
 from app.core.config import Settings, get_settings
 from app.core.db import create_session_factory
 from app.core.errors import ErrorCode, register_exception_handlers
@@ -44,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         generate_unique_id_function=_operation_id,
     )
     register_exception_handlers(app)
+    # 의존성이 요청마다 읽는 설정. get_settings()(.env)가 아니라 create_app에 넘긴 값을 쓴다.
     app.state.settings = settings
     # 엔진 생성만으로는 DB에 연결하지 않는다 (OpenAPI 내보내기·단위 테스트는 DB 없이 동작).
     app.state.session_factory = create_session_factory(settings.database_url)
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(calls.router)
     app.include_router(robot_calls.router)
     app.include_router(stats.router)
+    app.include_router(uploads.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.
     # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → RobotAuth → BodySizeLimit → 라우터

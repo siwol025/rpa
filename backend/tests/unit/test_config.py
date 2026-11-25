@@ -16,6 +16,7 @@ _ENV_NAMES = (
     "INBOX_BACKEND",
     "INBOX_LOCAL_PATH",
     "DRIVE_INBOX_FOLDER_ID",
+    "ALLOWED_EXTENSIONS",
 )
 
 
@@ -37,6 +38,7 @@ def test_defaults_without_env() -> None:
     assert settings.inbox_backend == "disabled"
     assert settings.inbox_local_path == Path("data/inbox")
     assert settings.drive_inbox_folder_id is None
+    assert settings.allowed_extensions == ["wav", "mp3"]
 
 
 def test_cors_origins_parsed_as_comma_list(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -68,6 +70,7 @@ def test_env_example_is_compatible() -> None:
     assert settings.database_url == _DEV_DATABASE_URL
     assert settings.inbox_backend == "local"
     assert settings.inbox_local_path == Path("data/inbox")
+    assert settings.allowed_extensions == ["wav", "mp3"]
 
 
 @pytest.mark.parametrize("value", ["0", "abc"])
@@ -137,3 +140,25 @@ def test_inbox_local_path_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("INBOX_LOCAL_PATH", "/data/inbox")
 
     assert Settings(_env_file=None).inbox_local_path == Path("/data/inbox")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("wav", ["wav"]), ("WAV, .mp3 ,", ["wav", "mp3"]), ("mp3,wav", ["mp3", "wav"])],
+)
+def test_allowed_extensions_parsed_as_comma_list(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: list[str]
+) -> None:
+    monkeypatch.setenv("ALLOWED_EXTENSIONS", value)
+
+    assert Settings(_env_file=None).allowed_extensions == expected
+
+
+@pytest.mark.parametrize("value", ["wav,m4a", "", " , "])
+def test_allowed_extensions_without_detection_rule_rejected(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("ALLOWED_EXTENSIONS", value)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)

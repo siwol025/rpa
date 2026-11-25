@@ -3,10 +3,13 @@
 import ipaddress
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, get_args
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+# 내용(매직 바이트) 판정 규칙이 있는 음성 형식. 형식을 늘릴 때는 판정 규칙과 함께 추가한다.
+AudioExtension = Literal["wav", "mp3"]
 
 
 class Settings(BaseSettings):
@@ -36,6 +39,10 @@ class Settings(BaseSettings):
     audio_storage_root: Path = Path("./data/audio")
     # 이 시간(분)을 넘게 같은 처리 중 상태에 머문 건은 정체로 본다 (R-02 재처리 허용, R-11 감지).
     stale_threshold_min: int = Field(default=30, gt=0)
+    # 웹 업로드 허용 확장자(쉼표 구분, 대소문자·앞 점 무시). 판정 규칙이 없는 값이면 시작 실패.
+    allowed_extensions: Annotated[list[AudioExtension], NoDecode] = Field(
+        default_factory=lambda: list(get_args(AudioExtension)), min_length=1
+    )
 
     @field_validator("cors_origins", "robot_api_keys", "robot_allowed_ips", mode="before")
     @classmethod
@@ -61,6 +68,14 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"ROBOT_ALLOWED_IPS에 올바르지 않은 IP/CIDR가 있습니다: {item}"
                 ) from None
+        return value
+
+    @field_validator("allowed_extensions", mode="before")
+    @classmethod
+    def _split_extensions(cls, value: object) -> object:
+        if isinstance(value, str):
+            items = (item.strip().lower().removeprefix(".") for item in value.split(","))
+            return [item for item in items if item]
         return value
 
     @field_validator("log_level", mode="before")
