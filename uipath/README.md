@@ -55,3 +55,8 @@
 
 준비물: Orchestrator 폴더에 큐 `CallCenter_Calls` 생성 (Automatic retry 3회 권장, Unique reference는 끔).
 Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`에 보고서가 없는 상태여야 합니다.
+
+## 작업 폴더 설정 (경로)
+- 모든 입출력 경로는 `baseDir` 한 곳에서 정한다. 환경변수 `CALLCENTER_BASE`가 있으면 그 폴더, 없으면 Studio가 연 프로젝트 폴더(`uipath\`)를 쓴다.
+- Studio에서 실행할 때는 설정이 필요 없다. 작업 스케줄러나 Robot으로 실행할 때만 `CALLCENTER_BASE`를 지정한다.
+- 폴더 아래에 `Runtime\out`(입력 JSON), `Runtime\processing`, `Runtime\out\processed`, `Runtime\out\error`, `Runtime\report`, `Runtime\template`이 있어야 한다. `Runtime\template`만 저장소에 올라가고 나머지는 실행 중에 쓰는 폴더라 올라가지 않는다(`.gitignore`). 처음 받았으면 빈 폴더를 만들고 `samples\test_cases\*.json`을 `Runtime\out`에 복사해 시험한다.
