@@ -75,11 +75,11 @@ python test_step2.py                                           # 32개 테스트
 
 ## 7. 입력·출력
 
-- **입력:** `calls\in`의 음성 파일 (`.mp3 .wav .m4a .aac .ogg .flac .mp4` — 실제 지원 형식은 CLOVA 콘솔 가이드로 확인 필요)
+- **입력:** `calls\in`의 음성 파일. 운영에서는 서버·④와 맞춰 **`.wav`·`.mp3`**를 씁니다(③의 `clova_stt.py`는 `.m4a .aac .ogg .flac .mp4`도 CLOVA에 보낼 수 있지만, 실제 지원 형식은 CLOVA 콘솔 가이드로 확인 필요). 폴더 위치는 `config.json`의 `paths`로 바꿀 수 있습니다(`uipath/README.md`의 "입출력 폴더를 설정으로 바꾸기").
 - **출력:** `schema\call_schema.json` 형식 JSON. 주요 필드: `status`(SUCCESS/NEEDS_REVIEW/FAILED), `type`(INQUIRY 질의 / COMPLAINT 불만 / SUGGESTION 건의 / TRAINING 교육 내용 / OTHER 기타 문의), `type_confidence`, `summary`, `follow_up`, `keywords`, `entities`, `transcript`, `pii`, `processing`, `error`
 - `NEEDS_REVIEW`: 유형 확신도 0.6 미만이거나 화자 구분이 불확실(`speaker_confidence=LOW`)한 건.
 - 예시: `schema\sample_success.json`, `schema\sample_failed.json`
-- **백엔드 적재 변환:** `call_schema.json`(v1.0)은 그대로 두고, 백엔드와 다른 부분은 적재할 때 `step2	o_backend.py`에서 바꿉니다. 테스트: `python test_to_backend.py`.
+- **백엔드 적재 변환(참고용):** `step2\to_backend.py`는 백엔드 로봇 API(R-07)가 확정되기 전의 변환 기준입니다. 실제 운영 흐름에서는 ④가 결과 JSON을 **그대로** R-07에 보내고 서버가 같은 계약(`call_schema.json` v1.0)으로 받으므로, 이 변환기는 필드 대응을 확인하는 참고용입니다. 테스트: `python test_to_backend.py`.
   - 유형은 `type_label`(한글)을 `category`로, `customer_question`/`agent_action`/`customer_company`는 `question_summary`/`action_summary`/`client_company`로 보냅니다.
   - `duration_sec`은 정수 초로 반올림하고, `entities`는 `[{type, value}]` 배열 그대로, `needs_review`는 STT 판정(`status == NEEDS_REVIEW`)을 그대로 따릅니다.
   - 전사 구간 키는 `start_sec`/`end_sec`로 확정(백엔드 협의 완료)이라 이름을 바꾸지 않고 그대로 보냅니다.

@@ -4,9 +4,30 @@
 Python 구현(`stt/step1`, `stt/step2`)과 **같은 입력에서 같은 결과**가 나오는지 단계마다 비교하며 옮겼습니다. 팀의 ④ RPA 코어(저장소 루트 `uipath/`)와는 별개의 프로젝트입니다. 이 프로젝트가 `{call_id}.json`을 `out` 폴더에 떨어뜨리면 ④가 읽어 엑셀에 기입합니다.
 
 ## 폴더 구조 및 입출력 경로
-- **작업 기준 폴더:** `<프로젝트 폴더>\calls` (저장소 기준 `stt/uipath/calls`, 로컬 예시 `C:\Users\Woori\Documents\UiPath_GenAI_STT\uipath\calls`). `Main_Folder.xaml`이 현재 작업 폴더(프로젝트 폴더) 아래의 `calls`를 쓰므로, 저장소 루트나 `stt\calls` 같은 다른 위치에 파일을 넣으면 읽지 못합니다.
+- **작업 기준 폴더:** `<프로젝트 폴더>\calls` (저장소 기준 `stt/uipath/calls`, 예: `D:\work\rpa\stt\uipath\calls`). `Main_Folder.xaml`이 현재 작업 폴더(프로젝트 폴더) 아래의 `calls`를 쓰므로, 저장소 루트나 `stt\calls` 같은 다른 위치에 파일을 넣으면 읽지 못합니다.
 - **하위 폴더:** `in`(입력), `out`(결과 JSON), `done`(처리한 원본), `failed`(실패한 원본). 실행할 때 없으면 `Main_Folder.xaml`이 만듭니다. `calls\`는 `.gitignore` 대상이라 저장소에 올라가지 않습니다.
 - **처리 흐름:** `calls\in`의 파일을 `Main_Folder.xaml`로 처리해 성공(`SUCCESS`/`NEEDS_REVIEW`)이면 `done`, 실패(`FAILED`)면 `failed`로 옮기고, 어느 쪽이든 `calls\out\{call_id}.json`을 만듭니다. `call_id`는 `날짜_시각_순번`(예: `20261125_124453_001`) 형식이고, 같은 이름이 있으면 덮어쓰지 않고 번호를 붙입니다. 실패 건도 `status=FAILED` JSON이 생성됩니다.
+
+### 입출력 폴더를 설정으로 바꾸기 (`config.json`의 `paths`)
+기본은 프로젝트 폴더 아래 `calls\in|out|done|failed`입니다. ④(RPA 코어)나 다른 PC와 폴더를 맞춰야 하면 `config.json`에 `paths`를 넣으면 됩니다(`config.example.json` 참고). `Main_Folder.xaml`은 시작할 때 `입출력 폴더 정하기` 단계에서 이 값을 읽습니다(코드: `snippets\read_paths.vb`, Python 기준: `run_folder.resolve_folders`).
+
+```json
+"paths": {
+  "input_dir": "D:\\robot\\stt_in",
+  "output_dir": "D:\\robot\\stt_out",
+  "done_dir": "D:\\robot\\stt_done",
+  "failed_dir": "D:\\robot\\stt_failed"
+}
+```
+- 항목마다 따로 쓸 수 있고, 없는 항목은 기본값(`calls\...`)입니다.
+- **상대 경로**는 프로젝트 폴더(`stt\uipath`) 기준, **절대 경로**는 그대로 씁니다.
+- 값이 비었거나 `<…>`·`여기에_…`로 시작하는 자리표시자이거나 문자열이 아니면 기본값입니다. 설정 파일이 없거나 JSON이 깨져 있어도 오류 없이 기본값으로 동작합니다.
+- 설정 파일 위치는 아래 "`config.json` 경로"와 같습니다(`CLOVA_CONFIG` 또는 `프로젝트 폴더\..\config.json`). 테스트 워크플로(`Step8_Folder_Test`)는 임시 폴더를 쓰므로 이 설정을 읽지 않습니다.
+
+**④와 연결할 때 주의**
+- ③은 처리한 원본을 `done`/`failed`로 **옮깁니다**. ④가 자기 `processing` 폴더를 ③의 `input_dir`로 직접 지정하면 ③이 ④의 파일을 가져가 버립니다. ④가 음성을 **복사해서** ③의 `input_dir`에 넣고, ③의 `output_dir`을 ④의 결과 폴더(`Config/config.json`의 `outFolder`)로 지정하세요.
+- ④는 결과 JSON의 `source.file_name`이 음성 파일명과 같은 것을 찾으므로, ③의 `output_dir`에 같은 이름의 오래된 결과가 남아 있지 않게 ④가 처리 후 옮기는 동작을 유지해야 합니다.
+- 서버와 ④는 **wav·mp3**만 접수합니다(③은 m4a 등도 CLOVA에 보낼 수 있지만 운영 입력은 wav·mp3로 맞추세요).
 
 ## 처리 흐름 도식 (`Main_Folder.xaml`, 음성 한 건 기준)
 ```
@@ -57,7 +78,7 @@ VB 코드 원본은 `stt/step2/uipath_port/snippets/`에 있습니다(위 도식
 1. 환경변수 `CLOVA_CONFIG`가 있으면 그 파일
 2. 없으면 `<프로젝트 폴더>\..\config.json` → 저장소 기준 `stt/config.json`
 
-- 읽는 값은 `clova_invoke_url`, `clova_secret_key`, `stt{…}`(언어·화자 수·노이즈 필터·조회 간격과 횟수)뿐입니다. 모델 호출은 Content Generation 커넥터(UiPath 연결)가 하므로 UiPath 쪽에는 모델 키가 없습니다.
+- 읽는 값은 `clova_invoke_url`, `clova_secret_key`, `stt{…}`(언어·화자 수·노이즈 필터·조회 간격과 횟수)와 입출력 폴더 `paths{…}`(위 "입출력 폴더를 설정으로 바꾸기")입니다. 모델 호출은 Content Generation 커넥터(UiPath 연결)가 하므로 UiPath 쪽에는 모델 키가 없습니다.
 - 프로젝트를 `stt/uipath`가 아닌 다른 폴더에서 열면 2번 경로가 틀어져 "config.json을 읽을 수 없음"이 납니다. 이때는 `CLOVA_CONFIG`로 경로를 지정하세요.
 
 **Python이 읽는 위치**: 같은 `stt/config.json`입니다. `step1/clova_stt.py`와 `step2/openai_llm.py`가 기본으로 이 파일을 쓰고(`--config`로 변경), `config.json`의 `openai` 항목(`api_key`, `model`, `base_url` 등)은 Python 평가·검증용이라 UiPath 흐름에는 쓰이지 않습니다.

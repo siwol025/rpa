@@ -85,6 +85,10 @@ Public Module Harness
 @@DOCSUM@@
     End Sub
 
+    Public Sub ReadPathsSnippet(ByVal configPath As String, ByVal baseDir As String, ByRef inDir As String, ByRef outDir As String, ByRef doneDir As String, ByRef failedDir As String)
+@@READPATHS@@
+    End Sub
+
     Private Function ReadT(ByVal p As String) As String
         Return File.ReadAllText(p, Encoding.UTF8)
     End Function
@@ -253,6 +257,29 @@ Public Module Harness
             End If
             WriteT(Path.Combine(outDir, "step8b", cname & ".json"), res.ToString(Newtonsoft.Json.Formatting.None))
         Next
+        ' ---- Step8d: 입출력 폴더를 config.json 의 paths 에서 읽는 코드 조각 (임시 폴더)
+        For Each f As String In Directory.GetFiles(Path.Combine(testDir, "step8d"), "*.json")
+            Dim cname As String = Path.GetFileNameWithoutExtension(f)
+            Dim cj As Newtonsoft.Json.Linq.JObject = Newtonsoft.Json.Linq.JObject.Parse(ReadT(f))
+            Dim baseDir As String = Path.GetFullPath(Path.Combine(outDir, "step8d_work", cname))
+            If Directory.Exists(baseDir) Then Directory.Delete(baseDir, True)
+            Directory.CreateDirectory(baseDir)
+            Dim cfgPath As String = Path.Combine(baseDir, "config.json")
+            Dim ctok As Newtonsoft.Json.Linq.JToken = cj("config")
+            If ctok.Type = Newtonsoft.Json.Linq.JTokenType.String Then
+                File.WriteAllText(cfgPath, CStr(CType(ctok, Newtonsoft.Json.Linq.JValue).Value), New UTF8Encoding(False))
+            ElseIf ctok.Type <> Newtonsoft.Json.Linq.JTokenType.Null Then
+                File.WriteAllText(cfgPath, ctok.ToString(Newtonsoft.Json.Formatting.None), New UTF8Encoding(False))
+            End If
+            Dim i1 As String = "", o1 As String = "", d1 As String = "", f1 As String = ""
+            ReadPathsSnippet(cfgPath, baseDir, i1, o1, d1, f1)
+            Dim res As New Newtonsoft.Json.Linq.JObject()
+            res("inDir") = i1.Replace(baseDir, "<BASE>")
+            res("outDir") = o1.Replace(baseDir, "<BASE>")
+            res("doneDir") = d1.Replace(baseDir, "<BASE>")
+            res("failedDir") = f1.Replace(baseDir, "<BASE>")
+            WriteT(Path.Combine(outDir, "step8d", cname & ".json"), res.ToString(Newtonsoft.Json.Formatting.None))
+        Next
         Return 0
     End Function
 End Module
@@ -269,7 +296,7 @@ def main():
         print("test_data 가 없음: 먼저 python make_fixtures.py 를 실행하세요.")
         sys.exit(2)
     os.makedirs(WORK, exist_ok=True)
-    src = TEMPLATE.replace("@@BUILD@@", snippet("build_prompt.vb")).replace("@@VALIDATE@@", snippet("validate_response.vb")).replace("@@FINALIZE@@", snippet("finalize_result.vb")).replace("@@MASK@@", snippet("mask_pii.vb")).replace("@@READMETA@@", snippet("read_meta.vb")).replace("@@ASSEMBLE@@", snippet("assemble_result.vb")).replace("@@CLOVA@@", snippet("clova_call.vb")).replace("@@PARSE@@", snippet("parse_clova.vb")).replace("@@LIST@@", snippet("list_inputs.vb")).replace("@@PICK@@", snippet("pick_dest.vb")).replace("@@MOVE@@", snippet("move_file.vb")).replace("@@DOCSUM@@", snippet("doc_summary.vb"))
+    src = TEMPLATE.replace("@@BUILD@@", snippet("build_prompt.vb")).replace("@@VALIDATE@@", snippet("validate_response.vb")).replace("@@FINALIZE@@", snippet("finalize_result.vb")).replace("@@MASK@@", snippet("mask_pii.vb")).replace("@@READMETA@@", snippet("read_meta.vb")).replace("@@ASSEMBLE@@", snippet("assemble_result.vb")).replace("@@CLOVA@@", snippet("clova_call.vb")).replace("@@PARSE@@", snippet("parse_clova.vb")).replace("@@LIST@@", snippet("list_inputs.vb")).replace("@@PICK@@", snippet("pick_dest.vb")).replace("@@MOVE@@", snippet("move_file.vb")).replace("@@DOCSUM@@", snippet("doc_summary.vb")).replace("@@READPATHS@@", snippet("read_paths.vb"))
     vb = os.path.join(WORK, "harness.vb")
     exe = os.path.join(WORK, "harness.exe")
     with open(vb, "w", encoding="utf-8-sig", newline="") as f:
@@ -307,6 +334,7 @@ def main():
     bad += C.report("Step6 STT 호출 — 가짜 서버 (VB vs Python)", C.compare_step6(OUT_VB, fetch_log=lambda name: state.logs.get(name, [])))
     bad += C.report("Step7 STT 응답 파싱 (VB vs Python)", C.compare_step7(OUT_VB))
     bad += C.report("Step8b 파일 목록·이동 코드 (VB vs Python)", C.compare_step8b(OUT_VB))
+    bad += C.report("Step8d 입출력 폴더를 설정에서 읽기 (VB vs Python)", C.compare_step8d(OUT_VB))
     bad += C.report("Step8c 결과 문서에서 상태·오류·재시도 읽기 (VB vs Python)", C.compare_step8c(OUT_VB))
     srv.shutdown()
     srv.server_close()

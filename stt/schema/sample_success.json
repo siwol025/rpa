@@ -4,8 +4,8 @@
   "status": "SUCCESS",
   "error": null,
   "source": {
-    "file_name": "call_02_불만.m4a",
-    "file_path": "C:/calls/in/call_02_불만.m4a",
+    "file_name": "call_02_불만.wav",
+    "file_path": "C:/calls/in/call_02_불만.wav",
     "duration_sec": 142.6,
     "received_at": "2026-11-24T15:30:12+09:00"
   },

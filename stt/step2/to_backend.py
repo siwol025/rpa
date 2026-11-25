@@ -2,6 +2,10 @@
 """
 STT 결과(schema/call_schema.json, v1.0) → 백엔드 적재용 값 변환 (로봇 → 백엔드)
 
+[참고용] 이 변환기는 백엔드 로봇 API(R-07)가 확정되기 전의 기준 구현이다. 실제 운영 흐름에서는 ④(uipath/Flow_PerformerAudio)가
+결과 JSON을 변환 없이 그대로 R-07에 보내고 서버가 같은 계약(call_schema v1.0)으로 받는다. 필드 대응(유형 한글 라벨, 이름 변경,
+정수 초 등)을 확인하는 용도로 남겨 두며, 운영 경로에서는 호출하지 않는다.
+
 기준: call_schema.json은 바꾸지 않는다. 백엔드(DB·API)와 다른 부분은 '적재할 때' 이 모듈에서만 변환한다.
       (STT 파이프라인 코드·프롬프트·스키마는 TRAINING/OTHER, customer_question … 을 그대로 쓴다.)
 

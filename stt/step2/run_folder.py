@@ -66,6 +66,34 @@ def move_unique(src, dest_dir):
         return "", "이동 실패(%s)" % type(e).__name__
 
 
+FOLDER_KEYS = (("inDir", "input_dir", "in"), ("outDir", "output_dir", "out"), ("doneDir", "done_dir", "done"), ("failedDir", "failed_dir", "failed"))
+
+
+def resolve_folders(config_path, base_dir):
+    """입출력 폴더를 정한다. (UiPath: snippets\read_paths.vb 와 같은 규칙)
+    기본값은 base_dir\calls\in|out|done|failed. config.json 의 paths.input_dir/output_dir/done_dir/failed_dir 가 있으면 그 값을 쓴다.
+    상대 경로는 base_dir 기준, 절대 경로는 그대로. 값이 비었거나 '<'·'여기에_'로 시작(양식의 자리표시자)하거나 문자열이 아니면 기본값.
+    설정 파일이 없거나 읽을 수 없어도 기본값. 반환: {"inDir","outDir","doneDir","failedDir"}"""
+    result = {name: os.path.join(base_dir, "calls", sub) for name, _, sub in FOLDER_KEYS}
+    try:
+        with open(config_path, encoding="utf-8-sig") as f:
+            cfg = json.load(f)
+    except Exception:  # noqa: BLE001
+        return result
+    paths = cfg.get("paths") if isinstance(cfg, dict) else None
+    if not isinstance(paths, dict):
+        return result
+    for name, key, _ in FOLDER_KEYS:
+        v = paths.get(key)
+        if not isinstance(v, str):
+            continue
+        v = v.strip()
+        if not v or v.startswith("<") or v.startswith("여기에_"):
+            continue
+        result[name] = os.path.normpath(v if os.path.isabs(v) else os.path.join(base_dir, v))
+    return result
+
+
 def process_file(path, seq, config_path, llm, prompt_version):
     """파일 하나 → 최종 JSON 문서"""
     name = os.path.basename(path)
@@ -97,13 +125,18 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser()
     root = os.path.dirname(HERE)
-    ap.add_argument("--in", dest="in_dir", default=os.path.join(root, "calls", "in"))
-    ap.add_argument("--out", default=os.path.join(root, "calls", "out"))
-    ap.add_argument("--done", default=os.path.join(root, "calls", "done"))
-    ap.add_argument("--failed", default=os.path.join(root, "calls", "failed"))
+    ap.add_argument("--in", dest="in_dir", default=None, help="입력 폴더 (생략하면 config.json 의 paths.input_dir, 없으면 calls\in)")
+    ap.add_argument("--out", default=None, help="결과 폴더 (생략하면 paths.output_dir, 없으면 calls\out)")
+    ap.add_argument("--done", default=None, help="완료 폴더 (생략하면 paths.done_dir, 없으면 calls\done)")
+    ap.add_argument("--failed", default=None, help="실패 폴더 (생략하면 paths.failed_dir, 없으면 calls\failed)")
     ap.add_argument("--config", default=os.path.join(root, "config.json"))
     ap.add_argument("--mock-llm-dir", default="", help="{파일이름 stem}.llm.txt 를 모델 응답으로 사용 (없으면 빈 응답). 생략하면 규칙 기반 모의 LLM")
     a = ap.parse_args()
+    folders = resolve_folders(a.config, root)
+    a.in_dir = a.in_dir or folders["inDir"]
+    a.out = a.out or folders["outDir"]
+    a.done = a.done or folders["doneDir"]
+    a.failed = a.failed or folders["failedDir"]
 
     def llm_for(stem):
         if not a.mock_llm_dir:
