@@ -769,6 +769,29 @@
         "title": "ProcessingLogOut",
         "type": "object"
       },
+      "RetryResult": {
+        "description": "재처리 요청 접수 결과. 실제 재처리는 다음 Dispatcher 주기에 일어난다.",
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "integer"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CallStatus"
+          }
+        },
+        "required": [
+          "call_id",
+          "status",
+          "retry_count"
+        ],
+        "title": "RetryResult",
+        "type": "object"
+      },
       "RobotAnalysisRequest": {
         "additionalProperties": true,
         "description": "`PUT /api/robot/calls/{id}/analysis` 본문: GenAI 결과 JSON을 그대로 보낸다.\n\n서버가 쓰는 필드만 검증하고, 그 밖의 필드(summary·sentiment·keywords 등)는 허용해\n`analysis.raw_json`에 원본으로 보존한다. 실패 건(`FAILED`)은 로그 API로 보고한다.",
@@ -1608,6 +1631,81 @@
           }
         },
         "summary": "Get Call",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/calls/{call_id}/retry": {
+      "post": {
+        "description": "재처리를 요청한다. 상태만 `RETRY_REQUESTED`로 바꾸고 다음 Dispatcher 주기에 반영된다.",
+        "operationId": "retry_call",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Retry Call",
         "tags": [
           "calls"
         ]
