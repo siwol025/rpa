@@ -2,7 +2,7 @@
   "name": "팀프로젝트",
   "projectId": "d08cfcfc-a8b9-41f2-b393-9f6047d02ca7",
   "description": "팀프로젝트",
-  "main": "Main.xaml",
+  "main": "Main_Audio.xaml",
   "dependencies": {
     "UiPath.Excel.Activities": "[3.3.1]",
     "UiPath.Mail.Activities": "[2.5.10]",
@@ -48,7 +48,7 @@
   "expressionLanguage": "VisualBasic",
   "entryPoints": [
     {
-      "filePath": "Main.xaml",
+      "filePath": "Main_Audio.xaml",
       "uniqueId": "bc8b2c4e-5a3b-4719-8e7c-6c6265932b54",
       "input": [],
       "output": []
