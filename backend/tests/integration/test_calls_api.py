@@ -12,12 +12,10 @@ pytestmark = pytest.mark.integration
 T0 = datetime(2026, 11, 23, 5, 30, 5, tzinfo=UTC)
 
 
-def test_list_calls_end_to_end(api: TestClient, db_session: Session) -> None:
-    call = make_call(
-        db_session, call_datetime=T0, agent_name="김상담", status="STORED", created_at=T0
-    )
-    make_analysis(db_session, call, category="불만", question_summary="환불 문의")
-    make_call(db_session, deleted_at=T0)
+def test_list_calls_end_to_end(api: TestClient, db: Session) -> None:
+    call = make_call(db, call_datetime=T0, agent_name="김상담", status="STORED", created_at=T0)
+    make_analysis(db, call, category="불만", question_summary="환불 문의")
+    make_call(db, deleted_at=T0)
 
     response = api.get("/api/calls", params={"q": "환불", "size": 10})
 
@@ -32,10 +30,8 @@ def test_list_calls_end_to_end(api: TestClient, db_session: Session) -> None:
     assert "object_key" not in item
 
 
-def test_list_calls_page_beyond_last_returns_empty_items(
-    api: TestClient, db_session: Session
-) -> None:
-    make_call(db_session)
+def test_list_calls_page_beyond_last_returns_empty_items(api: TestClient, db: Session) -> None:
+    make_call(db)
 
     body = api.get("/api/calls", params={"page": 5}).json()
 
@@ -43,11 +39,11 @@ def test_list_calls_page_beyond_last_returns_empty_items(
     assert body["total"] == 1
 
 
-def test_get_call_detail_end_to_end(api: TestClient, db_session: Session) -> None:
-    call = make_call(db_session)
-    make_transcript(db_session, call)
-    make_analysis(db_session, call, confidence=Decimal("0.857"), raw_json={"x": 1})
-    make_log(db_session, call, created_at=T0)
+def test_get_call_detail_end_to_end(api: TestClient, db: Session) -> None:
+    call = make_call(db)
+    make_transcript(db, call)
+    make_analysis(db, call, confidence=Decimal("0.857"), raw_json={"x": 1})
+    make_log(db, call, created_at=T0)
 
     response = api.get(f"/api/calls/{call.id}")
 
@@ -59,8 +55,8 @@ def test_get_call_detail_end_to_end(api: TestClient, db_session: Session) -> Non
     assert body["processing_log"][0]["created_at"] == "2026-11-23T14:30:05+09:00"
 
 
-def test_get_call_without_children(api: TestClient, db_session: Session) -> None:
-    call = make_call(db_session)
+def test_get_call_without_children(api: TestClient, db: Session) -> None:
+    call = make_call(db)
 
     body = api.get(f"/api/calls/{call.id}").json()
 
@@ -69,8 +65,8 @@ def test_get_call_without_children(api: TestClient, db_session: Session) -> None
     assert body["processing_log"] == []
 
 
-def test_get_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
-    call = make_call(db_session, deleted_at=T0)
+def test_get_deleted_call_is_404(api: TestClient, db: Session) -> None:
+    call = make_call(db, deleted_at=T0)
 
     response = api.get(f"/api/calls/{call.id}")
 
@@ -78,12 +74,12 @@ def test_get_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
     assert response.json()["code"] == "NOT_FOUND"
 
 
-def test_list_calls_stale_filter_and_flag(api: TestClient, db_session: Session) -> None:
+def test_list_calls_stale_filter_and_flag(api: TestClient, db: Session) -> None:
     old = datetime.now(UTC) - timedelta(hours=2)
-    stale = make_call(db_session, status="QUEUED", status_changed_at=old)
-    fresh = make_call(db_session, status="QUEUED")
-    make_call(db_session, status="STORED", status_changed_at=old)
-    make_call(db_session, status="QUEUED", status_changed_at=old, deleted_at=old)
+    stale = make_call(db, status="QUEUED", status_changed_at=old)
+    fresh = make_call(db, status="QUEUED")
+    make_call(db, status="STORED", status_changed_at=old)
+    make_call(db, status="QUEUED", status_changed_at=old, deleted_at=old)
 
     stale_body = api.get("/api/calls", params={"stale": "true"}).json()
     fresh_body = api.get("/api/calls", params={"stale": "false"}).json()

@@ -32,7 +32,7 @@ class AudioApi:
 
 
 @pytest.fixture
-def audio_api(db_session: Session, tmp_path: Path) -> Iterator[AudioApi]:
+def audio_api(db: Session, tmp_path: Path) -> Iterator[AudioApi]:
     root = tmp_path / "audio"
     app = create_app(Settings(_env_file=None, audio_storage_root=root))
     storage = LocalStorage(root)
@@ -41,7 +41,7 @@ def audio_api(db_session: Session, tmp_path: Path) -> Iterator[AudioApi]:
     def recording_db() -> Iterator[Session]:
         env.events.append("db_open")
         try:
-            yield db_session
+            yield db
         finally:
             env.events.append("db_close")
 
@@ -58,8 +58,8 @@ def audio_api(db_session: Session, tmp_path: Path) -> Iterator[AudioApi]:
         yield env
 
 
-def test_partial_content_end_to_end(audio_api: AudioApi, db_session: Session) -> None:
-    call = make_call(db_session, object_key=audio_api.save(), status="STORED")
+def test_partial_content_end_to_end(audio_api: AudioApi, db: Session) -> None:
+    call = make_call(db, object_key=audio_api.save(), status="STORED")
 
     response = audio_api.client.get(f"/api/calls/{call.id}/audio", headers={"Range": "bytes=100-"})
 
@@ -69,8 +69,8 @@ def test_partial_content_end_to_end(audio_api: AudioApi, db_session: Session) ->
     assert response.headers["content-type"] == "audio/wav"
 
 
-def test_session_closed_before_first_read(audio_api: AudioApi, db_session: Session) -> None:
-    call = make_call(db_session, object_key=audio_api.save())
+def test_session_closed_before_first_read(audio_api: AudioApi, db: Session) -> None:
+    call = make_call(db, object_key=audio_api.save())
 
     response = audio_api.client.get(f"/api/calls/{call.id}/audio")
 
@@ -80,8 +80,8 @@ def test_session_closed_before_first_read(audio_api: AudioApi, db_session: Sessi
 
 
 @pytest.mark.parametrize("status", ["REGISTERED", "FAILED", "RETRY_REQUESTED"])
-def test_any_status_is_playable(audio_api: AudioApi, db_session: Session, status: str) -> None:
-    call = make_call(db_session, object_key=audio_api.save(), status=status)
+def test_any_status_is_playable(audio_api: AudioApi, db: Session, status: str) -> None:
+    call = make_call(db, object_key=audio_api.save(), status=status)
 
     response = audio_api.client.get(f"/api/calls/{call.id}/audio")
 
@@ -89,10 +89,8 @@ def test_any_status_is_playable(audio_api: AudioApi, db_session: Session, status
     assert response.content == DATA
 
 
-def test_soft_deleted_call_is_404(audio_api: AudioApi, db_session: Session) -> None:
-    call = make_call(
-        db_session, object_key=audio_api.save(), deleted_at=datetime(2026, 11, 24, tzinfo=UTC)
-    )
+def test_soft_deleted_call_is_404(audio_api: AudioApi, db: Session) -> None:
+    call = make_call(db, object_key=audio_api.save(), deleted_at=datetime(2026, 11, 24, tzinfo=UTC))
 
     response = audio_api.client.get(f"/api/calls/{call.id}/audio")
 
@@ -100,8 +98,8 @@ def test_soft_deleted_call_is_404(audio_api: AudioApi, db_session: Session) -> N
     assert response.json()["code"] == "NOT_FOUND"
 
 
-def test_unknown_call_is_404(audio_api: AudioApi, db_session: Session) -> None:
-    call = make_call(db_session, object_key=audio_api.save())
+def test_unknown_call_is_404(audio_api: AudioApi, db: Session) -> None:
+    call = make_call(db, object_key=audio_api.save())
 
     response = audio_api.client.get(f"/api/calls/{call.id + 1000}/audio")
 

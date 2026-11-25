@@ -239,8 +239,10 @@ def test_patch_not_found(api: TestClient) -> None:
 @pytest.mark.parametrize(
     ("body", "loc"),
     [
-        ({"category": "COMPLAINT"}, ["body", "category"]),
-        ({"review_completed": True}, ["body", "review_completed"]),
+        ({"category": "질의"}, ["body", "category"]),
+        ({"review_completed": False}, ["body", "review_completed"]),
+        ({"action_status": None}, ["body", "action_status"]),
+        ({"status": "STORED"}, ["body", "status"]),
         ({"agent_name": "  "}, ["body", "agent_name"]),
         ({"client_company": "가" * 101}, ["body", "client_company"]),
         ({"call_datetime": "2101-01-01T00:00:00+09:00"}, ["body", "call_datetime"]),
@@ -359,11 +361,21 @@ def test_openapi_update_call(spec: dict[str, Any]) -> None:
     props = request["properties"]
 
     assert operation["operationId"] == "update_call"
-    assert set(operation["responses"]) == {"200", "404", "422", "500"}
+    assert set(operation["responses"]) == {"200", "404", "409", "422", "500"}
     assert operation["requestBody"]["required"] is True
     ref = operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
     assert ref.endswith("/CallDetail")
-    assert set(props) == {"agent_name", "client_company", "call_datetime", "editor"}
+    assert set(props) == {
+        "agent_name",
+        "client_company",
+        "call_datetime",
+        "category",
+        "question_summary",
+        "action_summary",
+        "action_status",
+        "review_completed",
+        "editor",
+    }
     assert request["additionalProperties"] is False
     assert "required" not in request
     assert props["agent_name"]["anyOf"][0]["maxLength"] == 50

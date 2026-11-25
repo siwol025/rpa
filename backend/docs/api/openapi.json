@@ -493,8 +493,31 @@
       },
       "CallUpdateRequest": {
         "additionalProperties": false,
-        "description": "`PATCH /api/calls/{id}`. 보낸 키만 변경하고 `null`은 값 비우기다.\n\n선언하지 않은 키는 422(`extra_forbidden`). 유형·요약·조치·검토 완료 필드는\n분석 수정 기능에서 선택 필드로 추가한다(호환 변경).",
+        "description": "`PATCH /api/calls/{id}`. 보낸 키만 변경하고 `null`은 값 비우기다.\n\n선언하지 않은 키는 422(`extra_forbidden`). 비울 수 없는 필드(`category`·`action_status`·\n`review_completed`)에 `null`을 보내면 422. `review_completed`는 `true`만 받는다.",
         "properties": {
+          "action_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "action_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Summary"
+          },
           "agent_name": {
             "anyOf": [
               {
@@ -519,6 +542,16 @@
               }
             ],
             "title": "Call Datetime"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Category"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "client_company": {
             "anyOf": [
@@ -545,6 +578,31 @@
               }
             ],
             "title": "Editor"
+          },
+          "question_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Summary"
+          },
+          "review_completed": {
+            "anyOf": [
+              {
+                "const": true,
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Completed"
           }
         },
         "title": "CallUpdateRequest",
@@ -1972,6 +2030,16 @@
               }
             },
             "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_STATE_TRANSITION"
           },
           "422": {
             "content": {

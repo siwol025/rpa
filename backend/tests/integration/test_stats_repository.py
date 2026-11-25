@@ -18,82 +18,82 @@ def _kst(
     return datetime(year, month, day, hour, minute, second, tzinfo=KST)
 
 
-def test_day_bucket_uses_kst_not_session_timezone(db_session: Session) -> None:
+def test_day_bucket_uses_kst_not_session_timezone(db: Session) -> None:
     # 00:30 KST = 전날 15:30 UTC. 세션 TimeZone(UTC)으로 자르면 전날로 묶인다.
-    make_call(db_session, call_datetime=_kst(2026, 11, 22, 23, 59, 59))
-    make_call(db_session, call_datetime=_kst(2026, 11, 23, 0, 0))
-    make_call(db_session, call_datetime=_kst(2026, 11, 23, 0, 30))
+    make_call(db, call_datetime=_kst(2026, 11, 22, 23, 59, 59))
+    make_call(db, call_datetime=_kst(2026, 11, 23, 0, 0))
+    make_call(db, call_datetime=_kst(2026, 11, 23, 0, 30))
 
-    counts = StatsRepository(db_session).count_by_period(StatsPeriod(), "day")
+    counts = StatsRepository(db).count_by_period(StatsPeriod(), "day")
 
     assert counts == {date(2026, 11, 22): 1, date(2026, 11, 23): 2}
 
 
-def test_week_bucket_starts_monday_kst(db_session: Session) -> None:
-    make_call(db_session, call_datetime=_kst(2026, 11, 29, 23, 59))  # 일요일
-    make_call(db_session, call_datetime=_kst(2026, 11, 30, 0, 0))  # 월요일
+def test_week_bucket_starts_monday_kst(db: Session) -> None:
+    make_call(db, call_datetime=_kst(2026, 11, 29, 23, 59))  # 일요일
+    make_call(db, call_datetime=_kst(2026, 11, 30, 0, 0))  # 월요일
 
-    counts = StatsRepository(db_session).count_by_period(StatsPeriod(), "week")
+    counts = StatsRepository(db).count_by_period(StatsPeriod(), "week")
 
     assert counts == {date(2026, 11, 23): 1, date(2026, 11, 30): 1}
 
 
-def test_month_bucket_boundary_kst(db_session: Session) -> None:
-    make_call(db_session, call_datetime=_kst(2026, 11, 30, 23, 59))
-    make_call(db_session, call_datetime=_kst(2026, 12, 1, 0, 0))
+def test_month_bucket_boundary_kst(db: Session) -> None:
+    make_call(db, call_datetime=_kst(2026, 11, 30, 23, 59))
+    make_call(db, call_datetime=_kst(2026, 12, 1, 0, 0))
 
-    counts = StatsRepository(db_session).count_by_period(StatsPeriod(), "month")
+    counts = StatsRepository(db).count_by_period(StatsPeriod(), "month")
 
     assert counts == {date(2026, 11, 1): 1, date(2026, 12, 1): 1}
 
 
 def test_trend_excludes_deleted_and_missing_datetime_counts_all_statuses(
-    db_session: Session,
+    db: Session,
 ) -> None:
     day = _kst(2026, 11, 23, 10, 0)
-    make_call(db_session, call_datetime=day, status="FAILED")
-    make_call(db_session, call_datetime=day, status="STORED")
-    make_call(db_session, call_datetime=day, deleted_at=day)
-    make_call(db_session, call_datetime=None, metadata_incomplete=True)
+    make_call(db, call_datetime=day, status="FAILED")
+    make_call(db, call_datetime=day, status="STORED")
+    make_call(db, call_datetime=day, deleted_at=day)
+    make_call(db, call_datetime=None, metadata_incomplete=True)
 
-    counts = StatsRepository(db_session).count_by_period(StatsPeriod(), "day")
+    counts = StatsRepository(db).count_by_period(StatsPeriod(), "day")
 
     assert counts == {date(2026, 11, 23): 2}
 
 
-def test_trend_period_filter_is_kst_day_with_to_inclusive(db_session: Session) -> None:
-    make_call(db_session, call_datetime=_kst(2026, 11, 22, 23, 59, 59))
-    make_call(db_session, call_datetime=_kst(2026, 11, 24, 23, 59, 59))
-    make_call(db_session, call_datetime=_kst(2026, 11, 25, 0, 0))
+def test_trend_period_filter_is_kst_day_with_to_inclusive(db: Session) -> None:
+    make_call(db, call_datetime=_kst(2026, 11, 22, 23, 59, 59))
+    make_call(db, call_datetime=_kst(2026, 11, 24, 23, 59, 59))
+    make_call(db, call_datetime=_kst(2026, 11, 25, 0, 0))
     period = StatsPeriod(from_=date(2026, 11, 23), to=date(2026, 11, 24))
 
-    counts = StatsRepository(db_session).count_by_period(period, "day")
+    counts = StatsRepository(db).count_by_period(period, "day")
 
     assert counts == {date(2026, 11, 24): 1}
 
 
-def test_breakdown_merges_null_and_blank_names(db_session: Session) -> None:
-    make_call(db_session, agent_name="김상담")
-    make_call(db_session, agent_name="김상담")
-    make_call(db_session, agent_name="김상담 ")  # 저장 값 그대로 (공백 포함은 별도 행)
-    make_call(db_session, agent_name=None)
-    make_call(db_session, agent_name="")
-    make_call(db_session, agent_name="   ")
-    make_call(db_session, agent_name="이상담", deleted_at=_kst(2026, 11, 23))
+def test_breakdown_merges_null_and_blank_names(db: Session) -> None:
+    make_call(db, agent_name="김상담")
+    make_call(db, agent_name="김상담")
+    make_call(db, agent_name="김상담 ")  # 저장 값 그대로 (공백 포함은 별도 행)
+    make_call(db, agent_name=None)
+    make_call(db, agent_name="")
+    make_call(db, agent_name="   ")
+    make_call(db, agent_name="이상담", deleted_at=_kst(2026, 11, 23))
 
-    rows = StatsRepository(db_session).count_by_dimension(StatsPeriod(), "agent")
+    rows = StatsRepository(db).count_by_dimension(StatsPeriod(), "agent")
 
     assert {row.name: row.count for row in rows} == {"김상담": 2, "김상담 ": 1, None: 3}
 
 
-def test_breakdown_counts_categories_by_code(db_session: Session) -> None:
-    complaint = make_call(db_session, client_company="가나상사")
-    make_analysis(db_session, complaint, category="불만")
-    education = make_call(db_session, client_company="가나상사")
-    make_analysis(db_session, education, category="교육 내용")
-    make_call(db_session, client_company="가나상사")  # 분석 전
+def test_breakdown_counts_categories_by_code(db: Session) -> None:
+    complaint = make_call(db, client_company="가나상사")
+    make_analysis(db, complaint, category="불만")
+    education = make_call(db, client_company="가나상사")
+    make_analysis(db, education, category="교육 내용")
+    make_call(db, client_company="가나상사")  # 분석 전
 
-    (row,) = StatsRepository(db_session).count_by_dimension(StatsPeriod(), "client")
+    (row,) = StatsRepository(db).count_by_dimension(StatsPeriod(), "client")
 
     assert row.name == "가나상사"
     assert row.count == 3
@@ -106,10 +106,10 @@ def test_breakdown_counts_categories_by_code(db_session: Session) -> None:
     }
 
 
-def test_breakdown_includes_missing_datetime_only_without_period(db_session: Session) -> None:
-    make_call(db_session, agent_name="김상담", call_datetime=_kst(2026, 11, 23, 9, 0))
-    make_call(db_session, agent_name="김상담", call_datetime=None)
-    repo = StatsRepository(db_session)
+def test_breakdown_includes_missing_datetime_only_without_period(db: Session) -> None:
+    make_call(db, agent_name="김상담", call_datetime=_kst(2026, 11, 23, 9, 0))
+    make_call(db, agent_name="김상담", call_datetime=None)
+    repo = StatsRepository(db)
 
     (all_time,) = repo.count_by_dimension(StatsPeriod(), "agent")
     (in_period,) = repo.count_by_dimension(StatsPeriod(from_=date(2026, 11, 23)), "agent")
@@ -118,20 +118,20 @@ def test_breakdown_includes_missing_datetime_only_without_period(db_session: Ses
     assert in_period.count == 1
 
 
-def test_summary_period_applies_only_to_total_and_category(db_session: Session) -> None:
+def test_summary_period_applies_only_to_total_and_category(db: Session) -> None:
     now = datetime.now(UTC)
     old = now - timedelta(hours=2)
     in_period = _kst(2026, 11, 23, 9, 0)
     out_period = _kst(2026, 10, 1, 9, 0)
-    a = make_call(db_session, status="STORED", call_datetime=in_period)
-    make_analysis(db_session, a, category="불만", action_status="OPEN")
-    b = make_call(db_session, status="NEEDS_REVIEW", call_datetime=out_period)
-    make_analysis(db_session, b, category="질의", action_status="DONE")
-    make_call(db_session, status="FAILED", metadata_incomplete=True)
-    make_call(db_session, status="QUEUED", status_changed_at=old, call_datetime=out_period)
-    make_call(db_session, status="NEEDS_REVIEW", status_changed_at=old, deleted_at=old)
+    a = make_call(db, status="STORED", call_datetime=in_period)
+    make_analysis(db, a, category="불만", action_status="OPEN")
+    b = make_call(db, status="NEEDS_REVIEW", call_datetime=out_period)
+    make_analysis(db, b, category="질의", action_status="DONE")
+    make_call(db, status="FAILED", metadata_incomplete=True)
+    make_call(db, status="QUEUED", status_changed_at=old, call_datetime=out_period)
+    make_call(db, status="NEEDS_REVIEW", status_changed_at=old, deleted_at=old)
 
-    repo = StatsRepository(db_session)
+    repo = StatsRepository(db)
     period = StatsPeriod(from_=date(2026, 11, 23), to=date(2026, 11, 23))
     summary = repo.summary(period, stale_threshold_min=30, now=now)
     whole = repo.summary(StatsPeriod(), stale_threshold_min=30, now=now)
@@ -152,7 +152,7 @@ def test_summary_period_applies_only_to_total_and_category(db_session: Session) 
     assert whole.by_category.INQUIRY == 1
 
 
-def test_summary_empty(db_session: Session) -> None:
-    summary = StatsRepository(db_session).summary(StatsPeriod(), stale_threshold_min=30)
+def test_summary_empty(db: Session) -> None:
+    summary = StatsRepository(db).summary(StatsPeriod(), stale_threshold_min=30)
 
     assert summary == StatsSummary.empty()
