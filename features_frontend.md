@@ -2,10 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.5 (통계 추이·분류 API에 맞춤) |
+| 문서 버전 | v0.7 (보정·삭제·재처리·음성 API에 맞춤) |
 | 작성일 | 2026-11-24 |
-| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1, `backend/docs/api/openapi.json`(목록·상세·통계 추이·분류, `main` `7e3eab1`), 화면 시안 `design/dashboard-mockup-v0.2.html` |
+| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1, `backend/docs/api/openapi.json`(목록·상세·보정·삭제·재처리·음성·통계 추이·분류·업로드, `main` `ef6ccee`), 화면 시안 `design/dashboard-mockup-v0.2.html` |
 
+> **v0.7에서 바뀐 점**: 메타데이터 보정·삭제·재처리·음성 API 반영, 저장할 수 없는 값 안내, 삭제하는 사람 이름, 음성 오류 안내, 처리 이력 단계 이름.
+>
+> **v0.6에서 바뀐 점**: 업로드 API 반영, 통계 요약 API가 없을 때 목록·분류 API로 세기, 처리 이력 문구를 한글로 표시.
+>
 > **v0.5에서 바뀐 점**: 통계 추이·분류 API 반영, 전사 구간과 개체명 형식 확정 반영, `main`의 백엔드 앱에 연결해 확인(DB 제외).
 >
 > **v0.4에서 바뀐 점**: 목록·상세 API 반영 — 정체 여부가 없는 서버, 빈 값, 조회 조건 제한, 등록 시각.
@@ -29,7 +33,7 @@
 | F-C03 | 공통 부품: 배지, 차트, 로딩·빈 상태·오류 표시, 알림, 라이트·다크 | P0 | 1 | ✅ |
 | F-C04 | API 호출: 에러 `{code, message, detail}`의 `message`를 그대로 표시하고 `code`로 분기, `X-Request-Id` 기록, 시간 제한, 4xx는 재시도 안 함 | P0 | 1 | ✅ |
 | F-C05 | 예시 데이터 모드 (`npm run dev`), 실제 백엔드 모드 (`npm run dev:api`) | P0 | 1 | ✅ |
-| F-C06 | OpenAPI에서 타입 생성 | P1 | 1 | ⬜ 나머지 웹 API 구현 후 (구현된 4개는 손으로 대조함) |
+| F-C06 | OpenAPI에서 타입 생성 | P1 | 1 | ⬜ 나머지 웹 API 구현 후 (구현된 것은 손으로 대조함) |
 
 ### 1.2 대시보드
 
@@ -60,9 +64,9 @@
 | F-V02 | 화자별 전사 원문, 가려진 개인정보 강조 | W-02 | WEB-03 | P0 | 1 | ✅ |
 | F-V03 | 분석 결과 (유형, 요약, 조치, 신뢰도, 후속 조치, 개체명) | W-02 | WEB-03 | P0 | 1 | ✅ |
 | F-V04 | 원본 음성 재생 | W-06 | WEB-03 | P0 | 2 | ✅ |
-| F-V05 | 분석 결과 수정, 검토 완료, 수정자 이름 | W-03 | WEB-04·08 | P0 | 2 | ✅ |
+| F-V05 | 분석 결과 수정, 검토 완료, 수정자 이름 (서버에 W-03이 없으면 저장할 수 없다고 안내) | W-03 | WEB-04·08 | P0 | 2 | ✅ |
 | F-V06 | 담당자·고객사·통화 일시 보정 | W-12 | WEB-04 | P0 | 2 | ✅ |
-| F-V07 | 삭제 (화면 안에서 확인) | W-04 | WEB-04 | P0 | 2 | ✅ |
+| F-V07 | 삭제 (화면 안에서 확인, 삭제하는 사람 선택 입력) | W-04 | WEB-04 | P0 | 2 | ✅ |
 | F-V08 | 재처리 요청 (가능한 상태에서만) | W-05 | WEB-09 | P1 | 2 | ✅ |
 | F-V09 | 처리 이력 | W-02 | WEB-03 | P0 | 1 | ✅ |
 
@@ -118,15 +122,17 @@
 | FE-13 | 상세 응답의 `is_stale` | 정체 감지(R-11) 이후 목록·상세에 함께 추가. 그전에는 없음 |
 | FE-05 | 전사 `segments` | `speaker`(`AGENT`·`CUSTOMER`·`UNKNOWN`), `start_sec`, `end_sec`, `text` |
 | FE-06 | 분석 결과와 `entities` | `[{type, value}]` 배열. 유형 코드는 백엔드가 변환(`EDUCATION`·`ETC`) |
+| FE-15 | 업로드 폼 필드 이름 | `files` (최대 10개, 규약 §3.5). 프론트는 파일마다 따로 보냄 |
+| FE-19 | 정체된 `RETRY_REQUESTED`의 재처리 요청 | 409로 거절 (`retry_service.py`). 프론트와 같음 |
 | FE-17 | 상태 여러 개 조회 | 같은 이름을 반복 (규약 §4.3) |
 
 ### 남은 요청
 | ID | 내용 | 대상 | 막힌 기능 |
 |---|---|---|---|
-| FE-01 | 통계 요약(`/stats/summary`) API와 응답 형식 (추이·분류는 확인함) | 백엔드 B | F-D02, F-D04, F-D06 |
-| FE-04 | 나머지 웹 API(W-03~W-07, W-09, W-11, W-12)가 들어간 OpenAPI | 백엔드 B | F-C06 |
+| FE-01 | 통계 요약(`/stats/summary`) API와 응답 형식 (추이·분류는 확인함) | 백엔드 B | F-D02(미조치·정체), F-D06 |
+| FE-04 | 나머지 웹 API(W-03, W-09, W-11)가 들어간 OpenAPI | 백엔드 B | F-C06 |
 | FE-09 | 담당자·고객사 목록을 받을 방법 (지금은 통계 분류 응답의 이름 사용) | 백엔드 B | F-L02 |
 | FE-11 | 프론트 배포 방식 | 백엔드 B | F-O01 |
 | FE-14 | `PATCH`에서 검토 완료를 알리는 방법 | 백엔드 B | F-V05 |
-| FE-15 | 업로드 폼 필드 이름 | 백엔드 B | F-U01 |
+| FE-20 | 목록·상세에 `is_stale`, 목록에 `stale` 필터. 정체 감지(R-11)는 `main`에 있지만 웹 응답에는 없어 정체된 처리 중 상담을 화면에서 재처리할 수 없다 | 백엔드 B | F-L04, F-V08, F-U02, F-U03 |
 | FE-18 | 수정 이력(`edit_history`)을 화면에서 볼지, 본다면 API | 팀, 백엔드 B | — |
