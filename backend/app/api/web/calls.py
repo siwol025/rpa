@@ -1,4 +1,4 @@
-"""웹 상담 API: 목록·상세 조회, 삭제(`DELETE`)."""
+"""웹 상담 API: 목록·상세 조회, 메타데이터 보정(`PATCH`), 삭제(`DELETE`)."""
 
 from typing import Annotated
 
@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Path, Query, Request
 from app.api.deps import get_call_service
 from app.core.errors import ErrorCode
 from app.core.logging import bind_call_id
-from app.schemas.call import CallDetail, CallListItem, CallListQuery, EditorName
+from app.schemas.call import CallDetail, CallListItem, CallListQuery, CallUpdateRequest, EditorName
 from app.schemas.common import Page, PageParams, error_responses
 from app.services.call_service import CallService
 
@@ -35,6 +35,17 @@ def get_call(
 ) -> CallDetail:
     bind_call_id(request, call_id)
     return service.get_call(call_id)
+
+
+@router.patch("/{call_id}", responses=error_responses(ErrorCode.NOT_FOUND))
+def update_call(
+    call_id: Annotated[int, Path(ge=1, le=BIGINT_MAX)],
+    body: CallUpdateRequest,
+    request: Request,
+    service: CallServiceDep,
+) -> CallDetail:
+    bind_call_id(request, call_id)
+    return service.update_call(call_id, body)
 
 
 @router.delete("/{call_id}", status_code=204, responses=error_responses(ErrorCode.NOT_FOUND))

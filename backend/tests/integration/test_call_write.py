@@ -1,4 +1,4 @@
-"""상담 삭제: 실제 PostgreSQL에서 저장 값·이력·잠금을 확인한다."""
+"""메타데이터 보정·삭제: 실제 PostgreSQL에서 저장 값·이력·잠금을 확인한다."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -113,6 +113,107 @@ def test_lock_after_other_transaction_deleted_returns_none(
 
     with Session(engine) as second:
         assert CallRepository(second).lock_call(committed_call) is None
+
+
+# ---------------------------------------------------------------- PATCH
+
+
+def test_patch_fills_metadata_and_records_history(api: TestClient, db_session: Session) -> None:
+    call = make_call(
+        db_session, metadata_incomplete=True, status="NEEDS_REVIEW", status_changed_at=T0
+    )
+    make_analysis(db_session, call, category="불만")
+
+    response = api.patch(
+        f"/api/calls/{call.id}",
+        json={
+            "agent_name": " 김상담 ",
+            "client_company": "가나상사",
+            "call_datetime": "2026-11-23T14:30",
+            "editor": "이수정",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_name"] == "김상담"
+    assert body["call_datetime"] == "2026-11-23T14:30:00+09:00"
+    assert body["metadata_incomplete"] is False
+    assert body["status"] == "NEEDS_REVIEW"
+    assert body["analysis"]["category"] == "COMPLAINT"
+    assert body == api.get(f"/api/calls/{call.id}").json()
+    db_session.expire_all()
+    stored = db_session.get(CallRecord, call.id)
+    assert stored is not None
+    assert stored.call_datetime == datetime(2026, 11, 23, 14, 30, tzinfo=KST)
+    assert stored.status_changed_at == T0
+    assert _history(db_session, call.id) == [
+        ("agent_name", None, "김상담", "이수정"),
+        ("client_company", None, "가나상사", "이수정"),
+        ("call_datetime", None, "2026-11-23T14:30:00+09:00", "이수정"),
+    ]
+
+
+def test_patch_null_clears_and_marks_incomplete(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, agent_name="김상담", call_datetime=T0, client_company="가나상사")
+
+    body = api.patch(f"/api/calls/{call.id}", json={"call_datetime": None}).json()
+
+    assert body["call_datetime"] is None
+    assert body["metadata_incomplete"] is True
+    assert body["agent_name"] == "김상담"
+    assert body["client_company"] == "가나상사"
+    assert _history(db_session, call.id) == [
+        ("call_datetime", "2026-11-23T14:30:05+09:00", None, None)
+    ]
+
+
+def test_patch_same_values_writes_no_history(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, agent_name="김상담", call_datetime=T0)
+
+    response = api.patch(
+        f"/api/calls/{call.id}",
+        json={"agent_name": "김상담", "call_datetime": "2026-11-23T14:30:05+09:00"},
+    )
+
+    assert response.status_code == 200
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_empty_body_returns_detail_unchanged(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, metadata_incomplete=True)
+
+    response = api.patch(f"/api/calls/{call.id}", json={})
+
+    assert response.status_code == 200
+    assert response.json()["metadata_incomplete"] is True
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, deleted_at=T0)
+
+    response = api.patch(f"/api/calls/{call.id}", json={"agent_name": "김상담"})
+
+    assert response.status_code == 404
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_with_analysis_field_is_422_and_changes_nothing(
+    api: TestClient, db_session: Session
+) -> None:
+    call = make_call(db_session)
+
+    response = api.patch(
+        f"/api/calls/{call.id}", json={"agent_name": "김상담", "category": "COMPLAINT"}
+    )
+
+    assert response.status_code == 422
+    db_session.expire_all()
+    stored = db_session.get(CallRecord, call.id)
+    assert stored is not None
+    assert stored.agent_name is None
+    assert _history(db_session, call.id) == []
 
 
 # ---------------------------------------------------------------- DELETE

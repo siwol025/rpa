@@ -481,6 +481,65 @@
         "title": "CallStatus",
         "type": "string"
       },
+      "CallUpdateRequest": {
+        "additionalProperties": false,
+        "description": "`PATCH /api/calls/{id}`. 보낸 키만 변경하고 `null`은 값 비우기다.\n\n선언하지 않은 키는 422(`extra_forbidden`). 유형·요약·조치·검토 완료 필드는\n분석 수정 기능에서 선택 필드로 추가한다(호환 변경).",
+        "properties": {
+          "agent_name": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "call_datetime": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Datetime"
+          },
+          "client_company": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Company"
+          },
+          "editor": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editor"
+          }
+        },
+        "title": "CallUpdateRequest",
+        "type": "object"
+      },
       "Category": {
         "enum": [
           "INQUIRY",
@@ -1759,6 +1818,78 @@
           }
         },
         "summary": "Get Call",
+        "tags": [
+          "calls"
+        ]
+      },
+      "patch": {
+        "operationId": "update_call",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Update Call",
         "tags": [
           "calls"
         ]
