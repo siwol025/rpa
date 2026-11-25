@@ -85,6 +85,25 @@ def test_response_has_only_call_id_and_request_id_header(robot_client: TestClien
     assert "X-Request-Id" in response.headers
 
 
+@pytest.mark.parametrize("prefix", ["fffb", "fffa", "fff3", "ffe3", "ffe2"])
+def test_mp3_without_id3_tag_is_accepted(
+    robot_client: TestClient, db: Session, audio_root: Path, prefix: str
+) -> None:
+    # filetype은 FF FA·FF E3·FF E2로 시작하는 MP3를 알아보지 못해 웹 업로드와 판정이 달랐다.
+    audio = bytes.fromhex(prefix + "9000") + bytes(range(64)) * 8
+
+    response = register(robot_client, audio, name="c.mp3")
+
+    assert response.status_code == 201
+    assert next(audio_root.iterdir()).suffix == ".mp3"
+
+
+def test_aac_adts_frame_is_not_mistaken_for_mp3(robot_client: TestClient) -> None:
+    response = register(robot_client, bytes.fromhex("fff15080") + bytes(300), name="d.mp3")
+
+    assert response.status_code == 415
+
+
 def test_mp3_is_accepted_and_stored_with_mp3_extension(
     robot_client: TestClient, audio_root: Path
 ) -> None:

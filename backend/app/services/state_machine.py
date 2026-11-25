@@ -30,7 +30,7 @@ _ALLOWED: dict[CallStatus, frozenset[CallStatus]] = {
     S.RETRY_REQUESTED: frozenset({S.QUEUED}),
 }
 
-# 처리 중 상태. 정체 시간을 넘기면 재처리 요청(RETRY_REQUESTED)으로 전이할 수 있다.
+# 정체 감지 대상 상태. 이 중 RETRY_REQUESTED를 뺀 상태는 정체되면 재처리를 요청할 수 있다.
 STALE_ELIGIBLE: frozenset[CallStatus] = frozenset(
     {S.REGISTERED, S.QUEUED, S.STT_DONE, S.RETRY_REQUESTED}
 )
@@ -133,7 +133,12 @@ class CallStateMachine:
         if target in _ALLOWED[current]:
             return True
         # 정체된 처리 중 건은 재처리 요청을 허용한다 (로봇이 멈춰 FAIL을 못 보낸 경우 포함).
-        return target is S.RETRY_REQUESTED and is_stale(call, self._stale_threshold_min, now)
+        # 이미 RETRY_REQUESTED인 건은 다시 요청해도 retry_count만 늘어 제외한다.
+        return (
+            target is S.RETRY_REQUESTED
+            and current is not S.RETRY_REQUESTED
+            and is_stale(call, self._stale_threshold_min, now)
+        )
 
     @staticmethod
     def _default_step(current: CallStatus, target: CallStatus) -> LogStep:
