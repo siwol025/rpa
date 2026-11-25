@@ -24,25 +24,23 @@ Python 구현(`stt/step1`, `stt/step2`)과 **같은 입력에서 같은 결과**
 - 값이 비었거나 `<…>`·`여기에_…`로 시작하는 자리표시자이거나 문자열이 아니면 기본값입니다. 설정 파일이 없거나 JSON이 깨져 있어도 오류 없이 기본값으로 동작합니다.
 - 설정 파일 위치는 아래 "`config.json` 경로"와 같습니다(`CLOVA_CONFIG` 또는 `프로젝트 폴더\..\config.json`). 테스트 워크플로(`Step8_Folder_Test`)는 임시 폴더를 쓰므로 이 설정을 읽지 않습니다.
 
-**④(RPA 코어)와 같은 폴더 쓰기** (③ 폴더 = 팀원 폴더)
-③의 입출력 폴더를 ④ `Config/config.json`의 폴더와 **똑같이** 맞춥니다. `stt\config.example.json`의 `paths`가 이 값이라, 양식을 복사해 `stt\config.json`을 만들면 어느 PC에서든 같은 폴더가 됩니다(경로는 ③ 프로젝트 폴더 `stt\uipath` 기준 상대 경로).
+**④(RPA 코어)와 폴더 맞추기 — 현재 방식은 "사본 복사"** (`stt\config.example.json`의 `paths`는 ③ 기본값과 같음)
+④ Dispatcher가 서버 등록·큐 등록을 마친 뒤 음성 **사본**을 ③ 입력 폴더로 복사하고, ④는 ③의 결과 폴더에서 결과 JSON을 찾습니다. 두 연결 지점이 같은 폴더입니다.
 
-| 용도 | ③ `paths` | 가리키는 폴더 (`<저장소>\` 기준) | ④ `Config/config.json` |
-|---|---|---|---|
-| 음성 입력 | `input_dir` | `uipath\Runtime\processing` | `processingFolder` |
-| 완료 음성 | `done_dir` | `uipath\Runtime\done` | `doneFolder` |
-| 실패 음성 | `failed_dir` | `uipath\Runtime\failed` | `failedFolder` |
-| 결과 JSON | `output_dir` | `stt\uipath\calls\out` | `outFolder` |
+| 연결 | ③ (`paths`, 기본값과 같음) | ④ |
+|---|---|---|
+| 음성 입력 | `input_dir` = `calls\in` (`stt\uipath\calls\in`) | Dispatcher의 `5. ③ 입력 폴더로 음성 복사`가 사본을 여기에 복사(환경변수 `STT_INPUT_DIR`, 없으면 `<저장소>\stt\uipath\calls\in`). 같은 이름이 있으면 덮어쓰지 않음 |
+| 결과 JSON | `output_dir` = `calls\out` (`stt\uipath\calls\out`) | `Config/config.json`의 `outFolder` = `..\stt\uipath\calls\out` |
+| 완료/실패 음성 | `done_dir`/`failed_dir` = `calls\done`, `calls\failed` (③이 **사본**을 옮김) | ④ 자체 `Runtime\done`, `Runtime\failed` (④ Performer가 **원본**을 정리) |
 
-`test_step2.py`가 `config.example.json`의 `paths`가 ④ `Config/config.json`과 같은 폴더인지 검사합니다(④ 설정이 바뀌면 이 검사가 알려 줍니다).
+`test_step2.py`가 양식의 `paths`가 ③ 기본값이고, ③ 입력이 ④ 사본 복사 위치와, ③ 결과가 ④ `outFolder`와 같은지 검사합니다.
 
 **주의**
-- ③은 처리한 음성을 `done`(SUCCESS·NEEDS_REVIEW) 또는 `failed`(FAILED)로 **옮깁니다**. ④ Performer도 같은 규칙으로 옮기는데 음성 이동이 `ContinueOnError=True`라, ③이 먼저 옮겨도 오류 없이 지나가고 최종 위치는 같습니다.
-- ④ Dispatcher가 음성을 `processing`으로 옮긴 뒤 서버 등록(R-04)에서 그 파일을 읽는 동안(보통 몇 초) ③이 실행되면, ③이 파일을 먼저 옮겨 등록이 실패할 수 있습니다. ③(`stt\uipath\Main.xaml`)은 Dispatcher가 도는 중에 실행하지 마세요.
-- ④ Dispatcher의 `5. ③ 입력 폴더로 음성 복사` 단계는 기본으로 음성 사본을 `stt\uipath\calls\in`에 복사합니다. 위 설정에서는 ③이 그 폴더를 읽지 않아 사본이 쌓이기만 하니, 환경변수 `STT_INPUT_DIR`를 `uipath\Runtime\processing`의 절대 경로로 지정하면 같은 폴더라 복사가 건너뛰어집니다(경고 로그).
+- 사본을 쓰는 이유: ④의 `processing`(원본)을 ③의 `input_dir`로 직접 지정하면, ④가 서버 등록(R-04)으로 읽는 동안 ③이 그 파일을 먼저 `done`/`failed`로 옮겨 등록이 실패할 수 있고, ③과 ④ Performer가 같은 원본을 둘 다 옮기게 됩니다. ③의 `paths`로 ④ 폴더(`Runtime\...`)를 가리키지 마세요.
 - ④는 결과 JSON의 `source.file_name`이 음성 파일명과 같은 것을 찾으므로, `output_dir`에 같은 이름의 오래된 결과가 남아 있지 않게 ④가 처리 후 옮기는 동작을 유지해야 합니다.
+- ③(`stt\uipath\Main.xaml`)이 결과를 만들기 전에 ④ Performer가 돌면 시스템 오류 → 큐 재시도가 됩니다. ③ 실행 주기와 큐 재시도 횟수를 맞추세요.
 - 서버와 ④는 **wav·mp3**만 접수합니다(③은 m4a 등도 CLOVA에 보낼 수 있지만 운영 입력은 wav·mp3로 맞추세요).
-- `paths`가 없으면 ③은 예전처럼 `calls\in|out|done|failed`를 씁니다(③ 코드는 그대로이고 설정만 다릅니다).
+- 폴더 위치를 바꾸려면(예: 다른 드라이브) ③은 `paths`로, ④는 `STT_INPUT_DIR`(음성)와 `outFolder`(결과)를 **같은 값**으로 바꿉니다. 이때도 ④의 `processing`은 가리키지 마세요.
 
 ## 처리 흐름 도식 (`Main_Folder.xaml`, 음성 한 건 기준)
 ```

@@ -136,17 +136,22 @@ check("폴더 설정: 상대 경로는 프로젝트 폴더 기준", _r["outDir"]
 check("폴더 설정: 자리표시자·빈 값은 기본값", _r["doneDir"] == _dflt["doneDir"] and _r["failedDir"] == _dflt["failedDir"])
 _ph = _folders({"paths": {"input_dir": "<음성 입력 폴더>", "output_dir": "<결과 JSON 출력 폴더>", "done_dir": "<처리 완료 폴더>", "failed_dir": "<처리 실패 폴더>"}})
 check("폴더 설정: config.example.json 양식의 자리표시자 값은 모두 기본값", _ph == _dflt)
-# config.example.json 의 paths 는 ④(uipath/Config/config.json)와 같은 폴더를 가리켜야 한다 (③ 폴더 = 팀원 폴더)
+# config.example.json 의 paths 는 ③ 기본값(calls\\in|out|done|failed)이고, ④와는 연결 지점이 같아야 한다:
+#   ③ 입력 = ④ Dispatcher가 사본을 복사하는 곳(STT_INPUT_DIR 없으면 ..\\stt\\uipath\\calls\\in), ③ 결과 = ④ outFolder
 _root = os.path.dirname(os.path.dirname(HERE))
+_ex = _rf.resolve_folders(os.path.join(os.path.dirname(HERE), "config.example.json"), os.path.join(os.path.dirname(HERE), "uipath"))
+_three = os.path.join(os.path.dirname(HERE), "uipath")
+_n = lambda p: os.path.normcase(os.path.normpath(p))
+check("폴더 설정: config.example.json 의 paths 는 ③ 기본값(calls\\in|out|done|failed)", all(
+    _n(_ex[k]) == _n(os.path.join(_three, "calls", sub)) for k, sub in (("inDir", "in"), ("outDir", "out"), ("doneDir", "done"), ("failedDir", "failed"))))
 _c4_path = os.path.join(_root, "uipath", "Config", "config.json")
 if os.path.exists(_c4_path):
     _c4 = json.load(open(_c4_path, encoding="utf-8-sig"))
     _four = os.path.join(_root, "uipath")
-    _r4 = lambda v: os.path.normcase(os.path.normpath(v if os.path.isabs(v) else os.path.join(_four, v)))
-    _ex = _rf.resolve_folders(os.path.join(os.path.dirname(HERE), "config.example.json"), os.path.join(os.path.dirname(HERE), "uipath"))
-    check("폴더 설정: config.example.json 의 paths 가 ④ Config/config.json 과 같은 폴더(음성 입력·완료·실패·결과)",
-          all(os.path.normcase(os.path.normpath(_ex[k3])) == _r4(_c4[k4]) for k3, k4 in
-              (("inDir", "processingFolder"), ("doneDir", "doneFolder"), ("failedDir", "failedFolder"), ("outDir", "outFolder"))))
+    _copy_dest = os.path.join(_four, "..", "stt", "uipath", "calls", "in")      # ④ Dispatcher 사본 복사 위치(기본)
+    _out4 = _c4["outFolder"] if os.path.isabs(_c4["outFolder"]) else os.path.join(_four, _c4["outFolder"])
+    check("폴더 설정: ③ 입력(양식) = ④ Dispatcher 사본 복사 위치", _n(_ex["inDir"]) == _n(_copy_dest))
+    check("폴더 설정: ③ 결과(양식) = ④ Config/config.json 의 outFolder", _n(_ex["outDir"]) == _n(_out4))
 import shutil as _sh
 _sh.rmtree(_d, ignore_errors=True)
 
