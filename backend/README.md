@@ -40,6 +40,43 @@ docker compose -f deploy/docker-compose.dev.yml up --build
 | PostgreSQL | localhost:5433 (callcenter / callcenter) |
 | Adminer | http://localhost:8080 (서버: `db`) |
 
+## 운영 실행 (컨테이너)
+
+```bash
+# 레포 루트에서
+cp deploy/.env.example deploy/.env      # 비밀번호·로봇 키·허용 IP를 채운다 (Git에 커밋하지 않는다)
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+```
+
+api는 시작할 때 `alembic upgrade head`를 적용한 뒤 뜬다(실패하면 시작하지 않는다). DB 포트는 호스트에 열지 않고,
+DB·음성 사본은 볼륨(`pg-data`, `audio-data`)에 보관되어 컨테이너를 다시 만들어도 남는다.
+
+### 환경 변수
+
+전체 목록과 설명은 `.env.example`(개발)과 `deploy/.env.example`(운영)에 있다.
+
+| 변수 | 설명 | 기본값 |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL 접속 URL (운영 compose는 `POSTGRES_PASSWORD`로 조립) | 개발 DB |
+| `ROBOT_API_KEYS` | 로봇 API 키, 쉼표로 최대 2개(교체 기간용). **비어 있으면 로봇 API는 모두 401** | 없음 |
+| `ROBOT_ALLOWED_IPS` | 로봇 PC의 IP·CIDR, 쉼표 구분. 비어 있으면 모두 403 | 없음 |
+| `AUDIO_STORAGE_ROOT` | 음성 사본 저장 위치 | `./data/audio` |
+| `STALE_THRESHOLD_MIN` | 처리 중 상태로 이 시간(분)을 넘으면 정체 | `30` |
+| `MAX_UPLOAD_MB` | 요청 크기 한도(MiB) | `100` |
+| `INBOX_BACKEND` | 웹 업로드 대상 `drive`·`local`·`disabled` | `disabled` |
+| `DOCS_ENABLED` | `/docs` 노출. 운영 compose 기본은 `false` | `true` |
+
+## 로봇 API (RPA 파트)
+
+`/api/robot/*`는 `X-API-Key` 헤더와 허용 IP가 모두 맞아야 한다. 호출 순서·요청 예시·409 처리 표는
+[`docs/api/robot-examples/README.md`](docs/api/robot-examples/README.md)에 있다.
+
+UiPath 없이 서버에 흐름 전체를 점검하려면(실행마다 점검용 건이 등록되므로 운영 DB에는 쓰지 않는다):
+
+```bash
+uv run python -m scripts.simulate_robot --base-url http://localhost:8000 --api-key <키>
+```
+
 ## 검사
 
 ```bash
