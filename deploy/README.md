@@ -70,6 +70,34 @@ New-NetFirewallRule -DisplayName "callcenter-api" -Direction Inbound -Protocol T
 | 방화벽 | 허용 대역 밖 PC에서 `curl $API/health` | 연결 실패(타임아웃) |
 | DB 비공개 | 다른 PC에서 서버의 5432 접속 | 연결 실패 |
 
+## 6. 백업·복구
+
+`deploy/backup.sh`가 DB(`pg_dump -Fc`)와 음성 사본 볼륨(tar.gz)을 `deploy/backups/`(Git 제외)에 남기고, 14일이 지난 파일을 지운다. 저장소 루트에서 실행하며 운영 compose가 떠 있어야 한다.
+
+```sh
+deploy/backup.sh                                   # 수동 실행
+crontab -e                                         # 매일 03:00 (경로는 실제 클론 위치)
+0 3 * * * cd /opt/rpa && deploy/backup.sh >> /var/log/callcenter-backup.log 2>&1
+```
+
+- 환경 변수: `BACKUP_DIR`(위치), `BACKUP_KEEP_DAYS`(보관 일수, 기본 14), `BACKUP_AUDIO=0`(음성 제외)
+- 음성은 매번 전체를 묶으므로 사본이 쌓일수록 커진다. 디스크가 빠듯하면 음성은 주 1회 별도 cron(`BACKUP_AUDIO=0`인 일일 DB 백업 + 주간 전체)으로 나눈다.
+- 같은 디스크에만 두면 디스크 장애 때 함께 잃는다. 가능하면 `BACKUP_DIR`을 다른 디스크·NAS로 두거나 주기적으로 다른 곳에 복사한다.
+- 실패하면 `.partial` 파일이 남고 cron 로그에 오류가 찍힌다. 로그를 주기적으로 확인한다.
+
+복구(현재 데이터를 덮어쓴다. 실행 전에 확인을 묻는다):
+
+```sh
+deploy/restore.sh db    deploy/backups/db/callcenter_20261125_030000.dump     # api 를 멈췄다가 다시 띄운다
+deploy/restore.sh audio deploy/backups/audio/audio_20261125_030000.tar.gz
+curl -s $API/health                                                           # 복구 후 확인
+```
+
+- DB와 음성은 같은 시각의 백업 쌍으로 복구한다(DB에 있는 건의 음성이 없으면 재생·재처리가 404).
+- 새 서버로 옮길 때: §2·§3으로 빈 상태를 띄운 뒤(마이그레이션 적용됨) 같은 순서로 복구한다.
+
+## 7. 문제 해결
+
 로봇 IP가 403으로 잘못 막히면 `logs api`의 접근 로그에서 `client_ip`를 보고 `ROBOT_ALLOWED_IPS`를 맞춘다(§1 주의). 게이트웨이 주소로만 보인다면 그 주소를 허용하는 것은 모든 PC를 허용하는 것과 같으므로, 이때는 방화벽(§4)에서 로봇 PC만 열거나 Linux 서버를 쓴다.
 
 웹 업로드를 켠 경우(`INBOX_BACKEND=drive`) Drive 접근이 실패하면 `/health`는 200 `DEGRADED`(`inbox` `FAIL`)로 응답하고 서버는 계속 동작한다. 업로드만 503이 된다.
