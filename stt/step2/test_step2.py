@@ -134,8 +134,19 @@ _r = _folders({"paths": {"input_dir": _abs, "output_dir": "res", "done_dir": "<�
 check("폴더 설정: 절대 경로는 그대로", _r["inDir"] == os.path.normpath(_abs))
 check("폴더 설정: 상대 경로는 프로젝트 폴더 기준", _r["outDir"] == os.path.join(_base, "res"))
 check("폴더 설정: 자리표시자·빈 값은 기본값", _r["doneDir"] == _dflt["doneDir"] and _r["failedDir"] == _dflt["failedDir"])
-check("폴더 설정: config.example.json 의 자리표시자는 모두 기본값",
-      _rf.resolve_folders(os.path.join(os.path.dirname(HERE), "config.example.json"), _base) == _dflt)
+_ph = _folders({"paths": {"input_dir": "<음성 입력 폴더>", "output_dir": "<결과 JSON 출력 폴더>", "done_dir": "<처리 완료 폴더>", "failed_dir": "<처리 실패 폴더>"}})
+check("폴더 설정: config.example.json 양식의 자리표시자 값은 모두 기본값", _ph == _dflt)
+# config.example.json 의 paths 는 ④(uipath/Config/config.json)와 같은 폴더를 가리켜야 한다 (③ 폴더 = 팀원 폴더)
+_root = os.path.dirname(os.path.dirname(HERE))
+_c4_path = os.path.join(_root, "uipath", "Config", "config.json")
+if os.path.exists(_c4_path):
+    _c4 = json.load(open(_c4_path, encoding="utf-8-sig"))
+    _four = os.path.join(_root, "uipath")
+    _r4 = lambda v: os.path.normcase(os.path.normpath(v if os.path.isabs(v) else os.path.join(_four, v)))
+    _ex = _rf.resolve_folders(os.path.join(os.path.dirname(HERE), "config.example.json"), os.path.join(os.path.dirname(HERE), "uipath"))
+    check("폴더 설정: config.example.json 의 paths 가 ④ Config/config.json 과 같은 폴더(음성 입력·완료·실패·결과)",
+          all(os.path.normcase(os.path.normpath(_ex[k3])) == _r4(_c4[k4]) for k3, k4 in
+              (("inDir", "processingFolder"), ("doneDir", "doneFolder"), ("failedDir", "failedFolder"), ("outDir", "outFolder"))))
 import shutil as _sh
 _sh.rmtree(_d, ignore_errors=True)
 
