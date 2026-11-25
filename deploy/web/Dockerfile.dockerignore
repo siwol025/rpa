@@ -1,0 +1,6 @@
+# 빌드 컨텍스트가 저장소 루트라서 필요한 것만 남긴다.
+*
+!frontend
+!deploy/web/nginx.conf
+frontend/node_modules
+frontend/dist

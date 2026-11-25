@@ -1,6 +1,11 @@
 # 운영 배포
 
-운영 서버 한 대에 Docker Compose로 `api`(FastAPI, 8000)와 `db`(PostgreSQL 16)를 띄운다. 구조는 `backend/docs/architecture/architecture.md` §10.1.
+운영 서버 한 대에 Docker Compose로 `web`(프론트 빌드 + nginx, 8080), `api`(FastAPI, 8000), `db`(PostgreSQL 16)를 띄운다.
+
+- 웹 사용자는 `web`(8080)으로 접속한다. `web`이 `/api/*`를 `api`로 넘기므로 화면과 API가 같은 주소라 `CORS_ORIGINS`는 비워 둔다.
+- 로봇 PC는 `api`(8000)를 직접 부른다. `web`은 `/api/robot/*`를 404로 막는다.
+
+구조는 `backend/docs/architecture/architecture.md` §10.1.
 
 ## 1. 서버 준비
 
@@ -18,7 +23,8 @@ mkdir -p deploy/secrets                  # Git 제외 폴더
 ```
 
 - `POSTGRES_PASSWORD`, `ROBOT_API_KEYS`(쉼표로 최대 2개), `ROBOT_ALLOWED_IPS`(로봇 PC IP/CIDR)는 필수다. 비어 있으면 compose가 시작하지 않는다.
-- `CORS_ORIGINS`: 웹 화면 주소(쉼표 구분).
+- `CORS_ORIGINS`: 비워 둔다. 다른 주소에서 띄운 화면(예: 개발 PC의 dev 서버)이 api를 직접 부를 때만 그 출처를 쉼표로 적는다.
+- `WEB_PORT`: 웹 화면 포트(기본 8080).
 - 웹 업로드를 쓰려면 `INBOX_BACKEND=drive`, `DRIVE_INBOX_FOLDER_ID`, 서비스 계정 키를 `deploy/secrets/drive-sa.json`에 둔다. 컨테이너에는 `/run/secrets`로 읽기 전용 마운트된다.
   - 컨테이너는 non-root(uid 10001)로 돈다. 키 파일을 읽을 수 있게 권한을 준다: `chmod 644 deploy/secrets/drive-sa.json`(서버 접근자가 제한된 경우) 또는 `chown 10001 deploy/secrets/drive-sa.json && chmod 400 ...`.
 - `DOCS_ENABLED`는 기본 `false`(`/docs` 숨김).
@@ -37,24 +43,25 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs -f api
 
 ## 4. 방화벽
 
-인바운드는 8000 포트만 사내망(웹 사용 PC)과 로봇 PC에 연다. PostgreSQL 포트는 compose가 호스트에 열지 않는다. 아웃바운드는 웹 업로드를 쓰면 Google Drive API(HTTPS 443)가 필요하다.
+인바운드는 8080(웹)을 사내망에, 8000(api)을 로봇 PC에 연다. 운영 확인용으로 사내망에서 `/health`를 보려면 8000도 사내망에 연다. PostgreSQL 포트는 compose가 호스트에 열지 않는다. 아웃바운드는 웹 업로드를 쓰면 Google Drive API(HTTPS 443)가 필요하다.
 
 Linux(ufw) 예시 — 대역은 실제 값으로 바꾼다:
 
 ```sh
 sudo ufw default deny incoming
 sudo ufw allow OpenSSH
-sudo ufw allow from <사내망 CIDR> to any port 8000 proto tcp
+sudo ufw allow from <사내망 CIDR> to any port 8080 proto tcp
 sudo ufw allow from <로봇 PC IP> to any port 8000 proto tcp
 sudo ufw enable
 ```
 
-Docker가 공개한 포트는 ufw 규칙을 거치지 않을 수 있다(Docker가 iptables를 직접 씀). 이 경우 `DOCKER-USER` 체인에 같은 허용 규칙을 넣거나, `.env`의 `API_PORT`를 `<서버 사내망 IP>:8000`처럼 특정 주소에만 묶는다. 적용 후 §5의 외부 접속 확인으로 실제로 막히는지 본다.
+Docker가 공개한 포트는 ufw 규칙을 거치지 않을 수 있다(Docker가 iptables를 직접 씀). 이 경우 `DOCKER-USER` 체인에 같은 허용 규칙을 넣거나, `.env`의 `API_PORT`·`WEB_PORT`를 `<서버 사내망 IP>:8000`처럼 특정 주소에만 묶는다. 적용 후 §5의 외부 접속 확인으로 실제로 막히는지 본다.
 
 Windows(관리자 PowerShell) 예시:
 
 ```powershell
-New-NetFirewallRule -DisplayName "callcenter-api" -Direction Inbound -Protocol TCP -LocalPort 8000 -RemoteAddress <사내망 CIDR>,<로봇 PC IP> -Action Allow
+New-NetFirewallRule -DisplayName "callcenter-web" -Direction Inbound -Protocol TCP -LocalPort 8080 -RemoteAddress <사내망 CIDR> -Action Allow
+New-NetFirewallRule -DisplayName "callcenter-api" -Direction Inbound -Protocol TCP -LocalPort 8000 -RemoteAddress <로봇 PC IP> -Action Allow
 ```
 
 ## 5. 배포 후 확인
@@ -68,6 +75,9 @@ New-NetFirewallRule -DisplayName "callcenter-api" -Direction Inbound -Protocol T
 | 로봇 키 | 로봇 PC에서 키 없이 `GET $API/api/robot/calls/1/audio` | 401 `UNAUTHORIZED` |
 | 로봇 IP | 로봇 PC가 아닌 PC에서 키를 넣고 같은 요청 | 403 `FORBIDDEN_IP` |
 | 방화벽 | 허용 대역 밖 PC에서 `curl $API/health` | 연결 실패(타임아웃) |
+| 웹 화면 | 브라우저로 `$WEB/calls`(예: `http://10.0.0.5:8080/calls`) | 목록 화면, 새로고침해도 404 아님 |
+| 웹 → API | `curl -s $WEB/api/calls` | 200, `api`와 같은 응답 |
+| 웹 경로 로봇 차단 | `curl -s -o /dev/null -w '%{http_code}' $WEB/api/robot/calls/1/audio` | 404 |
 | DB 비공개 | 다른 PC에서 서버의 5432 접속 | 연결 실패 |
 
 ## 6. 백업·복구
