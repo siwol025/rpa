@@ -421,16 +421,21 @@ erDiagram
 
 ### 8.1 AudioStorage (음성 사본)
 ```python
+ByteRange = tuple[int, int | None]  # (시작, 끝) 끝 포함, None이면 파일 끝까지
+
 class AudioStorage(Protocol):
-    def put(self, key: str, stream: BinaryIO, content_type: str) -> None: ...
-    def open(self, key: str, byte_range: tuple[int, int] | None = None) -> BinaryIO: ...
+    def save(self, stream: BinaryIO, *, extension: str) -> str: ...  # UUID 키 반환
+    def open(self, key: str, byte_range: ByteRange | None = None) -> BinaryIO: ...
+    def size(self, key: str) -> int: ...
     def delete(self, key: str) -> None: ...
-    def signed_url(self, key: str, expires_sec: int) -> str | None: ...  # Local은 None
+    def check(self) -> None: ...  # 헬스 체크
 ```
 | 구현체 | Phase | 음성 재생 방식 |
 |---|---|---|
-| `LocalStorage` (Docker 볼륨) | 1~2 | API가 Range 응답으로 직접 스트리밍 |
+| `LocalStorage` (Docker 볼륨) | 1~2 | API가 Range 응답으로 직접 스트리밍(`StreamingResponse` + `app/core/http_range.py`) |
 | `GCSStorage` | 3 (선택) | 서명 URL로 302 리다이렉트 |
+
+`GCSStorage`의 서명 URL 발급 메서드는 X-02에서 Protocol에 추가한다.
 
 ### 8.2 InboxWriter (웹 업로드 → 클라우드 inbox/)
 ```python
@@ -546,7 +551,7 @@ flowchart TB
 | 클라우드 폴더 자체 | 공유 드라이브 멤버를 담당자·RPA 계정·서비스 계정으로 한정, 링크 공유 금지, `done/` 보관 기간 단축 |
 | API → DB | 전용 DB 계정(앱 권한만), 마이그레이션 계정 분리 |
 | 업로드 파일 (웹·로봇) | 확장자 + 매직 바이트 검증(둘이 같은 형식이어야 함, 클라이언트 MIME은 판정에 쓰지 않고 판정 형식의 정규 MIME 사용)(웹 업로드 기준), 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |
-| 데이터 | 마스킹된 텍스트만 저장, 음성 재생·다운로드 접근 로그 기록 |
+| 데이터 | 마스킹된 텍스트만 저장, 음성 재생·다운로드 접근 로그 기록(`app.audio` `audio_access`: `call_id`·구간·상태·바이트. `Range` 원문·클라이언트 IP는 남기지 않음) |
 | 오조작 | 소프트 삭제, `edit_history`, 일일 백업 |
 | 비밀 | `.env`(Git 제외) → 클라우드에서는 Secret Manager |
 

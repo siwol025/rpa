@@ -43,7 +43,7 @@
 | PATCH | `/api/calls/{id}` | 200 (갱신된 상세) | 404, 409, 422 |
 | DELETE | `/api/calls/{id}` | 204 | 404 (이미 삭제된 건 포함) |
 | POST | `/api/calls/{id}/retry` | 202 `{call_id, status, retry_count}` | 404, 409 |
-| GET | `/api/calls/{id}/audio` | 200 / 206(Range) / 302(GCS 서명 URL) | 404 |
+| GET | `/api/calls/{id}/audio` | 200 / 206(Range) / 302(GCS 서명 URL) | 404, 416 |
 | GET | `/api/stats/*` | 200 (집계 객체) | 422 |
 | GET | `/api/reports/excel` | 200 (xlsx) | 422 |
 | POST | `/api/robot/calls` | 201 `{call_id}` | 409 `DUPLICATE_FILE`, 413, 415, 422 |
@@ -120,6 +120,11 @@
 - `inbox` 확인 결과는 서버 프로세스마다 30초 동안 재사용된다(성공·실패 모두). `db`·`audio_storage`는 요청마다 확인한다.
 - 인증이 없다(로봇 API Key·IP 검사 대상 아님). 응답에 `Cache-Control: no-store`.
 - 예상하지 못한 서버 오류는 §3.1 형식의 500 `INTERNAL_ERROR`다.
+
+### 3.7 음성 재생 (`GET /api/calls/{id}/audio`)
+- 단일 바이트 범위(`bytes=a-b`, `bytes=a-`, `bytes=-n`)만 206으로 응답한다(`Content-Range`, `Accept-Ranges: bytes`). 문법 오류·모르는 단위·다중 범위이거나 `If-Range`가 함께 오면 Range를 무시하고 200 전체를 보낸다.
+- 범위가 파일 밖이면 416 `RANGE_NOT_SATISFIABLE`(§3.1 형식, `detail: null`)과 `Content-Range: bytes */<크기>` 헤더. 헤더가 필요해 라우터가 `error_response(..., headers=...)`를 직접 반환한다(§3.4-2의 예외).
+- 없는 건·삭제된 건·음성 사본 파일이 없는 건은 모두 404 `NOT_FOUND`다. 응답은 `Cache-Control: private, no-store`.
 
 ## 4. 목록
 
