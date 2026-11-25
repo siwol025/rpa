@@ -55,3 +55,30 @@
 
 준비물: Orchestrator 폴더에 큐 `CallCenter_Calls` 생성 (Automatic retry 3회 권장, Unique reference는 끔).
 Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`에 보고서가 없는 상태여야 합니다.
+
+## 작업 폴더 설정 (경로)
+- 모든 입출력 경로는 `baseDir` 한 곳에서 정한다. 환경변수 `CALLCENTER_BASE`가 있으면 그 폴더, 없으면 Studio가 연 프로젝트 폴더(`uipath\`)를 쓴다.
+- Studio에서 실행할 때는 설정이 필요 없다. 작업 스케줄러나 Robot으로 실행할 때만 `CALLCENTER_BASE`를 지정한다.
+- 폴더 아래에 `Runtime\out`(입력 JSON), `Runtime\processing`, `Runtime\out\processed`, `Runtime\out\error`, `Runtime\report`, `Runtime\template`이 있어야 한다. `Runtime\template`만 저장소에 올라가고 나머지는 실행 중에 쓰는 폴더라 올라가지 않는다(`.gitignore`). 처음 받았으면 빈 폴더를 만들고 `samples\test_cases\*.json`을 `Runtime\out`에 복사해 시험한다.
+
+## 서버(백엔드) 연동 시험
+샘플 음성 3개와 결과 JSON 3개를 서버에 보내 정상·확인필요·실패 경로를 확인한다.
+
+| 파일 | 역할 |
+|---|---|
+| `Main_ServerTest.xaml` | 시험 실행 진입점 (샘플 3건 전송) |
+| `Flow_ServerSend.xaml` | 파일 1건 전송: 등록(R-04) → QUEUED(R-05) → 성공·확인필요는 전사(R-06)+분석(R-07), 실패는 로그(R-08, `status=FAIL`+`stage`) |
+| `Flow_Api_Register.xaml` | 음성 파일 업로드(multipart, SHA-256 계산, 409 중복 응답 해석) |
+| `Flow_Api_Call.xaml` | JSON 요청 한 번 보내기(PATCH/PUT/POST/GET) |
+
+- 설정은 환경변수로 받는다. `CALLCENTER_API_URL`(서버 주소, 없으면 `http://localhost:8000`), `CALLCENTER_API_KEY`(API 키). 키는 파일·로그에 남기지 않는다.
+- 환경변수를 바꾼 뒤에는 Studio를 다시 열어야 적용된다.
+- 실행: Studio에서 `Main_ServerTest.xaml`을 열고 **Run File**.
+- 같은 샘플을 다시 보내면 서버가 409(중복)로 답하고, 상태에 따라 이어서 진행하거나 건너뛴다.
+- 샘플 음성(`samples\audio`)은 무음 wav이며, 파일명은 `{yyyyMMdd_HHmmss}_{담당자}_{고객사}.wav` 규칙을 따른다.
+- 서버에 시험용 건이 실제로 등록되므로 운영 DB에는 쓰지 않는다.
+
+### 재처리 시험
+- `Main_RetryTest.xaml`을 **Run File**로 실행한다. 웹 화면에서 재처리를 요청해 둔 건(`RETRY_REQUESTED`)이 있어야 대상이 나오고, 없으면 0건으로 끝난다.
+- 순서: 대상 조회(R-09) → 음성 다운로드(R-10, `Runtime\processing`에 저장) → 큐 재등록(Reference = `call_id-retryN`) → QUEUED 보고(R-05).
+- 큐에 넣으려면 Studio가 Orchestrator에 연결돼 있고 `CallCenter_Calls` 큐가 있어야 한다.
