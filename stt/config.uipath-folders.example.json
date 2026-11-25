@@ -1,0 +1,9 @@
+{
+  "_설명": "④(RPA 코어)와 같은 폴더를 쓰도록 하는 ③의 paths 예시입니다. 이 paths 블록을 stt/config.json 에 합치세요. 상대 경로는 ③ 프로젝트 폴더(stt/uipath) 기준이라 저장소를 받은 PC에서 그대로 동작합니다. 값은 ④ Config/config.json 의 processingFolder·doneFolder·failedFolder·outFolder 와 같은 폴더입니다.",
+  "paths": {
+    "input_dir": "..\\..\\uipath\\Runtime\\processing",
+    "output_dir": "calls\\out",
+    "done_dir": "..\\..\\uipath\\Runtime\\done",
+    "failed_dir": "..\\..\\uipath\\Runtime\\failed"
+  }
+}
