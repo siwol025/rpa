@@ -16,6 +16,7 @@ class ErrorCode(StrEnum):
     NOT_FOUND = "NOT_FOUND"
     PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"
     UNSUPPORTED_MEDIA = "UNSUPPORTED_MEDIA"
+    RANGE_NOT_SATISFIABLE = "RANGE_NOT_SATISFIABLE"
     UNAUTHORIZED = "UNAUTHORIZED"
     FORBIDDEN_IP = "FORBIDDEN_IP"
     INBOX_UNAVAILABLE = "INBOX_UNAVAILABLE"
@@ -32,6 +33,7 @@ _ERROR_SPECS: dict[ErrorCode, tuple[int, str]] = {
     ErrorCode.NOT_FOUND: (404, "대상을 찾을 수 없습니다."),
     ErrorCode.PAYLOAD_TOO_LARGE: (413, "요청 크기가 제한을 초과했습니다."),
     ErrorCode.UNSUPPORTED_MEDIA: (415, "허용되지 않은 파일 형식입니다."),
+    ErrorCode.RANGE_NOT_SATISFIABLE: (416, "요청한 범위를 제공할 수 없습니다."),
     ErrorCode.UNAUTHORIZED: (401, "인증에 실패했습니다."),
     ErrorCode.FORBIDDEN_IP: (403, "허용되지 않은 IP입니다."),
     ErrorCode.INBOX_UNAVAILABLE: (503, "업로드 저장소를 사용할 수 없습니다."),

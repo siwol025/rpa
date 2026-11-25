@@ -678,6 +678,7 @@
           "NOT_FOUND",
           "PAYLOAD_TOO_LARGE",
           "UNSUPPORTED_MEDIA",
+          "RANGE_NOT_SATISFIABLE",
           "UNAUTHORIZED",
           "FORBIDDEN_IP",
           "INBOX_UNAVAILABLE",
@@ -1890,6 +1891,104 @@
           }
         },
         "summary": "Update Call",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/calls/{call_id}/audio": {
+      "get": {
+        "operationId": "get_call_audio",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "전체 음성 (Range 없음·무시)"
+          },
+          "206": {
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "요청 구간 (단일 바이트 범위)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "RANGE_NOT_SATISFIABLE"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Get Call Audio",
         "tags": [
           "calls"
         ]
