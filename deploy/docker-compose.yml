@@ -29,17 +29,12 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      # 별도 헬스 엔드포인트(O-02)가 생기기 전까지는 서버가 HTTP로 응답하는지만 본다 (401 도 정상 응답).
+      # GET /health: DB·저장소 실패는 503(비정상), Drive inbox만 실패하면 200 DEGRADED(정상으로 본다). HEAD는 405.
       test:
         - CMD
         - python
         - -c
-        - |
-          import urllib.request, urllib.error
-          try:
-              urllib.request.urlopen("http://127.0.0.1:8000/api/robot/calls", timeout=3)
-          except urllib.error.HTTPError:
-              pass
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)
       interval: 15s
       timeout: 5s
       retries: 5

@@ -4,11 +4,11 @@ import hashlib
 from pathlib import Path
 from typing import BinaryIO, cast
 
-import filetype
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.audio_format import HEAD_BYTES, detect_audio_format
 from app.core.errors import AppError, ErrorCode
 from app.infra.storage import AudioNotFoundError, AudioStorage, InvalidKeyError
 from app.models import Analysis, CallRecord, ProcessingLog, Transcript
@@ -20,12 +20,10 @@ from app.schemas.robot import (
     RobotLogRequest,
     RobotTranscriptRequest,
 )
+from app.services.call_metadata import is_metadata_incomplete
 from app.services.state_machine import CallStateMachine, InvalidTransition
 
-# 파일 시그니처(매직 바이트)로 판별한 MIME → 저장 확장자. 확장자·Content-Type은 믿지 않는다.
-_EXTENSION_BY_MIME = {"audio/x-wav": ".wav", "audio/mpeg": ".mp3"}
 RETRY_TARGET_LIMIT = 100  # 재처리 대상 조회 상한 (convention.md §4)
-_SIGNATURE_BYTES = 262  # filetype이 판별에 쓰는 최대 길이
 
 # 처리 결과가 저장된 상태. 이후 로봇의 재전송은 같은 내용일 때만 받는다.
 _RESULT_STATES = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW})
@@ -268,7 +266,7 @@ class RobotService:
             agent_name=form.agent_name,
             client_company=form.client_company,
             call_datetime=form.call_datetime,
-            metadata_incomplete=form.agent_name is None or form.call_datetime is None,
+            metadata_incomplete=is_metadata_incomplete(form.agent_name, form.call_datetime),
             status=CallStatus.REGISTERED,
         )
         try:
@@ -302,13 +300,13 @@ class RobotService:
 
 
 def _detect_extension(upload: BinaryIO) -> str:
-    head = upload.read(_SIGNATURE_BYTES)
+    """파일 앞부분으로 형식을 판정해 저장 확장자를 돌려준다 (확장자·Content-Type은 믿지 않는다)."""
+    head = upload.read(HEAD_BYTES)
     upload.seek(0)
-    kind = filetype.guess(head)
-    extension = _EXTENSION_BY_MIME.get(kind.mime) if kind is not None else None
-    if extension is None:
+    detected = detect_audio_format(head)
+    if detected is None:
         raise AppError(ErrorCode.UNSUPPORTED_MEDIA, message="wav, mp3 파일만 등록할 수 있습니다.")
-    return extension
+    return f".{detected}"
 
 
 def _duplicate(existing: CallRecord) -> AppError:

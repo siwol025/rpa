@@ -81,7 +81,7 @@ def test_denied_transition_raises_409_with_current_status(
     assert _logs(db, call.id) == []
 
 
-@pytest.mark.parametrize("src", [S.REGISTERED, S.QUEUED, S.STT_DONE, S.RETRY_REQUESTED])
+@pytest.mark.parametrize("src", [S.REGISTERED, S.QUEUED, S.STT_DONE])
 def test_stale_processing_call_can_be_retried(
     db: Session, machine: CallStateMachine, src: CallStatus
 ) -> None:
@@ -93,6 +93,21 @@ def test_stale_processing_call_can_be_retried(
     assert result.retry_count == 1
     assert _logs(db, call.id)[0].step == LogStep.RETRY
     assert _logs(db, call.id)[0].status == LogStatus.RETRY
+
+
+def test_stale_retry_requested_call_cannot_be_requested_again(
+    db: Session, machine: CallStateMachine
+) -> None:
+    call = make_call_record(
+        db, status=S.RETRY_REQUESTED, status_changed_at=NOW - timedelta(hours=3)
+    )
+
+    with pytest.raises(InvalidTransition) as exc:
+        machine.transition(call.id, S.RETRY_REQUESTED, actor="web", now=NOW)
+
+    assert exc.value.current_status == S.RETRY_REQUESTED
+    assert call.retry_count == 0
+    assert is_stale(call, THRESHOLD, NOW) is True  # 정체 감지에는 계속 잡힌다
 
 
 @pytest.mark.parametrize("src", [S.REGISTERED, S.QUEUED, S.STT_DONE, S.RETRY_REQUESTED])
