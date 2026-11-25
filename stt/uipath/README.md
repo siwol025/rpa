@@ -8,6 +8,64 @@ Python 구현(`stt/step1`, `stt/step2`)과 **같은 입력에서 같은 결과**
 - **하위 폴더:** `in`(입력), `out`(결과 JSON), `done`(처리한 원본), `failed`(실패한 원본). 실행할 때 없으면 `Main_Folder.xaml`이 만듭니다. `calls\`는 `.gitignore` 대상이라 저장소에 올라가지 않습니다.
 - **처리 흐름:** `calls\in`의 파일을 `Main_Folder.xaml`로 처리해 성공(`SUCCESS`/`NEEDS_REVIEW`)이면 `done`, 실패(`FAILED`)면 `failed`로 옮기고, 어느 쪽이든 `calls\out\{call_id}.json`을 만듭니다. `call_id`는 `날짜_시각_순번`(예: `20261125_124453_001`) 형식이고, 같은 이름이 있으면 덮어쓰지 않고 번호를 붙입니다. 실패 건도 `status=FAILED` JSON이 생성됩니다.
 
+## 처리 흐름 도식 (`Main_Folder.xaml`, 음성 한 건 기준)
+```
+ [calls\in]  음성 파일(.wav .mp3 .m4a …)
+     │  Main_Folder.xaml ─ 파일마다 반복 (한 건에서 예외가 나도 그 건만 FAILED 처리)
+     ▼
+┌─ ① STT 호출 ───────────────────────── clova_call.vb ─┐        ┌───────────────────────────┐
+│ 음성 검사(없음/0바이트/확장자)                          │◄──────│ config.json 읽기           │
+│ POST {clova_invoke_url}/recognizer/upload              │ 키·URL │ (아래 "config.json 경로")   │
+│   헤더 X-CLOVASPEECH-API-KEY, 노이즈 필터·화자 2명 옵션  │        └───────────────────────────┘
+│ 완료 전이면 5초 간격 조회 (최대 60회)                    │
+└───────────────┬────────────────────────────────────────┘
+        실패 ──┼──► INPUT / STT 오류 ──────────────────────────────┐
+                ▼ COMPLETED                                          │
+┌─ ② 파싱·화자 매핑 ───────────────── parse_clova.vb ─┐              │
+│ 같은 화자의 연속 발화 병합                             │              │
+│ 상담원/고객 분리 (인사 키워드 우선), 근거 약하면 LOW    │              │
+│ → "[상담원] … / [고객] …"                              │              │
+└───────────────┬──────────────────────────────────────┘              │
+                ▼                                                      │
+┌─ ③ 개인정보 마스킹 ───────────────────── mask_pii.vb ─┐             │
+│ 이메일·카드·주소·이름 등을 [EMAIL] [CARD] … 로 치환     │             │
+└───────────────┬──────────────────────────────────────┘             │
+                ▼                                                      │
+┌─ ④ 프롬프트 조립 ──────────────────── build_prompt.vb ─┐            │
+│ prompts\prompt_v1_2.txt → [SYSTEM] / [USER TEMPLATE]    │            │
+│ {{TRANSCRIPT}} 자리에 마스킹된 전사본                     │            │
+└───────────────┬───────────────────────────────────────┘            │
+                ▼                                                      │
+┌─ ⑤ 모델 호출 (최대 3회: 최초 1 + 재시도 2) ──────────────┐           │
+│ Content Generation 커넥터 (systemPrompt + userPrompt)    │           │
+│ 응답 검증 validate_response.vb (JSON·필수키·유형·길이)    │           │
+│   통과 → 다음 단계      실패 → 재시도 → 3회 실패 시 VALIDATION│───────┤
+└───────────────┬───────────────────────────────────────┘           │
+                ▼                                                      ▼
+┌─ ⑥ 결과 JSON 조립·상태 판정 ────────── assemble_result.vb ─────────────────┐
+│ 확신도 < 0.6 또는 화자 LOW → NEEDS_REVIEW │ 정상 → SUCCESS │ 오류 → FAILED │
+└───────────────┬───────────────────────────────────────────────────────────┘
+                ▼
+   calls\out\{call_id}.json  (실패 건도 status=FAILED JSON 생성)
+                ▼
+   원본 이동:  SUCCESS · NEEDS_REVIEW → calls\done   /   FAILED → calls\failed
+```
+VB 코드 원본은 `stt/step2/uipath_port/snippets/`에 있습니다(위 도식의 `*.vb`). Python 원본과의 대응은 아래 "단계별 테스트" 표를 보세요.
+
+### `config.json` 경로
+**UiPath(Studio)가 읽는 위치** (`Main_Folder.xaml`, `Main_Step1to7.xaml`):
+1. 환경변수 `CLOVA_CONFIG`가 있으면 그 파일
+2. 없으면 `<프로젝트 폴더>\..\config.json` → 저장소 기준 `stt/config.json`
+
+- 읽는 값은 `clova_invoke_url`, `clova_secret_key`, `stt{…}`(언어·화자 수·노이즈 필터·조회 간격과 횟수)뿐입니다. 모델 호출은 Content Generation 커넥터(UiPath 연결)가 하므로 UiPath 쪽에는 모델 키가 없습니다.
+- 프로젝트를 `stt/uipath`가 아닌 다른 폴더에서 열면 2번 경로가 틀어져 "config.json을 읽을 수 없음"이 납니다. 이때는 `CLOVA_CONFIG`로 경로를 지정하세요.
+
+**Python이 읽는 위치**: 같은 `stt/config.json`입니다. `step1/clova_stt.py`와 `step2/openai_llm.py`가 기본으로 이 파일을 쓰고(`--config`로 변경), `config.json`의 `openai` 항목(`api_key`, `model`, `base_url` 등)은 Python 평가·검증용이라 UiPath 흐름에는 쓰이지 않습니다.
+
+**테스트용**: `uipath/test_data_run/step8/config.json`(가짜 CLOVA 서버 주소)을 `Step8_Folder_Test.xaml`이 읽습니다.
+
+**공유**: 실제 키가 든 `stt/config.json`은 `.gitignore` 대상이라 저장소에 올라가지 않습니다. 양식은 `stt/config.example.json`입니다.
+
 ## 운영 흐름: `Main_Folder.xaml`
 `calls\in`의 음성 파일을 이름순으로 처리하고 결과를 `calls\out`(결과 JSON), `calls\done` / `calls\failed`(원본)로 정리합니다.
 - 결과 JSON은 성공이든 실패든 `out\{call_id}.json`으로 저장합니다 (실패는 `status=FAILED`와 `error.stage/reason`).
