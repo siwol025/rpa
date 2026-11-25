@@ -1,13 +1,13 @@
-"""웹 상담 조회 API: `GET /api/calls`, `GET /api/calls/{call_id}`."""
+"""웹 상담 API: 목록·상세 조회, 삭제(`DELETE`)."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path, Query, Request
 
 from app.api.deps import get_call_service
 from app.core.errors import ErrorCode
 from app.core.logging import bind_call_id
-from app.schemas.call import CallDetail, CallListItem, CallListQuery
+from app.schemas.call import CallDetail, CallListItem, CallListQuery, EditorName
 from app.schemas.common import Page, PageParams, error_responses
 from app.services.call_service import CallService
 
@@ -35,3 +35,14 @@ def get_call(
 ) -> CallDetail:
     bind_call_id(request, call_id)
     return service.get_call(call_id)
+
+
+@router.delete("/{call_id}", status_code=204, responses=error_responses(ErrorCode.NOT_FOUND))
+def delete_call(
+    call_id: Annotated[int, Path(ge=1, le=BIGINT_MAX)],
+    request: Request,
+    service: CallServiceDep,
+    editor: Annotated[EditorName | None, Query()] = None,
+) -> None:
+    bind_call_id(request, call_id)
+    service.delete_call(call_id, editor=editor)

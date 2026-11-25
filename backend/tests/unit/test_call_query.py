@@ -1,10 +1,18 @@
 from datetime import date, datetime
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import and_, create_engine
+from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, ErrorCode
-from app.repositories.call_repository import filter_conditions, kst_day_start, order_by_clause
+from app.repositories.call_repository import (
+    CallRepository,
+    filter_conditions,
+    kst_day_start,
+    order_by_clause,
+)
 from app.schemas.call import CallListQuery, CallStatus, Category
 from app.schemas.common import KST
 
@@ -116,3 +124,30 @@ def test_from_after_to_raises_validation_error() -> None:
 
 def test_same_day_range_is_allowed() -> None:
     CallListQuery(from_=date(2026, 11, 1), to=date(2026, 11, 1))
+
+
+class _CaptureSession:
+    """실행하지 않고 넘겨받은 문장만 모은다."""
+
+    def __init__(self) -> None:
+        self.statements: list[Any] = []
+
+    def scalars(self, stmt: Any) -> Any:
+        self.statements.append(stmt)
+        return SimpleNamespace(one_or_none=lambda: None)
+
+
+def test_lock_call_selects_only_call_record_for_update() -> None:
+    # PostgreSQL은 OUTER JOIN의 NULL 가능 쪽에 FOR UPDATE를 허용하지 않는다 → JOIN이 없어야 한다.
+    capture = _CaptureSession()
+
+    assert CallRepository(cast(Session, capture)).lock_call(7) is None
+
+    (stmt,) = capture.statements
+    compiled = stmt.compile(dialect=_PG)
+    sql = str(compiled)
+    assert sql.endswith("FOR UPDATE")
+    assert "JOIN" not in sql
+    assert "FROM call_record \nWHERE call_record.id = " in sql
+    assert "call_record.deleted_at IS NULL" in sql
+    assert 7 in compiled.params.values()

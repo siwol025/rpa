@@ -1,4 +1,4 @@
-"""상담 목록·상세 API 스키마 (W-01, W-02)."""
+"""상담 목록·상세·삭제 API 스키마."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from fastapi import Query
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, StringConstraints
 
 from app.core.errors import AppError, ErrorCode
 from app.schemas.common import KstDatetime
@@ -130,6 +130,11 @@ class CallListQuery:
         """앞뒤 공백을 뺀 검색어. 비면 None(필터 없음)."""
         stripped = (self.q or "").strip()
         return stripped or None
+
+
+# 수정자 이름. 로그인이 없어 자기 신고 값이다. DELETE 쿼리에서 선택 입력.
+# 앞뒤 공백을 지운 뒤 검사한다(빈 값 422).
+EditorName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
 
 
 # ---------------------------------------------------------------- 응답

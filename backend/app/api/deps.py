@@ -34,7 +34,7 @@ def get_inbox_writer(request: Request) -> InboxWriter | None:
 
 
 def get_call_service(session: DbSession) -> CallService:
-    return CallService(CallRepository(session))
+    return CallService(CallRepository(session), session)
 
 
 def get_stats_service(session: DbSession) -> StatsService:
