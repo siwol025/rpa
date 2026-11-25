@@ -5,7 +5,7 @@
   "processingFolder": "Runtime\\processing",
   "doneFolder": "Runtime\\done",
   "failedFolder": "Runtime\\failed",
-  "outFolder": "Runtime\\out",
+  "outFolder": "..\\stt\\uipath\\calls\\out",
   "processedFolder": "Runtime\\out\\processed",
   "errorFolder": "Runtime\\out\\error",
   "staleMinutes": 10
