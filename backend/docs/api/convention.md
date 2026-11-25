@@ -99,6 +99,13 @@
 4. `detail`에는 식별자·상태·위치 같은 처리용 값만 넣는다. 예외 원문, SQL, 스택, 내부 경로는 넣지 않는다.
 5. 엔드포인트 고유 에러는 OpenAPI에 문서화한다: `responses=error_responses(ErrorCode.NOT_FOUND, ErrorCode.INVALID_STATE_TRANSITION)`. 422·500은 앱 전체에 이미 붙어 있다. 파일을 받는 엔드포인트는 `PAYLOAD_TOO_LARGE`·`UNSUPPORTED_MEDIA`를 추가한다. 로봇 라우터는 `APIRouter(responses=error_responses(ErrorCode.UNAUTHORIZED, ErrorCode.FORBIDDEN_IP))`.
 
+### 3.5 웹 업로드 (`POST /api/uploads`)
+- 한 요청에 여러 파일을 보낼 수 있다(multipart 필드 `files`, 최대 10개). 모든 파일을 검증한 뒤 순서대로 올리므로, 4xx 응답이면 어떤 파일도 올라가지 않았다.
+- 422 `VALIDATION_ERROR`의 서비스 검증 `type`: `filename_invalid`(`loc: ["body", "files", i]`, 사용할 수 없는 파일명), `too_many_files`(`loc: ["body", "files"]`).
+- 415 `UNSUPPORTED_MEDIA`의 `detail`은 `{"index": i}`(요청에서 몇 번째 파일인지, 0부터). 확장자가 허용 목록(`ALLOWED_EXTENSIONS`)에 없거나, 내용이 확장자와 다른 형식이거나, 빈 파일이면 415다.
+- 503 `INBOX_UNAVAILABLE`은 업로드 저장소가 꺼져 있거나(`INBOX_BACKEND=disabled`) 업로드 중 실패한 경우다. 업로드 중 실패면 앞 순서의 파일은 이미 올라갔을 수 있다(다시 올리면 등록 단계에서 중복으로 정리된다). `detail`은 `null`.
+- 202 본문은 `{"items": [{"name": ...}]}`이고, `name`은 저장된 이름(경로 성분 제거, NFC 정규화, 확장자 소문자)이다.
+
 ## 4. 목록
 
 ### 4.1 형식

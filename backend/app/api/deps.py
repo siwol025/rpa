@@ -14,6 +14,7 @@ from app.repositories.stats_repository import StatsRepository
 from app.services.call_service import CallService
 from app.services.robot_service import RobotService
 from app.services.stats_service import StatsService
+from app.services.upload_service import UploadService
 
 
 def get_db(request: Request) -> Iterator[Session]:
@@ -56,3 +57,10 @@ def get_robot_service(
     settings: Annotated[Settings, Depends(get_settings_from_app)],
 ) -> RobotService:
     return RobotService(session, storage, stale_threshold_min=settings.stale_threshold_min)
+
+
+def get_upload_service(
+    writer: Annotated[InboxWriter | None, Depends(get_inbox_writer)],
+    settings: Annotated[Settings, Depends(get_settings_from_app)],
+) -> UploadService:
+    return UploadService(writer, settings.allowed_extensions)

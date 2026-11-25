@@ -139,6 +139,23 @@
         "title": "Body_register_call",
         "type": "object"
       },
+      "Body_upload_files": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_files",
+        "type": "object"
+      },
       "BreakdownItem": {
         "properties": {
           "by_category": {
@@ -1200,6 +1217,36 @@
           "items"
         ],
         "title": "TrendResponse",
+        "type": "object"
+      },
+      "UploadResponse": {
+        "description": "접수 결과. 202 시점에 파일은 이미 inbox/에 있고, 등록·처리는 이후 Dispatcher가 한다.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UploadedFile"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "UploadResponse",
+        "type": "object"
+      },
+      "UploadedFile": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "UploadedFile",
         "type": "object"
       },
       "ValidationErrorDetail": {
@@ -2267,6 +2314,97 @@
         "summary": "Get Stats Trend",
         "tags": [
           "stats"
+        ]
+      }
+    },
+    "/api/uploads": {
+      "post": {
+        "operationId": "upload_files",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_files"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "BAD_REQUEST"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "PAYLOAD_TOO_LARGE"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNSUPPORTED_MEDIA"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INBOX_UNAVAILABLE"
+          }
+        },
+        "summary": "Upload Files",
+        "tags": [
+          "uploads"
         ]
       }
     }
