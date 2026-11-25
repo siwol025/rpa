@@ -4,8 +4,8 @@
   "status": "FAILED",
   "error": { "stage": "STT", "reason": "음성이 감지되지 않음(무음 파일)" },
   "source": {
-    "file_name": "call_x.m4a",
-    "file_path": "C:/calls/in/call_x.m4a",
+    "file_name": "call_x.wav",
+    "file_path": "C:/calls/in/call_x.wav",
     "duration_sec": 4.2,
     "received_at": "2026-11-24T16:05:01+09:00"
   },
