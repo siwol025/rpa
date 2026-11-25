@@ -14,13 +14,14 @@ import { categoryLabel } from '../lib/status'
 import { useToast } from '../lib/toast'
 import { dateParam, periodProblem, useUrlParams } from '../lib/useUrlParams'
 
-const KPIS: [label: string, value: (s: StatsSummary) => number | null][] = [
+// 총 건수만 고른 기간을 따른다. 나머지는 처리를 기다리는 전체 건수다 (규약 §4.3)
+const KPIS: [label: string, value: (s: StatsSummary) => number, allTime?: true][] = [
   ['총 건수', (s) => s.total],
-  ['미조치', (s) => s.action_open],
-  ['검토 필요', (s) => s.needs_review],
-  ['메타데이터 확인 필요', (s) => s.metadata_incomplete],
-  ['실패', (s) => s.failed],
-  ['정체', (s) => s.stale],
+  ['미조치', (s) => s.action_open, true],
+  ['검토 필요', (s) => s.needs_review, true],
+  ['메타데이터 확인 필요', (s) => s.metadata_incomplete, true],
+  ['실패', (s) => s.failed, true],
+  ['정체', (s) => s.stale, true],
 ]
 
 const UNITS: { value: Granularity; label: string }[] = [
@@ -79,6 +80,7 @@ function Stats({ period }: { period: Period }) {
   const agents = useBreakdown(period, 'agent')
   const clients = useBreakdown(period, 'client')
   const stale = summary.data?.stale ?? 0
+  const hasPeriod = !!(period.from || period.to)
 
   return (
     <>
@@ -94,20 +96,20 @@ function Stats({ period }: { period: Period }) {
       <div className="mb-3">
         <Loaded query={summary}>
           {(s) => (
-            <>
-              <div className="kpis">
-                {KPIS.map(([label, value]) => (
-                  <div key={label} role="group" aria-label={label} className="flex flex-col gap-0.5 px-4 py-3.5">
-                    <span className="text-xs font-medium text-fg-2">{label}</span>
-                    <b className="num text-[26px] leading-tight tracking-tight">
-                      {value(s) ?? '-'}
-                      {value(s) !== null && <small className="ml-0.5 text-[13px] font-medium text-fg-2">건</small>}
-                    </b>
-                  </div>
-                ))}
-              </div>
-              {s.stale === null && <p className="mt-2 mb-0 text-xs text-muted">미조치와 정체는 서버의 통계 요약이 준비되면 보여요</p>}
-            </>
+            <div className="kpis">
+              {KPIS.map(([label, value, allTime]) => (
+                <div key={label} role="group" aria-label={label} className="flex flex-col gap-0.5 px-4 py-3.5">
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs font-medium text-fg-2">
+                    <span>{label}</span>
+                    {hasPeriod && allTime && <span className="text-[11px] font-normal text-muted">전체 기간</span>}
+                  </span>
+                  <b className="num text-[26px] leading-tight tracking-tight">
+                    {value(s)}
+                    <small className="ml-0.5 text-[13px] font-medium text-fg-2">건</small>
+                  </b>
+                </div>
+              ))}
+            </div>
           )}
         </Loaded>
       </div>

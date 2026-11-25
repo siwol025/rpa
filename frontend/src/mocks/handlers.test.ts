@@ -25,7 +25,7 @@ describe('mock: 목록', () => {
     ['담당자', { agent: '김상담' }, (c) => c.agent_name === '김상담'],
     ['고객사', { client: 'B물류' }, (c) => c.client_company === 'B물류'],
     ['상태', { status: ['FAILED', 'QUEUED'] }, (c) => ['FAILED', 'QUEUED'].includes(c.status)],
-    ['정체', { stale: true }, (c) => c.is_stale === true],
+    ['정체', { stale: true }, (c) => c.is_stale],
     ['메타데이터', { metadata_incomplete: true }, (c) => c.metadata_incomplete],
     ['기간', { from: '2026-11-16', to: '2026-11-17' }, (c) => /^2026-11-1[67]/.test(c.call_datetime ?? '')],
   ])('%s 필터', async (_, params, ok) => {
@@ -69,6 +69,9 @@ describe('mock: 목록', () => {
   it.each([
     ['빈 이름', { agent_name: ' ' }],
     ['긴 이름', { agent_name: '가'.repeat(51) }],
+    ['빈 요약', { question_summary: ' ' }],
+    ['긴 요약', { action_summary: '가'.repeat(2001) }],
+    ['비울 수 없는 값', { category: null as never }],
     ['범위 밖 통화 일시', { call_datetime: '1999-12-31T23:59:00+09:00' }],
   ])('백엔드처럼 수정 422: %s', async (_, patch) => {
     await expect(updateCall(1, patch)).rejects.toMatchObject({ status: 422, code: 'VALIDATION_ERROR' })
@@ -86,6 +89,19 @@ describe('mock: 상세와 변경', () => {
   it('메타데이터를 채우면 확인 필요가 풀린다', async () => {
     const c = await updateCall(20, { agent_name: '김상담', call_datetime: '2026-11-23T11:12:00+09:00', editor: '홍' })
     expect(c.metadata_incomplete).toBe(false)
+  })
+  it('요약은 앞뒤 공백을 지우고 null로 비운다', async () => {
+    const c = await updateCall(1, { question_summary: ' 문의 ', action_summary: null })
+    expect(c.analysis).toMatchObject({ question_summary: '문의', action_summary: null })
+  })
+  it('분석 결과가 없으면 분석 수정은 409이고 함께 보낸 값도 바뀌지 않는다', async () => {
+    const before = (await fetchCall(24)).agent_name
+    await expect(updateCall(24, { category: 'ETC', agent_name: '새이름' })).rejects.toMatchObject({ status: 409, message: '분석 결과가 없는 상담입니다.' })
+    expect((await fetchCall(24)).agent_name).toBe(before)
+  })
+  it('검토 완료는 이력을 남긴다', async () => {
+    const c = await updateCall(7, { review_completed: true })
+    expect(c.processing_log.at(-1)).toMatchObject({ step: 'STORE', status: 'SUCCESS', message: '[web] NEEDS_REVIEW -> STORED: 검토 완료' })
   })
   it('검토 완료는 NEEDS_REVIEW에서만', async () => {
     expect((await updateCall(7, { review_completed: true })).status).toBe('STORED')
@@ -107,16 +123,14 @@ describe('mock: 상세와 변경', () => {
 })
 
 describe('mock: 통계', () => {
-  it('요약', async () => {
+  it('요약: 총 건수와 유형별만 기간을 따르고 나머지는 전체 건수', async () => {
+    const all = { action_open: 6, needs_review: 2, metadata_incomplete: 2, failed: 2, stale: 2 }
     expect(await fetchSummary({ from: '2026-11-10', to: '2026-11-24' })).toEqual({
       total: 26,
       by_category: { INQUIRY: 7, COMPLAINT: 5, SUGGESTION: 2, EDUCATION: 3, ETC: 2 },
-      action_open: 5,
-      needs_review: 2,
-      metadata_incomplete: 1,
-      failed: 2,
-      stale: 2,
+      ...all,
     })
+    expect(await fetchSummary({ from: '2020-01-01', to: '2020-01-02' })).toMatchObject({ total: 0, ...all })
   })
   it('추이와 분류', async () => {
     expect((await fetchTrend({ granularity: 'week' })).items).toEqual([

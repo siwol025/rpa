@@ -135,14 +135,6 @@ describe('상담 상세: 보기', () => {
     expect(document.querySelectorAll('mark')).toHaveLength(1)
   })
 
-  it('정체 여부를 모르는 처리 중 상담은 재처리를 요청할 수 없다', async () => {
-    const { is_stale: _, ...noStale } = call(25)
-    server.use(http.get('*/api/calls/25', () => HttpResponse.json(noStale)))
-    await openDetail(25)
-    expect(button('재처리 요청')).toBeDisabled()
-    expect(within(header()).queryByText('정체')).not.toBeInTheDocument()
-  })
-
   it('로봇이 남긴 이력을 한글로 보여준다', async () => {
     server.use(
       http.get('*/api/calls/1', () =>
@@ -280,7 +272,6 @@ describe('상담 상세: 수정', () => {
   })
 
   it.each([
-    ['extra_forbidden', ['body', 'category'], '유형, 요약, 조치, 검토 완료는 아직 서버에 저장할 수 없어요. 담당자, 고객사, 통화 일시만 바꿔서 저장해 주세요'],
     ['datetime_range', ['body', 'call_datetime'], '통화 일시는 2000년부터 2100년까지 입력할 수 있어요'],
   ])('서버가 받지 않는 값이면 무엇이 문제인지 알려준다: %s', async (type, loc, message) => {
     server.use(
@@ -303,6 +294,48 @@ describe('상담 상세: 수정', () => {
     expect(await screen.findByText('저장했어요')).toBeInTheDocument()
     expect(sent).toEqual([{ agent_name: `${call(2).agent_name}A` }])
     expect(button('저장')).toBeDisabled()
+  })
+
+  it('요약과 조치 내역은 앞뒤 공백을 지우고, 비우면 null로 보낸다', async () => {
+    const sent = await capturePatch(2)
+    await openDetail(2)
+    await userEvent.clear(screen.getByLabelText('질문 요약'))
+    await userEvent.clear(screen.getByLabelText('조치 내역'))
+    await userEvent.type(screen.getByLabelText('조치 내역'), ' 회신함 ')
+    await userEvent.click(button('저장'))
+    expect(await screen.findByText('저장했어요')).toBeInTheDocument()
+    expect(sent).toEqual([{ question_summary: null, action_summary: '회신함' }])
+    expect(button('저장')).toBeDisabled()
+  })
+
+  it('저장된 값에 공백이 있어도 바꾸지 않았으면 저장할 것이 없다', async () => {
+    const c = call(2)
+    server.use(
+      http.get('*/api/calls/2', () =>
+        HttpResponse.json({ ...c, agent_name: ' 김상담 ', analysis: { ...c.analysis!, question_summary: '문의함 ', action_summary: ' ' } }),
+      ),
+    )
+    await openDetail(2)
+    expect(button('저장')).toBeDisabled()
+  })
+
+  it('요약과 조치 내역은 2000자까지 입력할 수 있다', async () => {
+    await openDetail(2)
+    expect(screen.getByLabelText('질문 요약')).toHaveAttribute('maxlength', '2000')
+    expect(screen.getByLabelText('조치 내역')).toHaveAttribute('maxlength', '2000')
+  })
+
+  it('그사이 상태가 바뀌어 검토 완료가 거절되면 이유를 보여주고 지금 상태를 다시 불러온다', async () => {
+    await openDetail(7)
+    server.use(
+      http.patch('*/api/calls/7', () => HttpResponse.json({ code: 'INVALID_STATE_TRANSITION', message: '현재 상태에서 허용되지 않는 요청입니다.', detail: null }, { status: 409 })),
+      http.get('*/api/calls/7', () => HttpResponse.json({ ...call(7), status: 'RETRY_REQUESTED' })),
+    )
+    await userEvent.type(screen.getByLabelText('수정자 이름'), '홍길동')
+    await userEvent.click(button('검토 완료'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('현재 상태에서 허용되지 않는 요청입니다.')
+    await waitFor(() => expect(within(header()).getByText('재처리 요청됨')).toBeInTheDocument())
+    expect(screen.getByLabelText('수정자 이름')).toHaveValue('홍길동')
   })
 
   it('저장에 실패하면 이유를 보여주고 입력을 지우지 않는다', async () => {
@@ -331,6 +364,16 @@ describe('상담 상세: 재처리와 삭제', () => {
     await userEvent.click(button('재처리 요청'))
     expect(await screen.findByText('재처리를 요청했어요. 다음 처리 주기에 반영돼요')).toBeInTheDocument()
     await waitFor(() => expect(button('재처리 요청')).toBeDisabled())
+  })
+
+  it('분석 결과가 있으면 재처리로 수정한 내용이 사라진다고 알린다', async () => {
+    await openDetail(1)
+    expect(screen.getByText('재처리하면 분석 결과가 새로 만들어져요. 직접 수정한 내용은 사라져요.')).toBeInTheDocument()
+  })
+
+  it('분석 결과가 없거나 재처리할 수 없으면 그 안내는 없다', async () => {
+    await openDetail(21)
+    expect(screen.queryByText(/직접 수정한 내용은 사라져요/)).not.toBeInTheDocument()
   })
 
   it('처리 중인 건은 요청할 수 없다', async () => {

@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw'
-import { CATEGORIES, PAGE_MAX, PAGE_SIZE_MAX, Q_MAX_LENGTH, STATUSES, type CallDetail, type CallListItem, type CallPatch, type RetryResult, type TrendItem } from '../api/types'
+import { CATEGORIES, PAGE_MAX, PAGE_SIZE_MAX, Q_MAX_LENGTH, STATUSES, SUMMARY_MAX_LENGTH, type CallDetail, type CallListItem, type CallPatch, type RetryResult, type TrendItem } from '../api/types'
 import { canRetry } from '../lib/status'
 import { periodProblem } from '../lib/useUrlParams'
 import { MOCK_CALLS } from './data'
@@ -15,7 +15,7 @@ export function resetDb() {
 const error = (status: number, code: string, message: string) => HttpResponse.json({ code, message, detail: null }, { status })
 const notFound = () => error(404, 'NOT_FOUND', '대상을 찾을 수 없습니다.')
 const invalidRequest = () => error(422, 'VALIDATION_ERROR', '요청 형식이 올바르지 않습니다.')
-const invalidState = () => error(409, 'INVALID_STATE_TRANSITION', '현재 상태에서 허용되지 않는 요청입니다.')
+const invalidState = (message = '현재 상태에서 허용되지 않는 요청입니다.') => error(409, 'INVALID_STATE_TRANSITION', message)
 const find = (id: unknown) => db.find((c) => c.id === Number(id))
 const now = () => new Date().toISOString()
 
@@ -155,22 +155,36 @@ export const handlers = [
     const p = (await request.json()) as CallPatch
     const badText = (v: string | null | undefined, max: number) => typeof v === 'string' && (!v.trim() || [...v.trim()].length > max)
     const day = p.call_datetime?.slice(0, 10)
-    if (badText(p.agent_name, 50) || badText(p.client_company, 100) || badText(p.editor, 50) || (day && periodProblem({ from: day }))) return invalidRequest()
+    if (
+      badText(p.agent_name, 50) ||
+      badText(p.client_company, 100) ||
+      badText(p.editor, 50) ||
+      badText(p.question_summary, SUMMARY_MAX_LENGTH) ||
+      badText(p.action_summary, SUMMARY_MAX_LENGTH) ||
+      [p.category, p.action_status, p.review_completed].some((v) => v === null) ||
+      (day && periodProblem({ from: day }))
+    ) {
+      return invalidRequest()
+    }
+    // 409는 어떤 값도 바꾸기 전에 낸다
+    const editsAnalysis = [p.category, p.question_summary, p.action_summary, p.action_status].some((v) => v !== undefined)
+    if (editsAnalysis && !c.analysis) return invalidState('분석 결과가 없는 상담입니다.')
     if (p.review_completed && c.status !== 'NEEDS_REVIEW') return invalidState()
     if (c.analysis) {
       if (p.category !== undefined) c.analysis.category = p.category
-      if (p.question_summary !== undefined) c.analysis.question_summary = p.question_summary
-      if (p.action_summary !== undefined) c.analysis.action_summary = p.action_summary
+      if (p.question_summary !== undefined) c.analysis.question_summary = p.question_summary?.trim() ?? null
+      if (p.action_summary !== undefined) c.analysis.action_summary = p.action_summary?.trim() ?? null
       if (p.action_status !== undefined) c.analysis.action_status = p.action_status
     }
-    if (p.agent_name !== undefined) c.agent_name = p.agent_name
-    if (p.client_company !== undefined) c.client_company = p.client_company
+    if (p.agent_name !== undefined) c.agent_name = p.agent_name?.trim() ?? null
+    if (p.client_company !== undefined) c.client_company = p.client_company?.trim() ?? null
     if (p.call_datetime !== undefined) c.call_datetime = p.call_datetime
     c.metadata_incomplete = !c.agent_name || !c.call_datetime
     if (p.review_completed) {
       c.status = 'STORED'
       c.status_changed_at = now()
       if (c.analysis) c.analysis.needs_review = false
+      c.processing_log.push({ step: 'STORE', status: 'SUCCESS', message: '[web] NEEDS_REVIEW -> STORED: 검토 완료', created_at: now() })
     }
     return HttpResponse.json(c)
   }),
@@ -204,15 +218,16 @@ export const handlers = [
     await delay(WAIT)
     const sp = new URL(request.url).searchParams
     const rows = db.filter((c) => inPeriod(c, sp))
-    const n = (f: (c: CallDetail) => boolean) => rows.filter(f).length
+    // 총 건수와 유형별만 기간을 따른다 (규약 §4.3)
+    const n = (f: (c: CallDetail) => boolean) => db.filter(f).length
     return HttpResponse.json({
       total: rows.length,
-      by_category: Object.fromEntries(CATEGORIES.map((k) => [k, n((c) => c.analysis?.category === k)])),
+      by_category: Object.fromEntries(CATEGORIES.map((k) => [k, rows.filter((c) => c.analysis?.category === k).length])),
       action_open: n((c) => c.analysis?.action_status === 'OPEN'),
       needs_review: n((c) => c.status === 'NEEDS_REVIEW'),
       metadata_incomplete: n((c) => c.metadata_incomplete),
       failed: n((c) => c.status === 'FAILED'),
-      stale: n((c) => c.is_stale === true),
+      stale: n((c) => c.is_stale),
     })
   }),
 

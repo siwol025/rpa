@@ -1,11 +1,8 @@
 /*
  * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), openapi.json, architecture.md §5·§7.
- * 목록·상세(GET /calls, GET /calls/{id}), 통계 추이·분류(GET /stats/trend, /stats/breakdown), 업로드(POST /uploads),
- * 메타데이터 보정(PATCH), 삭제(DELETE), 재처리(POST retry), 음성(GET audio)은 openapi.json과 대조했다 (main ef6ccee).
- *
- * [확인 필요] 아직 API가 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
- *  1. 검토 완료를 알리는 필드(CallPatch.review_completed)
- *  2. 통계 요약 응답의 필드(StatsSummary)
+ * 목록·상세(GET /calls, GET /calls/{id}), 통계(GET /stats/summary, /trend, /breakdown), 업로드(POST /uploads),
+ * 수정·검토 완료(PATCH), 삭제(DELETE), 재처리(POST retry), 음성(GET audio)은 openapi.json과 대조했다 (main e9490fc).
+ * 엑셀(GET /reports/excel)은 아직 API가 없다.
  */
 
 export const CATEGORIES = ['INQUIRY', 'COMPLAINT', 'SUGGESTION', 'EDUCATION', 'ETC'] as const
@@ -30,8 +27,8 @@ export interface CallBase {
   status_changed_at: string
   retry_count: number
   created_at: string
-  /** 정체 감지(R-11)가 생기기 전에는 응답에 없다 */
-  is_stale?: boolean
+  /** 서버가 계산: 처리 중 상태로 정체 기준 시간을 넘김 */
+  is_stale: boolean
 }
 
 export interface CallListItem extends CallBase {
@@ -77,11 +74,11 @@ export interface CallDetail extends CallBase {
   processing_log: ProcessingLog[]
 }
 
-/** 서버는 지금 agent_name, client_company, call_datetime, editor만 받는다. 나머지는 분석 수정(W-03)에서 추가된다 */
+/** 보낸 값만 바꾼다. null은 비우기 (빈 글자는 422) */
 export interface CallPatch {
   category?: Category
-  question_summary?: string
-  action_summary?: string
+  question_summary?: string | null
+  action_summary?: string | null
   action_status?: ActionStatus
   agent_name?: string | null
   client_company?: string | null
@@ -100,6 +97,7 @@ export interface RetryResult {
 export const PAGE_MAX = 10_000
 export const PAGE_SIZE_MAX = 100
 export const Q_MAX_LENGTH = 100
+export const SUMMARY_MAX_LENGTH = 2000
 export const DATE_MIN = '2000-01-01'
 export const DATE_MAX = '2100-12-31'
 
@@ -133,15 +131,15 @@ export interface Period {
   to?: string
 }
 
-/** null: 통계 요약 API가 없는 서버에서는 셀 수 없는 값 (fetchSummary) */
+/** total과 by_category만 기간을 따르고, 나머지는 기간과 무관한 전체 건수 (규약 §4.3) */
 export interface StatsSummary {
   total: number
   by_category: Record<string, number>
-  action_open: number | null
+  action_open: number
   needs_review: number
   metadata_incomplete: number
   failed: number
-  stale: number | null
+  stale: number
 }
 
 /** POST /uploads. name: 저장된 이름 (등록 후 목록의 original_name) */

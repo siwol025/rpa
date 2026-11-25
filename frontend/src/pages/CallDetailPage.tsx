@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { audioUrl, updateProblem, useCall, useDeleteCall, useRetryCall, useUpdateCall } from '../api/calls'
 import { ApiError } from '../api/client'
-import { ACTION_STATUSES, CATEGORIES, type ActionStatus, type CallDetail, type CallPatch, type Category, type Entity } from '../api/types'
+import { ACTION_STATUSES, CATEGORIES, SUMMARY_MAX_LENGTH, type ActionStatus, type CallDetail, type CallPatch, type Category, type Entity } from '../api/types'
 import { CategoryChip } from '../components/CategoryChip'
 import { ErrorState } from '../components/ErrorState'
 import { Badge, StatusBadges } from '../components/StatusBadge'
@@ -149,15 +149,14 @@ function toForm(c: CallDetail): FormValues {
   }
 }
 
-/** 바뀐 값만 담는다. 건드리지 않은 값을 덮어쓰지 않기 위해서다 */
+const TEXT_FIELDS = ['question_summary', 'action_summary', 'agent_name', 'client_company'] as const
+
+/** 바뀐 값만 담는다. 건드리지 않은 값을 덮어쓰지 않기 위해서다. 서버처럼 앞뒤 공백은 없는 것으로 본다 */
 function diff(before: FormValues, now: FormValues): CallPatch {
   const p: CallPatch = {}
   if (now.category && now.category !== before.category) p.category = now.category
   if (now.action_status && now.action_status !== before.action_status) p.action_status = now.action_status
-  if (now.question_summary !== before.question_summary) p.question_summary = now.question_summary
-  if (now.action_summary !== before.action_summary) p.action_summary = now.action_summary
-  if (now.agent_name.trim() !== before.agent_name) p.agent_name = now.agent_name.trim() || null
-  if (now.client_company.trim() !== before.client_company) p.client_company = now.client_company.trim() || null
+  for (const key of TEXT_FIELDS) if (now[key].trim() !== before[key].trim()) p[key] = now[key].trim() || null
   if (now.call_datetime !== before.call_datetime) p.call_datetime = fromInputValue(now.call_datetime)
   return p
 }
@@ -264,10 +263,10 @@ function EditForm({ c }: { c: CallDetail }) {
             </Field>
           </div>
           <Field id="f-question_summary" label="질문 요약">
-            <textarea rows={3} {...bind('question_summary')} />
+            <textarea rows={3} maxLength={SUMMARY_MAX_LENGTH} {...bind('question_summary')} />
           </Field>
           <Field id="f-action_summary" label="조치 내역">
-            <textarea rows={3} {...bind('action_summary')} />
+            <textarea rows={3} maxLength={SUMMARY_MAX_LENGTH} {...bind('action_summary')} />
           </Field>
           <AnalysisFacts c={c} />
         </>
@@ -338,6 +337,7 @@ function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
         )}
       </div>
       {!allowed && <p className="notice">{retryNotice(c)}</p>}
+      {allowed && c.analysis && <p className="m-0 text-xs text-muted">재처리하면 분석 결과가 새로 만들어져요. 직접 수정한 내용은 사라져요.</p>}
       {confirming && (
         <div role="group" aria-label="삭제 확인" className="flex flex-wrap items-center gap-2.5 rounded-md bg-crit-bg p-3 text-[13px]">
           <span className="min-w-[150px] flex-1">이 상담을 삭제할까요?</span>

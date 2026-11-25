@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiSend, apiUrl, hasValidationError, toQueryString } from './client'
+import { ApiError, apiGet, apiSend, apiUrl, hasValidationError, toQueryString } from './client'
 import { PAGE_SIZE_MAX, type CallDetail, type CallListItem, type CallListParams, type CallPatch, type Page, type RetryResult } from './types'
 
 export const fetchCalls = (p: CallListParams) => apiGet<Page<CallListItem>>('/calls', { ...p })
@@ -43,13 +43,16 @@ function useInvalidate() {
 
 export function useUpdateCall(id: number) {
   const invalidate = useInvalidate()
-  return useMutation({ mutationFn: (patch: CallPatch) => updateCall(id, patch), onSuccess: () => invalidate(id) })
+  return useMutation({
+    mutationFn: (patch: CallPatch) => updateCall(id, patch),
+    onSuccess: () => invalidate(id),
+    // 409는 화면의 상태가 낡았다는 뜻이므로 다시 불러온다
+    onError: (e) => (e instanceof ApiError && e.status === 409 ? invalidate(id) : undefined),
+  })
 }
 
 /** 서버 문구만으로는 무엇을 고칠지 알기 어려운 오류를 풀어 쓴다 */
 export function updateProblem(e: Error): string {
-  // 분석 수정(W-03)이 없는 서버는 분석 필드가 하나라도 있으면 요청 전체를 거절한다
-  if (hasValidationError(e, 'extra_forbidden')) return '유형, 요약, 조치, 검토 완료는 아직 서버에 저장할 수 없어요. 담당자, 고객사, 통화 일시만 바꿔서 저장해 주세요'
   if (hasValidationError(e, 'datetime_range')) return '통화 일시는 2000년부터 2100년까지 입력할 수 있어요'
   return e.message
 }

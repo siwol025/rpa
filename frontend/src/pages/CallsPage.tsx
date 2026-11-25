@@ -71,9 +71,6 @@ export function CallsPage() {
   } satisfies CallListParams
   const problem = periodProblem(params)
   const { data, error, isPending, isFetching, isPlaceholderData, refetch } = useCalls(params, !problem)
-  // 정체 감지가 없는 서버는 is_stale을 주지 않고 stale 조건을 무시한다 (규약 §5.3)
-  const staleUnknown = data?.items.some((c) => c.is_stale === undefined) ?? false
-  const notice = problem ?? (params.stale && staleUnknown ? '아직 정체 건만 골라 볼 수 없어요' : null)
   const agents = useNames('agent')
   const clients = useNames('client')
 
@@ -98,7 +95,7 @@ export function CallsPage() {
       <div className="mb-4 flex items-end justify-between gap-4">
         <h1 className="m-0 text-[22px] font-bold tracking-tight">상담 목록</h1>
         <output aria-label="검색 결과 수" className="num text-muted">
-          {data && !error && !notice ? `${data.total}건` : ''}
+          {data && !error && !problem ? `${data.total}건` : ''}
         </output>
       </div>
 
@@ -114,7 +111,7 @@ export function CallsPage() {
           메타데이터 확인 필요
         </label>
         <label className="inline-flex cursor-pointer items-center gap-1.5 px-1 py-1.5 text-[13px] text-fg-2">
-          <input type="checkbox" checked={params.stale ?? false} disabled={staleUnknown && !params.stale} onChange={(e) => set('stale', e.target.checked ? 'true' : '')} />
+          <input type="checkbox" checked={params.stale ?? false} onChange={(e) => set('stale', e.target.checked ? 'true' : '')} />
           정체
         </label>
         <select aria-label="정렬" className="field" value={params.sort} onChange={(e) => set('sort', e.target.value === SORTS[0].value ? '' : e.target.value)}>
@@ -126,17 +123,8 @@ export function CallsPage() {
         </select>
       </div>
 
-      {notice ? (
-        <EmptyState
-          title={notice}
-          action={
-            !problem && (
-              <button type="button" className="btn text-fg" onClick={() => set('stale', '')}>
-                정체 조건 지우기
-              </button>
-            )
-          }
-        />
+      {problem ? (
+        <EmptyState title={problem} />
       ) : error ? (
         <ErrorState error={error} onRetry={() => refetch()} retrying={isFetching} />
       ) : (
@@ -168,7 +156,7 @@ export function CallsPage() {
                   </td>
                   <td className="max-w-[360px]">
                     <Link to={`/calls/${c.id}`} state={{ from: search }} className="block truncate font-medium text-fg no-underline hover:underline">
-                      {c.question_summary ?? <span className="font-normal text-muted">분석 결과 없음</span>}
+                      {c.question_summary ?? <span className="font-normal text-muted">{c.category ? '요약 없음' : '분석 결과 없음'}</span>}
                     </Link>
                   </td>
                   <td className="num">{formatSeconds(c.duration_sec)}</td>
@@ -195,7 +183,7 @@ export function CallsPage() {
         </div>
       )}
 
-      {data && !error && !notice && data.items.length > 0 && pages > 1 && (
+      {data && !error && !problem && data.items.length > 0 && pages > 1 && (
         <nav aria-label="페이지" className="mt-3 flex items-center justify-center gap-2.5 text-[13px]">
           <button type="button" className="btn" disabled={page <= 1} onClick={() => goPage(page - 1)}>
             이전

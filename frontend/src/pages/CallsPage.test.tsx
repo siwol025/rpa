@@ -125,6 +125,13 @@ describe('상담 목록', () => {
     expect(within(bodyRows()[0]).getByText('분석 결과 없음')).toBeInTheDocument()
   })
 
+  it('분석은 있는데 요약만 비어 있으면 분석 결과가 없다고 하지 않는다', async () => {
+    const { transcript: _t, analysis: _a, processing_log: _l, ...base } = MOCK_CALLS[0]
+    server.use(http.get('*/api/calls', () => HttpResponse.json({ items: [{ ...base, category: 'ETC', question_summary: null, action_status: 'OPEN' }], page: 1, size: 20, total: 1 })))
+    await openList()
+    expect(within(bodyRows()[0]).getByRole('link', { name: '요약 없음' })).toHaveAttribute('href', '/calls/1')
+  })
+
   it('범위를 넘는 페이지면 빈 상태와 첫 페이지 버튼만 보여준다', async () => {
     renderWithProviders(<App />, { route: '/calls?page=99' })
     expect(await screen.findByText('조건에 맞는 상담이 없어요')).toBeInTheDocument()
@@ -176,27 +183,6 @@ describe('상담 목록', () => {
     renderWithProviders(<App />, { route: '/calls?page=99999999' })
     expect(await screen.findByText('조건에 맞는 상담이 없어요')).toBeInTheDocument()
     expect(sent).toBe('10000')
-  })
-
-  describe('서버가 아직 정체 여부(is_stale)를 주지 않을 때', () => {
-    const { is_stale: _, ...noStale } = { ...MOCK_CALLS[0], category: null, question_summary: null, action_status: null }
-    beforeEach(() => server.use(http.get('*/api/calls', () => HttpResponse.json({ items: [noStale], page: 1, size: 20, total: 1 }))))
-
-    it('정체 조건을 고를 수 없다', async () => {
-      await openList()
-      expect(screen.getByLabelText('정체')).toBeDisabled()
-      expect(bodyRows()).toHaveLength(1)
-    })
-
-    it('정체 목록 주소로 들어오면 전체 상담을 정체인 것처럼 보여주지 않고, 조건을 지울 수 있다', async () => {
-      renderWithProviders(<App />, { route: '/calls?stale=true' })
-      expect(await screen.findByText('아직 정체 건만 골라 볼 수 없어요')).toBeInTheDocument()
-      expect(screen.queryByRole('table')).not.toBeInTheDocument()
-      expect(count()).toBeEmptyDOMElement()
-      await userEvent.click(screen.getByRole('button', { name: '정체 조건 지우기' }))
-      await waitFor(() => expect(location()).toBe('/calls'))
-      expect(bodyRows()).toHaveLength(1)
-    })
   })
 
   describe('서버가 받지 않는 조회 조건', () => {
