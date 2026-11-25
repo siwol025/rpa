@@ -82,3 +82,22 @@ Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`�
 - `Main_RetryTest.xaml`을 **Run File**로 실행한다. 웹 화면에서 재처리를 요청해 둔 건(`RETRY_REQUESTED`)이 있어야 대상이 나오고, 없으면 0건으로 끝난다.
 - 순서: 대상 조회(R-09) → 음성 다운로드(R-10, `Runtime\processing`에 저장) → 큐 재등록(Reference = `call_id-retryN`) → QUEUED 보고(R-05).
 - 큐에 넣으려면 Studio가 Orchestrator에 연결돼 있고 `CallCenter_Calls` 큐가 있어야 한다.
+
+## 오디오 Dispatcher (`Flow_DispatcherAudio.xaml`)
+운영 흐름의 앞부분. `Runtime\inbox`의 음성 파일(wav, mp3)을 감지해 서버에 등록하고 큐에 넣는다. (기존 `Flow_Dispatcher.xaml`은 JSON 폴더용 임시 버전)
+- 순서: 파일을 `processing`으로 이동(선점) → 파일명에서 통화일시·담당자·고객사 추출 → SHA-256 계산 후 등록(R-04) → 큐 항목 추가(Reference = 서버 `call_id`) → QUEUED 보고(R-05).
+- 409(중복) 처리: 기존 상태가 `REGISTERED`면 큐 등록부터 이어서, `STORED`·`NEEDS_REVIEW`면 `done`으로, `FAILED`면 `failed`로 옮기고, 처리 중이면 그대로 둔다.
+- `processing`에 10분 넘게 남은 파일(이전 실행이 중간에 멈춘 건)은 다시 등록을 시도한다. wav·mp3가 아닌 파일은 `failed`로 옮긴다.
+- 서버 오류(5xx)·연결 실패는 파일을 `processing`에 둔 채 다음 실행에서 재시도하고, 서버가 형식 오류(4xx)로 거절하면 `failed`로 옮긴다.
+- 폴더(`inbox`, `processing`, `done`, `failed`)는 실행할 때 자동으로 만든다. 환경변수는 위 "서버(백엔드) 연동 시험"과 같다.
+
+## 통합 Performer (음성 큐 → 서버 적재 + 엑셀)
+- `Flow_PerformerAudio.xaml`: 큐 항목(음성 파일, call_id)을 꺼내 `Runtime\out`에서 `source.file_name`이 같은 분석 결과 JSON을 찾고(`Flow_FindResult.xaml`), 검증 후 서버에 적재(R-06 전사, R-07 분석 / FAILED는 R-08 로그), 엑셀 기입, 파일 정리(done/failed, processed/error)까지 한다.
+- API 키(`CALLCENTER_API_KEY`)가 없으면 서버 호출은 건너뛰고 엑셀만 기입한다.
+- 결과 JSON이 아직 없으면 시스템 오류로 기록 → 큐 자동 재시도. 서버 409(상태 충돌)는 실패 보고 없이 해당 큐 건만 종료.
+- 업무 오류(검증 실패)는 재시도 없이 R-08(VALIDATION)로 보고 후 error/failed로 이동.
+## 설정 파일 (Config\config.json)
+- 큐 이름, 폴더 위치(inbox/processing/done/failed/out/processed/error), 정체 판단 시간(staleMinutes)을 `Config\config.json`에서 바꾼다. `Flow_LoadConfig.xaml`이 읽는다.
+- 파일이 없거나 항목을 지우면 기본값을 쓴다. 상대 경로는 프로젝트 폴더 기준, 절대 경로(예: 구글 드라이브 폴더)도 가능하다.
+- 서버 주소·API 키·프로젝트 폴더는 환경변수(`CALLCENTER_API_URL`, `CALLCENTER_API_KEY`, `CALLCENTER_BASE`)로 둔다(키는 파일에 적지 않는다).
+- 보고서·양식 경로와 확인필요 임계값(대시보드 셀)은 기존 위치 그대로다.
