@@ -195,3 +195,14 @@ class RobotLogRequest(BaseModel):
     orchestrator_job_id: Annotated[
         Annotated[str, Field(max_length=64)] | None, BeforeValidator(_blank_to_none)
     ] = None
+
+
+class RobotRetryTarget(BaseModel):
+    call_id: int
+    retry_count: int
+
+
+class RobotRetryTargets(BaseModel):
+    """재처리 대상 목록 (페이지 없이 서버 상한 100건, 오래 기다린 순)."""
+
+    items: list[RobotRetryTarget]

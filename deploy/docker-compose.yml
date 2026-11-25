@@ -1,0 +1,66 @@
+# 운영용: api + PostgreSQL 16 (데이터 볼륨, 재시작 정책)
+# 준비: cp deploy/.env.example deploy/.env 후 값을 채운다 (.env 는 Git 에 커밋하지 않는다)
+# 실행: docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+name: callcenter
+
+services:
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://callcenter:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 가 필요합니다}@db:5432/callcenter
+      AUDIO_STORAGE_BACKEND: local
+      AUDIO_STORAGE_ROOT: /data/audio
+      ROBOT_API_KEYS: ${ROBOT_API_KEYS:?ROBOT_API_KEYS 가 필요합니다}
+      ROBOT_ALLOWED_IPS: ${ROBOT_ALLOWED_IPS:?ROBOT_ALLOWED_IPS 가 필요합니다}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      STALE_THRESHOLD_MIN: ${STALE_THRESHOLD_MIN:-30}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      INBOX_BACKEND: ${INBOX_BACKEND:-disabled}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DOCS_ENABLED: ${DOCS_ENABLED:-false}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - audio-data:/data/audio
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # 별도 헬스 엔드포인트(O-02)가 생기기 전까지는 서버가 HTTP로 응답하는지만 본다 (401 도 정상 응답).
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request, urllib.error
+          try:
+              urllib.request.urlopen("http://127.0.0.1:8000/api/robot/calls", timeout=3)
+          except urllib.error.HTTPError:
+              pass
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: callcenter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 가 필요합니다}
+      POSTGRES_DB: callcenter
+    # 호스트에 포트를 열지 않는다. api 컨테이너만 내부 네트워크로 접속한다.
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U callcenter -d callcenter"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg-data:
+  audio-data:

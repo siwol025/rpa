@@ -126,6 +126,27 @@ class RobotSimulator:
             return DispatchResult(action, call_id)
         raise AssertionError(f"등록 실패 {response.status_code}: {response.text}")
 
+    def retry_targets(self) -> list[dict[str, int]]:
+        """`GET /api/robot/calls?status=RETRY_REQUESTED`: 다음 주기에 다시 Queue에 넣을 건."""
+        response = self.client.get("/api/robot/calls", params={"status": "RETRY_REQUESTED"})
+        self._expect(response, 200)
+        items: list[dict[str, int]] = response.json()["items"]
+        return items
+
+    def download_audio(self, call_id: int) -> httpx.Response:
+        """`GET .../audio`: 재처리 때 서버의 음성 사본을 내려받는다."""
+        return self.client.get(f"/api/robot/calls/{call_id}/audio")
+
+    def redispatch(self) -> list[DispatchResult]:
+        """Dispatcher의 재처리 주기: 대상 조회 → 음성 다운로드 → Queue 추가·QUEUED 보고."""
+        results = []
+        for target in self.retry_targets():
+            call_id = target["call_id"]
+            self._expect(self.download_audio(call_id), 200)
+            self._expect(self.queue(call_id), 200)
+            results.append(DispatchResult(DispatchAction.QUEUED, call_id))
+        return results
+
     # ------------------------------------------------------------ Performer
 
     def put_transcript(self, call_id: int, result: dict[str, Any]) -> httpx.Response:
@@ -190,7 +211,7 @@ def _step_for_stage(stage: str) -> str:
 # ---------------------------------------------------------------- 서버 점검용 실행
 
 
-def _scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
+def run_scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
     results: list[tuple[str, bool, str]] = []
 
     def check(title: str, ok: bool, detail: str) -> None:
@@ -216,12 +237,11 @@ def _scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
         sim.status(failed.call_id),
     )
 
-    for title, call, expected in [
-        ("409 재등록: STORED → done/", success, DispatchAction.MOVE_DONE),
-        ("409 재등록: NEEDS_REVIEW → done/", review, DispatchAction.MOVE_DONE),
-        ("409 재등록: FAILED → failed/", failed, DispatchAction.MOVE_FAILED),
+    for title, seed, call, expected in [
+        ("409 재등록: STORED → done/", "success", success, DispatchAction.MOVE_DONE),
+        ("409 재등록: NEEDS_REVIEW → done/", "review", review, DispatchAction.MOVE_DONE),
+        ("409 재등록: FAILED → failed/", "failed", failed, DispatchAction.MOVE_FAILED),
     ]:
-        seed = {success: "success", review: "review", failed: "failed"}[call]
         again = sim.dispatch(make_wav(f"{run_id}-{seed}"))
         check(title, again.action is expected and again.call_id == call.call_id, again.action)
 
@@ -257,7 +277,7 @@ def main() -> int:
     with httpx.Client(
         base_url=args.base_url, headers={"X-API-Key": args.api_key}, timeout=30
     ) as client:
-        results = _scenarios(RobotSimulator(client), run_id)
+        results = run_scenarios(RobotSimulator(client), run_id)
 
     for title, ok, detail in results:
         print(f"{'PASS' if ok else 'FAIL'}  {title}  ({detail})")

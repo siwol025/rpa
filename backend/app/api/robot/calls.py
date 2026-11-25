@@ -1,8 +1,10 @@
 """로봇 API: 등록 `POST /api/robot/calls`. 인증은 RobotAuthMiddleware가 경로 기준으로 처리한다."""
 
-from typing import Annotated
+from collections.abc import Iterator
+from typing import Annotated, BinaryIO, Literal
 
-from fastapi import APIRouter, Depends, File, Form, Path, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, Request, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_robot_service
 from app.core.errors import ErrorCode
@@ -16,6 +18,8 @@ from app.schemas.robot import (
     RobotCallStatus,
     RobotLogRequest,
     RobotQueuedRequest,
+    RobotRetryTarget,
+    RobotRetryTargets,
     RobotTranscriptRequest,
 )
 from app.services.robot_service import RobotService
@@ -115,3 +119,52 @@ def post_call_log(
     bind_call_id(request, call_id)
     call = service.add_log(call_id, body)
     return RobotCallStatus(call_id=call.id, status=call.status)
+
+
+@router.get("", responses=error_responses())
+def list_retry_targets(
+    service: RobotServiceDep,
+    status: Annotated[
+        Literal["RETRY_REQUESTED"], Query(description="재처리 대상만 조회할 수 있다")
+    ] = "RETRY_REQUESTED",
+) -> RobotRetryTargets:
+    """다음 Dispatcher 주기에 다시 Queue에 넣을 재처리 요청 건 (오래 기다린 순, 최대 100건)."""
+    calls = service.list_retry_targets()
+    return RobotRetryTargets(
+        items=[RobotRetryTarget(call_id=c.id, retry_count=c.retry_count) for c in calls]
+    )
+
+
+_MEDIA_TYPE_BY_EXTENSION = {".wav": "audio/wav", ".mp3": "audio/mpeg"}
+_CHUNK = 64 * 1024
+
+
+def _iter_and_close(stream: BinaryIO) -> Iterator[bytes]:
+    try:
+        while chunk := stream.read(_CHUNK):
+            yield chunk
+    finally:
+        stream.close()
+
+
+@router.get(
+    "/{call_id}/audio",
+    responses={
+        200: {"content": {"audio/wav": {}, "audio/mpeg": {}}, "description": "음성 사본"},
+        **error_responses(ErrorCode.NOT_FOUND),
+    },
+)
+def download_audio(
+    call_id: CallIdPath, request: Request, service: RobotServiceDep
+) -> StreamingResponse:
+    """재처리를 위해 서버의 음성 사본을 내려받는다 (원본 폴더에서 파일이 옮겨졌어도 된다)."""
+    bind_call_id(request, call_id)
+    stream, size, extension = service.open_audio(call_id)
+    return StreamingResponse(
+        _iter_and_close(stream),
+        media_type=_MEDIA_TYPE_BY_EXTENSION.get(extension, "application/octet-stream"),
+        headers={
+            "Content-Length": str(size),
+            "Content-Disposition": f'attachment; filename="call-{call_id}{extension}"',
+        },
+    )

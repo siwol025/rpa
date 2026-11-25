@@ -1041,6 +1041,41 @@
         "title": "RobotQueuedRequest",
         "type": "object"
       },
+      "RobotRetryTarget": {
+        "properties": {
+          "call_id": {
+            "title": "Call Id",
+            "type": "integer"
+          },
+          "retry_count": {
+            "title": "Retry Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "call_id",
+          "retry_count"
+        ],
+        "title": "RobotRetryTarget",
+        "type": "object"
+      },
+      "RobotRetryTargets": {
+        "description": "재처리 대상 목록 (페이지 없이 서버 상한 100건, 오래 기다린 순).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RobotRetryTarget"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RobotRetryTargets",
+        "type": "object"
+      },
       "RobotTranscriptRequest": {
         "description": "`PUT /api/robot/calls/{id}/transcript` 본문. PII 마스킹이 끝난 전사만 보낸다.",
         "properties": {
@@ -1614,6 +1649,81 @@
       }
     },
     "/api/robot/calls": {
+      "get": {
+        "description": "다음 Dispatcher 주기에 다시 Queue에 넣을 재처리 요청 건 (오래 기다린 순, 최대 100건).",
+        "operationId": "list_retry_targets",
+        "parameters": [
+          {
+            "description": "재처리 대상만 조회할 수 있다",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "const": "RETRY_REQUESTED",
+              "default": "RETRY_REQUESTED",
+              "description": "재처리 대상만 조회할 수 있다",
+              "title": "Status",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RobotRetryTargets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "List Retry Targets",
+        "tags": [
+          "robot"
+        ]
+      },
       "post": {
         "description": "음성 사본을 저장하고 `REGISTERED`로 등록한다. 텍스트 변환 전에 먼저 호출한다.",
         "operationId": "register_call",
@@ -1815,6 +1925,91 @@
           }
         },
         "summary": "Put Analysis",
+        "tags": [
+          "robot"
+        ]
+      }
+    },
+    "/api/robot/calls/{call_id}/audio": {
+      "get": {
+        "description": "재처리를 위해 서버의 음성 사본을 내려받는다 (원본 폴더에서 파일이 옮겨졌어도 된다).",
+        "operationId": "download_audio",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Call Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "audio/mpeg": {},
+              "audio/wav": {}
+            },
+            "description": "음성 사본"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHORIZED"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "FORBIDDEN_IP"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Download Audio",
         "tags": [
           "robot"
         ]

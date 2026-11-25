@@ -108,6 +108,18 @@ curl -X POST http://localhost:8000/api/robot/calls \
 - 엑셀 기입처럼 **분석 저장 후**의 실패는 `step=EXCEL`, `status=FAIL`로 보내면 상태는 `STORED`·`NEEDS_REVIEW` 그대로이고 로그만 남는다.
 - `message`(사유)에 Secret Key나 통화 원문을 넣지 않는다.
 
+## 재처리 — 대상 조회와 음성 다운로드
+
+웹에서 재처리를 요청한 건(`RETRY_REQUESTED`)은 Dispatcher가 다음 주기에 다시 Queue에 넣는다.
+
+| 호출 | 응답 |
+|---|---|
+| `GET /api/robot/calls?status=RETRY_REQUESTED` | 200 `{ "items": [ { "call_id": 12, "retry_count": 1 } ] }` — 오래 기다린 순, 최대 100건 |
+| `GET /api/robot/calls/{call_id}/audio` | 200 음성 파일 본문(`audio/wav`·`audio/mpeg`). 없는 건·사본 없음은 404 |
+
+`status`는 `RETRY_REQUESTED`만 받는다(다른 값은 422). 흐름은 **목록 조회 → 음성 다운로드 → Queue 추가 → ③ QUEUED 보고**이며,
+이후는 처음 처리와 같다. 음성은 서버 사본에서 받으므로 원본 폴더에서 파일이 옮겨졌어도 된다.
+
 ## 409 — 상태가 맞지 않을 때
 
 `PATCH`·`PUT`·`POST .../logs`가 현재 상태와 맞지 않으면 409다. 현재 상태가 `detail`에 있다.
