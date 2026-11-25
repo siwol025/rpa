@@ -20,9 +20,9 @@
     "poll_max_count": 60
   },
   "paths": {
-    "input_dir": "..\\..\\uipath\\Runtime\\processing",
+    "input_dir": "calls\\in",
     "output_dir": "calls\\out",
-    "done_dir": "..\\..\\uipath\\Runtime\\done",
-    "failed_dir": "..\\..\\uipath\\Runtime\\failed"
+    "done_dir": "calls\\done",
+    "failed_dir": "calls\\failed"
   }
 }
