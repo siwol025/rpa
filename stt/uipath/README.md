@@ -24,10 +24,23 @@ Python 구현(`stt/step1`, `stt/step2`)과 **같은 입력에서 같은 결과**
 - 값이 비었거나 `<…>`·`여기에_…`로 시작하는 자리표시자이거나 문자열이 아니면 기본값입니다. 설정 파일이 없거나 JSON이 깨져 있어도 오류 없이 기본값으로 동작합니다.
 - 설정 파일 위치는 아래 "`config.json` 경로"와 같습니다(`CLOVA_CONFIG` 또는 `프로젝트 폴더\..\config.json`). 테스트 워크플로(`Step8_Folder_Test`)는 임시 폴더를 쓰므로 이 설정을 읽지 않습니다.
 
-**④와 연결할 때 주의**
-- ③은 처리한 원본을 `done`/`failed`로 **옮깁니다**. ④가 자기 `processing` 폴더를 ③의 `input_dir`로 직접 지정하면 ③이 ④의 파일을 가져가 버립니다. ④가 음성을 **복사해서** ③의 `input_dir`에 넣고, ③의 `output_dir`을 ④의 결과 폴더(`Config/config.json`의 `outFolder`)로 지정하세요.
-- ④는 결과 JSON의 `source.file_name`이 음성 파일명과 같은 것을 찾으므로, ③의 `output_dir`에 같은 이름의 오래된 결과가 남아 있지 않게 ④가 처리 후 옮기는 동작을 유지해야 합니다.
+**④(RPA 코어)와 같은 폴더 쓰기** (③ 설정만 바꾸고 ③ 코드는 그대로)
+`stt\config.uipath-folders.example.json`의 `paths` 블록을 `stt\config.json`에 합치면, ③이 ④ `Config/config.json`과 **같은 폴더**를 씁니다. 경로는 ③ 프로젝트 폴더(`stt\uipath`) 기준 상대 경로라 저장소를 받은 PC에서 그대로 동작합니다.
+
+| 용도 | ③ 설정 (`paths`) | 가리키는 폴더 (`<저장소>\` 기준) | ④ 설정 (`Config/config.json`) |
+|---|---|---|---|
+| 음성 입력 | `input_dir` | `uipath\Runtime\processing` | `processingFolder` |
+| 완료 음성 | `done_dir` | `uipath\Runtime\done` | `doneFolder` |
+| 실패 음성 | `failed_dir` | `uipath\Runtime\failed` | `failedFolder` |
+| 결과 JSON | `output_dir` | `stt\uipath\calls\out` | `outFolder` |
+
+**주의**
+- ③은 처리한 음성을 `done`(SUCCESS·NEEDS_REVIEW) 또는 `failed`(FAILED)로 **옮깁니다**. ④ Performer도 같은 규칙으로 옮기는데 음성 이동이 `ContinueOnError=True`라, ③이 먼저 옮겼어도 오류 없이 지나가고 최종 위치는 같습니다.
+- ④ Dispatcher는 음성을 `processing`으로 옮긴 뒤 서버 등록(R-04)에 그 파일을 읽습니다. **그 사이에 ③이 실행되면** ③이 파일을 먼저 `done`/`failed`로 옮겨 등록이 실패할 수 있으니, ③(`stt\uipath\Main.xaml`)은 Dispatcher가 도는 중에 실행하지 마세요(등록은 보통 몇 초).
+- ④ Dispatcher의 `5. ③ 입력 폴더로 음성 복사` 단계(#30)는 기본으로 음성 사본을 `stt\uipath\calls\in`에 복사합니다. 위 설정에서는 ③이 그 폴더를 읽지 않아 사본이 쌓이기만 하므로, 환경변수 `STT_INPUT_DIR`를 `uipath\Runtime\processing`의 절대 경로로 지정하면 같은 폴더끼리라 복사가 실패(경고 로그)하며 사본이 생기지 않습니다.
+- ④는 결과 JSON의 `source.file_name`이 음성 파일명과 같은 것을 찾으므로, `output_dir`에 같은 이름의 오래된 결과가 남아 있지 않게 ④가 처리 후 옮기는 동작을 유지해야 합니다.
 - 서버와 ④는 **wav·mp3**만 접수합니다(③은 m4a 등도 CLOVA에 보낼 수 있지만 운영 입력은 wav·mp3로 맞추세요).
+- 기본값(`paths`가 없을 때)은 예전처럼 `calls\in|out|done|failed`이고, ③ 코드는 이 설정으로 달라지는 것이 없습니다.
 
 ## 처리 흐름 도식 (`Main_Folder.xaml`, 음성 한 건 기준)
 ```
