@@ -1,0 +1,12 @@
+{
+    "_설명":  "③ STT 파이프라인 연동용 설정. 상대 경로라 같은 레포를 받은 PC에서는 그대로 동작한다. 사용하려면 config.json 으로 복사(백업 후).",
+    "queueName":  "CallCenter_Calls",
+    "inboxFolder":  "Runtime\\inbox",
+    "processingFolder":  "..\\stt\\uipath\\calls\\in",
+    "doneFolder":  "..\\stt\\uipath\\calls\\done",
+    "failedFolder":  "..\\stt\\uipath\\calls\\failed",
+    "outFolder":  "..\\stt\\uipath\\calls\\out",
+    "processedFolder":  "..\\stt\\uipath\\calls\\out\\processed",
+    "errorFolder":  "..\\stt\\uipath\\calls\\out\\error",
+    "staleMinutes":  30
+}
