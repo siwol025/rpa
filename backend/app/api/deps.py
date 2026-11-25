@@ -33,8 +33,9 @@ def get_inbox_writer(request: Request) -> InboxWriter | None:
     return writer
 
 
-def get_call_service(session: DbSession) -> CallService:
-    return CallService(CallRepository(session), session)
+def get_call_service(session: DbSession, request: Request) -> CallService:
+    threshold = get_settings_from_app(request).stale_threshold_min
+    return CallService(CallRepository(session), session, stale_threshold_min=threshold)
 
 
 def get_stats_service(session: DbSession) -> StatsService:

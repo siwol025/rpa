@@ -68,7 +68,7 @@ class FakeSession:
 
 
 def _service(repo: FakeCallRepository, session: FakeSession) -> CallService:
-    return CallService(cast(CallRepository, repo), cast(Session, session))
+    return CallService(cast(CallRepository, repo), cast(Session, session), stale_threshold_min=30)
 
 
 def _patch(**body: Any) -> CallUpdateRequest:
@@ -233,3 +233,20 @@ def test_delete_missing_or_deleted_call_is_not_found_without_commit() -> None:
 
     assert exc_info.value.code is ErrorCode.NOT_FOUND
     assert session.commits == 0
+
+
+# ---------------------------------------------------------------- 정체 표시
+
+
+@pytest.mark.parametrize(("status", "minutes", "expected"), [
+    ("QUEUED", 31, True),
+    ("QUEUED", 29, False),
+    ("STORED", 120, False),
+])  # fmt: skip
+def test_get_call_marks_stale(status: str, minutes: int, expected: bool) -> None:
+    changed = datetime.now(UTC) - timedelta(minutes=minutes)
+    repo = FakeCallRepository(_record(status=status, status_changed_at=changed))
+
+    detail = _service(repo, FakeSession()).get_call(1)
+
+    assert detail.is_stale is expected

@@ -4,12 +4,13 @@ from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, Row, Select, UnaryExpression, func, or_, select
+from sqlalchemy import ColumnElement, Row, Select, UnaryExpression, func, not_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Analysis, CallRecord, EditHistory, ProcessingLog, Transcript
 from app.schemas.call import CATEGORY_DB_VALUES, CallListQuery, CallSort
 from app.schemas.common import KST
+from app.services.stale_detection import stale_condition
 
 ListRow = Row[tuple[CallRecord, str | None, str | None, str | None]]
 
@@ -36,7 +37,13 @@ def order_by_clause(sort: CallSort) -> list[UnaryExpression[Any]]:
     return [primary, CallRecord.id.desc() if desc else CallRecord.id.asc()]
 
 
-def filter_conditions(query: CallListQuery) -> list[ColumnElement[bool]]:
+def filter_conditions(
+    query: CallListQuery,
+    *,
+    stale_threshold_min: int | None = None,
+    now: datetime | None = None,
+) -> list[ColumnElement[bool]]:
+    """`stale` 필터를 쓰려면 정체 기준(분)이 필요하다. `now`는 `is_stale` 계산과 같은 시각."""
     conditions: list[ColumnElement[bool]] = [CallRecord.deleted_at.is_(None)]
     if query.from_:
         conditions.append(CallRecord.call_datetime >= kst_day_start(query.from_))
@@ -53,6 +60,11 @@ def filter_conditions(query: CallListQuery) -> list[ColumnElement[bool]]:
         conditions.append(CallRecord.status.in_(query.status))
     if query.metadata_incomplete is not None:
         conditions.append(CallRecord.metadata_incomplete.is_(query.metadata_incomplete))
+    if query.stale is not None:
+        if stale_threshold_min is None:
+            raise ValueError("stale 필터에는 stale_threshold_min이 필요합니다")
+        stale = stale_condition(stale_threshold_min, now)
+        conditions.append(stale if query.stale else not_(stale))
     if keyword := query.keyword:
         conditions.append(
             or_(
@@ -64,29 +76,49 @@ def filter_conditions(query: CallListQuery) -> list[ColumnElement[bool]]:
     return conditions
 
 
-def _filtered[T: tuple[Any, ...]](stmt: Select[T], query: CallListQuery) -> Select[T]:
+def _filtered[T: tuple[Any, ...]](
+    stmt: Select[T], query: CallListQuery, stale_threshold_min: int | None, now: datetime | None
+) -> Select[T]:
     # transcript·analysis는 call_id UNIQUE라 JOIN해도 행이 늘지 않는다 (COUNT 정확, DISTINCT 없음).
     stmt = stmt.outerjoin(Analysis, Analysis.call_id == CallRecord.id)
     if query.keyword:
         stmt = stmt.outerjoin(Transcript, Transcript.call_id == CallRecord.id)
-    return stmt.where(*filter_conditions(query))
+    return stmt.where(*filter_conditions(query, stale_threshold_min=stale_threshold_min, now=now))
 
 
 class CallRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list_calls(self, query: CallListQuery, *, offset: int, limit: int) -> Sequence[ListRow]:
+    def list_calls(
+        self,
+        query: CallListQuery,
+        *,
+        offset: int,
+        limit: int,
+        stale_threshold_min: int | None = None,
+        now: datetime | None = None,
+    ) -> Sequence[ListRow]:
         stmt = select(
             CallRecord, Analysis.category, Analysis.question_summary, Analysis.action_status
         ).select_from(CallRecord)
-        stmt = _filtered(stmt, query).order_by(*order_by_clause(query.sort))
+        stmt = _filtered(stmt, query, stale_threshold_min, now).order_by(
+            *order_by_clause(query.sort)
+        )
         result = self._session.execute(stmt.offset(offset).limit(limit))
         # outer join이라 분석 컬럼은 None일 수 있다 (매핑 타입보다 넓은 ListRow로 반환).
         return result.all()  # type: ignore[return-value]
 
-    def count_calls(self, query: CallListQuery) -> int:
-        stmt = _filtered(select(func.count()).select_from(CallRecord), query)
+    def count_calls(
+        self,
+        query: CallListQuery,
+        *,
+        stale_threshold_min: int | None = None,
+        now: datetime | None = None,
+    ) -> int:
+        stmt = _filtered(
+            select(func.count()).select_from(CallRecord), query, stale_threshold_min, now
+        )
         return self._session.execute(stmt).scalar_one()
 
     def get_call(self, call_id: int) -> CallRecord | None:

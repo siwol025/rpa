@@ -106,6 +106,24 @@ def test_multi_value_and_exact_match_filters() -> None:
     assert params["category_1"] == ["불만"]  # API 코드 → DB 저장 값
 
 
+@pytest.mark.parametrize(("stale", "prefix"), [(True, ""), (False, "NOT (")])
+def test_stale_filter_uses_stale_condition(stale: bool, prefix: str) -> None:
+    now = datetime(2026, 11, 25, 12, 0, tzinfo=KST)
+    compiled = and_(
+        *filter_conditions(CallListQuery(stale=stale), stale_threshold_min=30, now=now)
+    ).compile(dialect=_PG)
+    sql = str(compiled)
+
+    assert f"AND {prefix}call_record.deleted_at IS NULL" in sql
+    assert "call_record.status IN" in sql
+    assert datetime(2026, 11, 25, 11, 30, tzinfo=KST) in compiled.params.values()
+
+
+def test_stale_filter_requires_threshold() -> None:
+    with pytest.raises(ValueError, match="stale"):
+        filter_conditions(CallListQuery(stale=True))
+
+
 def test_from_after_to_raises_validation_error() -> None:
     with pytest.raises(AppError) as exc_info:
         CallListQuery(from_=date(2026, 11, 2), to=date(2026, 11, 1))

@@ -276,6 +276,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_stale": {
+            "title": "Is Stale",
+            "type": "boolean"
+          },
           "metadata_incomplete": {
             "title": "Metadata Incomplete",
             "type": "boolean"
@@ -330,6 +334,7 @@
           "status_changed_at",
           "retry_count",
           "created_at",
+          "is_stale",
           "transcript",
           "analysis",
           "processing_log"
@@ -413,6 +418,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_stale": {
+            "title": "Is Stale",
+            "type": "boolean"
+          },
           "metadata_incomplete": {
             "title": "Metadata Incomplete",
             "type": "boolean"
@@ -461,6 +470,7 @@
           "status_changed_at",
           "retry_count",
           "created_at",
+          "is_stale",
           "category",
           "question_summary",
           "action_status"
@@ -1639,6 +1649,22 @@
                 }
               ],
               "title": "Metadata Incomplete"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stale"
             }
           },
           {

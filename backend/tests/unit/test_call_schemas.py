@@ -21,6 +21,7 @@ _BASE: dict[str, Any] = {
     "status_changed_at": datetime(2026, 11, 23, 5, 30, 5, 999_999, tzinfo=UTC),
     "retry_count": 0,
     "created_at": datetime(2026, 11, 23, 5, 0, tzinfo=UTC),
+    "is_stale": False,
 }
 
 
