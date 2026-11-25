@@ -60,7 +60,7 @@ def test_max_length_counts_characters_after_strip(field: str, limit: int) -> Non
     assert _error({field: "가" * (limit + 1)})["type"] == "string_too_long"
 
 
-@pytest.mark.parametrize("key", ["category", "question_summary", "review_completed", "status"])
+@pytest.mark.parametrize("key", ["status", "confidence", "needs_review", "categry"])
 def test_unknown_keys_are_rejected(key: str) -> None:
     error = _error({"agent_name": "김상담", key: "x"})
 
@@ -108,6 +108,62 @@ def test_call_datetime_out_of_range_is_rejected(value: str) -> None:
 
 def test_call_datetime_empty_string_is_rejected() -> None:
     assert _error({"call_datetime": ""})["loc"] == ("call_datetime",)
+
+
+# ---------------------------------------------------------------- 분석 수정·검토 완료
+
+
+def test_analysis_changes_only_sent_keys_with_db_category() -> None:
+    request = CallUpdateRequest.model_validate(
+        {"category": "COMPLAINT", "question_summary": None, "agent_name": "김상담"}
+    )
+
+    assert request.analysis_changes() == {"category": "불만", "question_summary": None}
+    assert request.metadata_changes() == {"agent_name": "김상담"}
+
+
+def test_analysis_changes_strip_summaries_and_keep_action_status() -> None:
+    request = CallUpdateRequest.model_validate(
+        {"question_summary": " 문의 ", "action_summary": " 안내 ", "action_status": "DONE"}
+    )
+
+    assert request.analysis_changes() == {
+        "question_summary": "문의",
+        "action_summary": "안내",
+        "action_status": "DONE",
+    }
+
+
+def test_empty_body_has_no_analysis_changes_and_no_review() -> None:
+    request = CallUpdateRequest.model_validate({})
+
+    assert request.analysis_changes() == {}
+    assert request.review_completed is None
+
+
+@pytest.mark.parametrize("field", ["category", "action_status", "review_completed"])
+def test_non_clearable_fields_reject_null(field: str) -> None:
+    assert _error({field: None})["loc"] == (field,)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("category", "질의"), ("category", "inquiry"), ("action_status", "CLOSED")],
+)
+def test_enum_fields_reject_unknown_values(field: str, value: str) -> None:
+    assert _error({field: value})["type"] == "enum"
+
+
+def test_review_completed_accepts_only_true() -> None:
+    assert CallUpdateRequest.model_validate({"review_completed": True}).review_completed is True
+    assert _error({"review_completed": False})["loc"] == ("review_completed",)
+
+
+@pytest.mark.parametrize("field", ["question_summary", "action_summary"])
+def test_summary_blank_and_too_long_are_rejected(field: str) -> None:
+    assert _error({field: "  "})["type"] == "string_too_short"
+    CallUpdateRequest.model_validate({field: "가" * 2000})
+    assert _error({field: "가" * 2001})["type"] == "string_too_long"
 
 
 # ---------------------------------------------------------------- metadata_incomplete 판정

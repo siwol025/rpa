@@ -47,59 +47,57 @@ def _assert_unchanged(db: Session, call: CallRecord, status: CallStatus, retry_c
 
 
 @pytest.mark.parametrize("src", [S.FAILED, S.NEEDS_REVIEW, S.STORED])
-def test_retry_finished_call_is_accepted(api: TestClient, db_session: Session, src: S) -> None:
-    call = make_call_record(db_session, status=src, status_changed_at=_ago(FRESH))
+def test_retry_finished_call_is_accepted(api: TestClient, db: Session, src: S) -> None:
+    call = make_call_record(db, status=src, status_changed_at=_ago(FRESH))
     before = datetime.now(UTC)
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.status_code == 202
     assert response.json() == {"call_id": call.id, "status": "RETRY_REQUESTED", "retry_count": 1}
-    db_session.refresh(call)
+    db.refresh(call)
     assert call.status == S.RETRY_REQUESTED
     assert call.status_changed_at >= before
-    logs = _logs(db_session, call.id)
+    logs = _logs(db, call.id)
     assert [(log.step, log.status, log.message) for log in logs] == [
         ("RETRY", "RETRY", f"[web] {src} -> RETRY_REQUESTED")
     ]
 
 
 @pytest.mark.parametrize("src", [S.REGISTERED, S.QUEUED, S.STT_DONE])
-def test_retry_stale_processing_call_is_accepted(
-    api: TestClient, db_session: Session, src: S
-) -> None:
-    call = make_call_record(db_session, status=src, status_changed_at=_ago(STALE))
+def test_retry_stale_processing_call_is_accepted(api: TestClient, db: Session, src: S) -> None:
+    call = make_call_record(db, status=src, status_changed_at=_ago(STALE))
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.status_code == 202
     assert response.json() == {"call_id": call.id, "status": "RETRY_REQUESTED", "retry_count": 1}
-    assert len(_logs(db_session, call.id)) == 1
-    db_session.refresh(call)
+    assert len(_logs(db, call.id)) == 1
+    db.refresh(call)
     assert call.status == S.RETRY_REQUESTED
 
 
-def test_retry_count_accumulates(api: TestClient, db_session: Session) -> None:
-    call = make_call_record(db_session, status=S.FAILED, retry_count=2)
+def test_retry_count_accumulates(api: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.FAILED, retry_count=2)
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.json()["retry_count"] == 3
-    db_session.refresh(call)
+    db.refresh(call)
     assert call.retry_count == 3  # 상태 머신이 한 번만 올린다 (웹에서 다시 올리지 않음)
 
 
-def test_retry_does_not_write_edit_history(api: TestClient, db_session: Session) -> None:
-    call = make_call_record(db_session, status=S.FAILED)
+def test_retry_does_not_write_edit_history(api: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.FAILED)
 
     api.post(f"/api/calls/{call.id}/retry")
 
-    edits = db_session.scalars(select(EditHistory).where(EditHistory.call_id == call.id))
+    edits = db.scalars(select(EditHistory).where(EditHistory.call_id == call.id))
     assert list(edits) == []
 
 
-def test_retry_is_visible_in_call_detail(api: TestClient, db_session: Session) -> None:
-    call = make_call_record(db_session, status=S.STORED)
+def test_retry_is_visible_in_call_detail(api: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.STORED)
 
     api.post(f"/api/calls/{call.id}/retry")
     detail = api.get(f"/api/calls/{call.id}").json()
@@ -114,8 +112,8 @@ def test_retry_is_visible_in_call_detail(api: TestClient, db_session: Session) -
 
 
 @pytest.mark.parametrize("src", [S.REGISTERED, S.QUEUED, S.STT_DONE])
-def test_retry_fresh_processing_call_is_409(api: TestClient, db_session: Session, src: S) -> None:
-    call = make_call_record(db_session, status=src, status_changed_at=_ago(FRESH))
+def test_retry_fresh_processing_call_is_409(api: TestClient, db: Session, src: S) -> None:
+    call = make_call_record(db, status=src, status_changed_at=_ago(FRESH))
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
@@ -123,16 +121,16 @@ def test_retry_fresh_processing_call_is_409(api: TestClient, db_session: Session
     body = response.json()
     assert body["code"] == "INVALID_STATE_TRANSITION"
     assert body["detail"] == {"current_status": src, "requested_status": "RETRY_REQUESTED"}
-    _assert_unchanged(db_session, call, src, 0)
+    _assert_unchanged(db, call, src, 0)
 
 
 @pytest.mark.parametrize("minutes", [FRESH, STALE], ids=["fresh", "stale"])
 def test_retry_already_requested_is_409_even_if_stale(
-    api: TestClient, db_session: Session, minutes: int
+    api: TestClient, db: Session, minutes: int
 ) -> None:
     # 임시 가드: 상태 머신은 정체된 RETRY_REQUESTED의 재요청을 허용하지만 이 API는 막는다.
     call = make_call_record(
-        db_session, status=S.RETRY_REQUESTED, status_changed_at=_ago(minutes), retry_count=1
+        db, status=S.RETRY_REQUESTED, status_changed_at=_ago(minutes), retry_count=1
     )
 
     response = api.post(f"/api/calls/{call.id}/retry")
@@ -142,20 +140,20 @@ def test_retry_already_requested_is_409_even_if_stale(
         "current_status": "RETRY_REQUESTED",
         "requested_status": "RETRY_REQUESTED",
     }
-    _assert_unchanged(db_session, call, S.RETRY_REQUESTED, 1)
+    _assert_unchanged(db, call, S.RETRY_REQUESTED, 1)
 
 
-def test_retry_twice_second_is_409(api: TestClient, db_session: Session) -> None:
-    call = make_call_record(db_session, status=S.FAILED)
+def test_retry_twice_second_is_409(api: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.FAILED)
 
     first = api.post(f"/api/calls/{call.id}/retry")
     second = api.post(f"/api/calls/{call.id}/retry")
 
     assert first.status_code == 202
     assert second.status_code == 409
-    db_session.refresh(call)
+    db.refresh(call)
     assert call.retry_count == 1
-    assert len(_logs(db_session, call.id)) == 1
+    assert len(_logs(db, call.id)) == 1
 
 
 def test_retry_missing_call_is_404(api: TestClient) -> None:
@@ -169,13 +167,13 @@ def test_retry_missing_call_is_404(api: TestClient) -> None:
     }
 
 
-def test_retry_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
-    call = make_call_record(db_session, status=S.FAILED, deleted_at=_ago(FRESH))
+def test_retry_deleted_call_is_404(api: TestClient, db: Session) -> None:
+    call = make_call_record(db, status=S.FAILED, deleted_at=_ago(FRESH))
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.status_code == 404
-    _assert_unchanged(db_session, call, S.FAILED, 0)
+    _assert_unchanged(db, call, S.FAILED, 0)
 
 
 # ---------------------------------------------------------------- 잠금 읽기 순서 (식별자 맵)
@@ -186,34 +184,30 @@ def _change_row_behind_session(db: Session, call_id: int, **values: object) -> N
     db.connection().execute(update(CallRecord).where(CallRecord.id == call_id).values(**values))
 
 
-def test_guard_reads_current_row_not_stale_session_object(
-    api: TestClient, db_session: Session
-) -> None:
+def test_guard_reads_current_row_not_stale_session_object(api: TestClient, db: Session) -> None:
     # 세션 객체는 FAILED지만 DB는 이미 정체된 RETRY_REQUESTED다.
-    call = make_call_record(db_session, status=S.FAILED, retry_count=1)
-    _change_row_behind_session(
-        db_session, call.id, status=S.RETRY_REQUESTED, status_changed_at=_ago(STALE)
-    )
+    call = make_call_record(db, status=S.FAILED, retry_count=1)
+    _change_row_behind_session(db, call.id, status=S.RETRY_REQUESTED, status_changed_at=_ago(STALE))
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.status_code == 409
     assert response.json()["detail"]["current_status"] == "RETRY_REQUESTED"
-    _assert_unchanged(db_session, call, S.RETRY_REQUESTED, 1)
+    _assert_unchanged(db, call, S.RETRY_REQUESTED, 1)
 
 
 def test_stale_judgement_uses_current_row_not_stale_session_object(
-    api: TestClient, db_session: Session
+    api: TestClient, db: Session
 ) -> None:
     # 세션 객체는 방금 바뀐 QUEUED지만 DB의 status_changed_at은 정체 기준을 넘었다.
-    call = make_call_record(db_session, status=S.QUEUED, status_changed_at=_ago(FRESH))
-    _change_row_behind_session(db_session, call.id, status_changed_at=_ago(STALE))
+    call = make_call_record(db, status=S.QUEUED, status_changed_at=_ago(FRESH))
+    _change_row_behind_session(db, call.id, status_changed_at=_ago(STALE))
 
     response = api.post(f"/api/calls/{call.id}/retry")
 
     assert response.status_code == 202
     assert response.json()["retry_count"] == 1
-    db_session.refresh(call)
+    db.refresh(call)
     assert call.status == S.RETRY_REQUESTED
 
 
@@ -221,18 +215,18 @@ def test_stale_judgement_uses_current_row_not_stale_session_object(
 
 
 @pytest.fixture
-def api_threshold_5(db_session: Session) -> Iterator[TestClient]:
+def api_threshold_5(db: Session) -> Iterator[TestClient]:
     app = create_app(Settings(_env_file=None, stale_threshold_min=5))
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db] = lambda: db
     with TestClient(app) as client:
         yield client
 
 
 def test_stale_threshold_comes_from_app_settings(
-    api: TestClient, api_threshold_5: TestClient, db_session: Session
+    api: TestClient, api_threshold_5: TestClient, db: Session
 ) -> None:
-    rejected = make_call_record(db_session, status=S.QUEUED, status_changed_at=_ago(10))
-    accepted = make_call_record(db_session, status=S.QUEUED, status_changed_at=_ago(10))
+    rejected = make_call_record(db, status=S.QUEUED, status_changed_at=_ago(10))
+    accepted = make_call_record(db, status=S.QUEUED, status_changed_at=_ago(10))
 
     assert api.post(f"/api/calls/{rejected.id}/retry").status_code == 409  # 기본 30분
     assert api_threshold_5.post(f"/api/calls/{accepted.id}/retry").status_code == 202  # 5분

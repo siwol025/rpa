@@ -58,6 +58,8 @@
 
 메타데이터 보정(담당자·고객사·통화 일시, `PATCH /api/calls/{id}`)과 삭제(`DELETE /api/calls/{id}`)는 처리 상태와 관계없이 허용한다(삭제는 상태를 바꾸지 않는 소프트 삭제). 두 요청은 대상 행을 잠그고(`SELECT ... FOR UPDATE`) 한 트랜잭션으로 처리한다.
 
+같은 PATCH의 분석 수정(`category`·`question_summary`·`action_summary`·`action_status`)은 분석 결과가 있는 건이면 상태와 관계없이 허용하고, 분석 결과가 없으면 409다. 재처리로 분석이 다시 적재되면 수정값은 덮어써진다(수정 이력은 남음). 검토 완료(`review_completed: true`, `true`만 허용)는 `NEEDS_REVIEW → STORED` 전이이며 그 밖의 상태(이미 `STORED` 포함)는 409다. 검토 완료 시 `analysis.needs_review`도 `false`가 된다. 409는 어떤 값도 바꾸기 전에 나므로 한 요청에 섞어 보낸 메타데이터·분석 수정도 반영되지 않는다.
+
 ### 2.3 본문 규칙
 1. 상태를 바꾸는 동작 API는 결과 상태를 돌려준다(`{call_id, status}`). 웹은 재조회 없이 화면을 갱신하고, 로봇은 결과를 로그에 남긴다.
 2. 식별자 키: 리소스 자체의 식별자는 `id`(웹 목록·상세), 다른 리소스를 가리키거나 동작 결과로 돌려주는 식별자는 `call_id`.
@@ -167,10 +169,10 @@
 ### 5.2 null과 빈 값
 - 값이 없는 필드는 생략하지 않고 `null`로 보낸다. 빈 목록은 `[]`.
 - 처리 전이라 없는 하위 객체(상세의 `transcript`·`analysis`)는 `null`, 로그는 `[]`.
-- PATCH는 보낸 키만 변경한다. `null`은 값 비우기이며 비울 수 있는 필드에만 허용한다(코드: `model_dump(exclude_unset=True)`).
+- PATCH는 보낸 키만 변경한다. `null`은 값 비우기이며 비울 수 있는 필드에만 허용한다(코드: `model_dump(exclude_unset=True)`). `PATCH /api/calls/{id}`에서 `category`·`action_status`·`review_completed`는 `null` 불가(422 `not_nullable`).
 - 문자열 입력은 앞뒤 공백을 지운 뒤 검사한다. 지운 결과가 빈 값이면 422(`string_too_short`)다. 값 비우기는 `null` 한 가지로만 표현한다.
 - PATCH 요청 모델은 선언하지 않은 키를 받지 않는다(422 `extra_forbidden`, `loc: ["body", "<키>"]`). 필드는 선택 필드로 추가한다(호환 변경).
-- 수정·삭제는 `edit_history`에 남긴다: 실제로 바뀐 필드마다 1행(같은 값 재전송은 기록하지 않음), 값은 문자열(시각은 응답과 같은 초 단위 `+09:00`). 파생 값(`metadata_incomplete`)은 기록하지 않는다. 삭제는 `field: "deleted_at"` 1행이다. 수정자 이름은 선택 입력(공백 제거 후 1~50자)으로 PATCH는 본문 `editor`, DELETE는 쿼리 `?editor=`로 받는다. 로그인이 없으므로 자기 신고 값이다.
+- 수정·삭제는 `edit_history`에 남긴다: 실제로 바뀐 필드마다 1행(같은 값 재전송은 기록하지 않음), 값은 문자열(시각은 응답과 같은 초 단위 `+09:00`). 파생 값(`metadata_incomplete`·`needs_review`)은 기록하지 않는다. 유형(`category`)은 DB 저장 값으로 기록한다. 검토 완료는 `field: "status"`(`NEEDS_REVIEW` → `STORED`) 1행이다. 삭제는 `field: "deleted_at"` 1행이다. 수정자 이름은 선택 입력(공백 제거 후 1~50자)으로 PATCH는 본문 `editor`, DELETE는 쿼리 `?editor=`로 받는다. 로그인이 없으므로 자기 신고 값이다.
 
 ### 5.3 enum
 - 값은 영문 대문자 상수다. OpenAPI `enum`으로 노출한다.
