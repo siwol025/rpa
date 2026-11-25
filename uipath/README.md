@@ -62,24 +62,16 @@ Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`�
 - 폴더 아래에 `Runtime\out`(입력 JSON), `Runtime\processing`, `Runtime\out\processed`, `Runtime\out\error`, `Runtime\report`, `Runtime\template`이 있어야 한다. `Runtime\template`만 저장소에 올라가고 나머지는 실행 중에 쓰는 폴더라 올라가지 않는다(`.gitignore`). 처음 받았으면 빈 폴더를 만들고 `samples\test_cases\*.json`을 `Runtime\out`에 복사해 시험한다.
 
 ## ③(STT·GenAI)과 폴더 연결
-기본 설정(`Config/config.json`)은 ③의 폴더를 **그대로 함께 씁니다**(같은 폴더). 저장소를 받은 PC에서는 상대 경로라 그대로 동작합니다. 값은 `Config/config.stt.json`과 같습니다.
+운영 흐름(`Main_Audio.xaml`)에서 음성은 아래 순서로 ③에 전달되고, ③의 결과 JSON을 ④가 찾아 서버에 적재합니다.
 
-| 설정 | 가리키는 폴더 (`<저장소>\` 기준) | ③의 이름 |
-|---|---|---|
-| `processingFolder` | `stt\uipath\calls\in` | 입력 `in` |
-| `doneFolder` | `stt\uipath\calls\done` | `done` |
-| `failedFolder` | `stt\uipath\calls\failed` | `failed` |
-| `outFolder` | `stt\uipath\calls\out` | 결과 JSON `out` |
-| `processedFolder` / `errorFolder` | `stt\uipath\calls\out\processed` / `...\error` | (④가 처리한 JSON을 옮기는 곳) |
-
-흐름:
-1. `Flow_DispatcherAudio`가 inbox의 음성을 `processing`(= ③ `calls\in`)으로 옮기고(선점) 서버 등록(R-04)·큐 등록·QUEUED 보고(R-05)를 합니다.
-2. ③(`stt/uipath/Main.xaml` → `Main_Folder`)이 `calls\in`의 음성을 처리해 결과 JSON을 `calls\out`에 쓰고, 음성을 `done`/`failed`로 옮깁니다(결과 상태가 SUCCESS·NEEDS_REVIEW면 `done`, FAILED면 `failed` — ④ Performer와 같은 규칙).
-3. `Flow_PerformerAudio`가 `source.file_name`이 음성 파일명과 같은 결과를 `outFolder`에서 찾아 R-06·R-07로 보냅니다. ③이 이미 음성을 옮겼어도 Performer의 음성 이동은 `ContinueOnError=True`라 오류 없이 지나가고, 최종 위치는 같습니다. 처리한 JSON은 `out\processed`로 옮겨 같은 이름의 오래된 결과와 섞이지 않게 합니다.
-- Dispatcher의 `5. ③ 입력 폴더로 음성 복사` 단계는 복사 대상이 `processing`과 같은 폴더면 **자동으로 건너뜁니다**. `processing`을 ④ 자체 폴더(`Runtime\processing`)로 쓰면 이 단계가 음성 사본을 `STT_INPUT_DIR`(없으면 `<저장소>\stt\uipath\calls\in`)에 복사하고, 같은 이름이 있으면 덮어쓰지 않습니다.
-- 다른 폴더를 쓰려면 ③의 `stt\config.json`에 `paths`(입출력 폴더)를 넣고 이 `Config/config.json`의 같은 항목을 같은 값으로 맞춥니다(`stt/uipath/README.md`의 "입출력 폴더를 설정으로 바꾸기").
-- ③이 결과를 만들기 전에 Performer가 돌면 시스템 오류 → 큐 재시도가 됩니다. ③ 실행 주기와 큐 재시도 횟수, `staleMinutes`(30분)를 맞추세요.
-- 옛 JSON 폴더 흐름(`Main.xaml`, `Flow_Dispatcher/Performer`)과 시험 샘플(`Runtime\out`의 7종)은 `outFolder`가 ③의 폴더라 그 폴더를 더는 읽지 않습니다. 시험하려면 `outFolder`를 `Runtime\out`으로 되돌리세요.
+1. `Flow_DispatcherAudio`가 inbox의 음성을 `processing`으로 옮기고(선점) 서버 등록(R-04)·큐 등록·QUEUED 보고(R-05)를 마치면, **음성 사본을 ③의 입력 폴더로 복사**합니다.
+   - 복사 위치: 환경변수 `STT_INPUT_DIR`가 있으면 그 폴더, 없으면 저장소 기준 `..\stt\uipath\calls\in`(= `<저장소>\stt\uipath\calls\in`).
+   - 같은 이름이 이미 있으면 **덮어쓰지 않습니다**(중복 처리 방지). 복사에 실패해도 등록·큐는 유지하고 경고 로그만 남깁니다.
+   - ③은 자기 입력 폴더의 **사본**만 `done`/`failed`로 옮기므로, ④의 `processing` 원본은 Performer만 정리합니다(같은 파일을 둘이 옮기지 않음).
+2. ③(`stt/uipath/Main.xaml` → `Main_Folder`)이 사본을 처리해 결과 JSON을 `calls\out`에 씁니다.
+3. `Config/config.json`의 `outFolder`가 ③의 결과 폴더(`..\stt\uipath\calls\out`)를 가리키므로, `Flow_PerformerAudio`가 `source.file_name`이 음성 파일명과 같은 결과를 거기서 찾습니다. 처리한 JSON은 `Runtime\out\processed`로 옮겨 같은 이름의 오래된 결과와 섞이지 않게 합니다.
+- 다른 폴더를 쓰려면 ③의 `stt\config.json`에 `paths`(입출력 폴더)를 넣고 `STT_INPUT_DIR`와 이 `outFolder`를 같은 값으로 맞춥니다(자세한 방법은 `stt/uipath/README.md`의 "입출력 폴더를 설정으로 바꾸기").
+- 옛 JSON 폴더 흐름(`Main.xaml`, `Flow_Dispatcher/Performer`)과 시험 샘플(`Runtime\out`의 7종)은 `outFolder`가 바뀌면 그 폴더를 더는 읽지 않습니다. 시험하려면 `outFolder`를 `Runtime\out`으로 되돌리세요.
 
 ## 서버(백엔드) 연동 시험
 샘플 음성 3개와 결과 JSON 3개를 서버에 보내 정상·확인필요·실패 경로를 확인한다.
