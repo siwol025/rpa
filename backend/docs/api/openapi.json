@@ -2241,6 +2241,80 @@
         ]
       }
     },
+    "/api/reports/excel": {
+      "get": {
+        "description": "기간 안의 상담을 RPA 파트 보고서 양식에 채워 내려준다. 피벗·차트는 열 때 갱신된다.",
+        "operationId": "download_excel_report",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            },
+            "description": "엑셀 보고서 파일"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Download Excel Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/robot/calls": {
       "get": {
         "description": "다음 Dispatcher 주기에 다시 Queue에 넣을 재처리 요청 건 (오래 기다린 순, 최대 100건).",
