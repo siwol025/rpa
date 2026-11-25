@@ -482,16 +482,18 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph VM["사내 VM (Docker Compose)"]
+        W[web :8080<br/>nginx: 프론트 정적 파일<br/>/api → api 프록시, /api/robot 차단]
         A[api :8000<br/>uvicorn workers=2~4<br/>업로드 용량 제한·로봇 IP 확인]
         P[(postgres :5432<br/>내부 네트워크만)]
         V[(volume: /data/audio<br/>음성 사본)]
         K[[secret: 서비스 계정 키]]
         BK[backup cron<br/>pg_dump]
     end
-    FW{{VM 방화벽<br/>8000 포트: 사내망·로봇 PC만}}
+    FW{{VM 방화벽<br/>8080: 사내망 · 8000: 로봇 PC}}
     Robot[Robot PC<br/>Dispatcher · Performer] --> FW
     Users[사내 PC] --> FW
-    FW --> A --> P
+    FW -->|8080| W --> A
+    FW -->|8000| A --> P
     A --> V
     A -. 읽기 .-> K
     A -->|HTTPS 아웃바운드| GD[[Google Drive<br/>공유 드라이브 inbox/]]
@@ -500,11 +502,12 @@ flowchart TB
 ```
 
 - PostgreSQL 포트는 외부에 노출하지 않음
-- 리버스 프록시(Nginx) 없이 Uvicorn을 직접 노출한다. Nginx가 하던 역할은 다음으로 대체 (`back_stack.md` §6.1)
+- 웹 화면은 `web`(nginx)이 프론트 빌드 결과를 서빙하고 `/api/*`를 `api`로 넘긴다. 화면과 API가 같은 주소이므로 `CORS_ORIGINS`는 비워 둔다. `web`은 `/api/robot/*`를 404로 막고, 로봇은 `api`(8000)를 직접 부른다.
+- nginx는 정적 파일 서빙·프록시만 맡는다. 보안·제한은 api와 방화벽에서 처리한다 (`back_stack.md` §6.1)
   - IP 허용 목록 → VM 방화벽 + `/api/robot/*` IP 확인 미들웨어
-  - 업로드 용량 제한 → 앱에서 `MAX_UPLOAD_MB` 초과 시 413
+  - 업로드 용량 제한 → 앱에서 `MAX_UPLOAD_MB` 초과 시 413 (nginx는 크기 제한을 두지 않는다)
   - HTTPS → 사내망 HTTP 기본, 필요 시 Uvicorn SSL 옵션 **[결정 필요]**
-- 인바운드는 사내 PC와 로봇 PC → API(8000)뿐. **외부(Orchestrator Cloud 등)에서 백엔드로 들어오는 트래픽 없음**
+- 인바운드는 사내 PC → web(8080), 로봇 PC → api(8000)뿐. **외부(Orchestrator Cloud 등)에서 백엔드로 들어오는 트래픽 없음**
 - 아웃바운드는 Google Drive API(HTTPS)만 허용
 - 서비스 계정 키(JSON)는 Docker secret 또는 읽기 전용 볼륨으로 주입, 이미지·Git에 포함 금지
 - Phase 1(MVP)은 웹 업로드가 없으므로 서비스 계정 없이 시작 가능 (`INBOX_BACKEND=disabled`)
@@ -535,7 +538,7 @@ flowchart TB
 | `ROBOT_ALLOWED_IPS` | `/api/robot/*` 호출 허용 IP (로봇 PC) |
 | `ALLOWED_EXTENSIONS` | 웹 업로드 허용 확장자(쉼표 구분, 기본 `wav,mp3`). 내용 판정 규칙이 있는 형식만 가능(그 밖의 값은 시작 실패) |
 | `STALE_THRESHOLD_MIN` | 정체 감지 기준(분) |
-| `CORS_ORIGINS` | 프론트 주소 |
+| `CORS_ORIGINS` | 프론트 주소. 운영 compose는 `web`이 같은 주소로 프록시하므로 비워 둔다 |
 | `LOG_LEVEL` | 로그 레벨 `DEBUG` \| `INFO`(기본) \| `WARNING` \| `ERROR` |
 | `DOCS_ENABLED` | `/docs`·`/redoc`·`/openapi.json` 노출 (기본 `true`, 운영 `false`) |
 

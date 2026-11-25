@@ -1,4 +1,4 @@
-# 운영용: api + PostgreSQL 16 (데이터 볼륨, 재시작 정책)
+# 운영용: web(프론트 nginx) + api + PostgreSQL 16 (데이터 볼륨, 재시작 정책)
 # 준비: cp deploy/.env.example deploy/.env 후 값을 채운다 (.env 는 Git 에 커밋하지 않는다)
 # 실행: docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 # 배포 절차·방화벽·동작 확인: deploy/README.md
@@ -45,6 +45,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+    restart: unless-stopped
+    # 웹 화면과 /api 를 같은 주소로 제공하므로 CORS 설정이 필요 없다.
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
   db:
     image: postgres:16
