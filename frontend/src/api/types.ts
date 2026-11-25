@@ -1,6 +1,7 @@
 /*
  * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), openapi.json, architecture.md §5·§7.
- * 목록·상세(GET /calls, GET /calls/{id})와 통계 추이·분류(GET /stats/trend, /stats/breakdown)는 openapi.json과 대조했다 (main 7e3eab1).
+ * 목록·상세(GET /calls, GET /calls/{id}), 통계 추이·분류(GET /stats/trend, /stats/breakdown), 업로드(POST /uploads),
+ * 메타데이터 보정(PATCH), 삭제(DELETE), 재처리(POST retry), 음성(GET audio)은 openapi.json과 대조했다 (main ef6ccee).
  *
  * [확인 필요] 아직 API가 없어 임시로 정한 것. 회신이 다르면 여기와 src/mocks/, 그 값을 쓰는 화면을 고친다.
  *  1. 검토 완료를 알리는 필드(CallPatch.review_completed)
@@ -76,6 +77,7 @@ export interface CallDetail extends CallBase {
   processing_log: ProcessingLog[]
 }
 
+/** 서버는 지금 agent_name, client_company, call_datetime, editor만 받는다. 나머지는 분석 수정(W-03)에서 추가된다 */
 export interface CallPatch {
   category?: Category
   question_summary?: string
@@ -131,14 +133,20 @@ export interface Period {
   to?: string
 }
 
+/** null: 통계 요약 API가 없는 서버에서는 셀 수 없는 값 (fetchSummary) */
 export interface StatsSummary {
   total: number
   by_category: Record<string, number>
-  action_open: number
+  action_open: number | null
   needs_review: number
   metadata_incomplete: number
   failed: number
-  stale: number
+  stale: number | null
+}
+
+/** POST /uploads. name: 저장된 이름 (등록 후 목록의 original_name) */
+export interface UploadResult {
+  items: { name: string }[]
 }
 
 export type Granularity = 'day' | 'week' | 'month'

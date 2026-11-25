@@ -37,11 +37,39 @@ describe('대시보드', () => {
     expect(await within(panel('기간별 추이')).findByRole('img')).toBeInTheDocument()
   })
 
-  it('요약 API가 아직 없어도 나머지 통계는 보인다', async () => {
-    server.use(http.get('*/api/stats/summary', () => HttpResponse.json({ code: 'NOT_FOUND', message: '대상을 찾을 수 없습니다.', detail: null }, { status: 404 })))
-    renderWithProviders(<App />, { route: '/' })
-    expect(await within(panel('기간별 추이')).findByRole('img')).toBeInTheDocument()
-    expect(await within(panel('담당자별 현황')).findByText('김상담')).toBeInTheDocument()
+  describe('통계 요약 API가 아직 없는 서버', () => {
+    const noSummary = () =>
+      server.use(http.get('*/api/stats/summary', () => HttpResponse.json({ code: 'NOT_FOUND', message: '대상을 찾을 수 없습니다.', detail: null }, { status: 404 })))
+
+    it('목록·분류 API로 셀 수 있는 지표는 같은 값으로 보이고, 나머지는 - 로 보인다', async () => {
+      noSummary()
+      await open('/?from=2026-11-10&to=2026-11-24')
+      for (const [name, n] of [['총 건수', 26], ['검토 필요', 2], ['메타데이터 확인 필요', 1], ['실패', 2]] as const) {
+        expect(kpi(name)).toHaveTextContent(`${name}${n}건`)
+      }
+      for (const name of ['미조치', '정체']) expect(kpi(name)).toHaveTextContent(new RegExp(`^${name}-$`))
+      expect(screen.getByText('미조치와 정체는 서버의 통계 요약이 준비되면 보여요')).toBeInTheDocument()
+      expect(within(panel('유형별 건수')).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['질의7건', '불만5건', '건의2건', '교육 내용3건', '기타 문의2건'])
+      expect(screen.queryByText(/처리가 멈춘 상담/)).not.toBeInTheDocument()
+    })
+
+    it('대신 조회하던 것도 실패하면 오류를 보여준다', async () => {
+      noSummary()
+      server.use(http.get('*/api/calls', () => HttpResponse.json({ code: 'VALIDATION_ERROR', message: '요청 형식이 올바르지 않습니다.', detail: null }, { status: 422 })))
+      renderWithProviders(<App />, { route: '/' })
+      expect((await screen.findAllByText('요청 형식이 올바르지 않습니다.')).length).toBeGreaterThan(0)
+    })
+
+    it('404가 아닌 오류는 대신 조회하지 않고 그대로 보여준다', async () => {
+      server.use(http.get('*/api/stats/summary', () => HttpResponse.json({ code: 'VALIDATION_ERROR', message: '요약 오류', detail: null }, { status: 422 })))
+      renderWithProviders(<App />, { route: '/' })
+      expect((await screen.findAllByText('요약 오류')).length).toBeGreaterThan(0)
+    })
+  })
+
+  it('요약이 있으면 안내 문구가 없다', async () => {
+    await open()
+    expect(screen.queryByText(/통계 요약이 준비되면/)).not.toBeInTheDocument()
   })
 
   it('정체 경고에서 정체 목록으로 간다', async () => {

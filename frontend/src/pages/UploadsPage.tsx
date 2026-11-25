@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMonitor, useRetryCall } from '../api/calls'
-import { uploadFile } from '../api/uploads'
+import { uploadFile, uploadProblem } from '../api/uploads'
 import { PAGE_SIZE_MAX, type CallListItem } from '../api/types'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState } from '../components/ErrorState'
@@ -40,10 +40,10 @@ function Uploader() {
       if (item.state === 'failed') continue
       queue.current = queue.current.then(async () => {
         try {
-          await uploadFile(file)
-          update(item.key, { state: 'done', message: '접수됨, 처리 대기' })
+          const name = await uploadFile(file)
+          update(item.key, { state: 'done', name, message: '접수됨, 처리 대기' })
         } catch (e) {
-          update(item.key, { state: 'failed', message: (e as Error).message })
+          update(item.key, { state: 'failed', message: uploadProblem(e as Error) })
         }
       })
     }

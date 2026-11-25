@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
 import App from '../App'
@@ -143,6 +143,26 @@ describe('상담 상세: 보기', () => {
     expect(within(header()).queryByText('정체')).not.toBeInTheDocument()
   })
 
+  it('로봇이 남긴 이력을 한글로 보여준다', async () => {
+    server.use(
+      http.get('*/api/calls/1', () =>
+        HttpResponse.json({ ...call(1), processing_log: [{ step: 'STT', status: 'SUCCESS', message: '[robot] QUEUED -> STT_DONE', created_at: '2026-11-10T09:20:00+09:00' }] }),
+      ),
+    )
+    await openDetail(1)
+    expect(within(screen.getByRole('region', { name: '처리 이력' })).getByText('로봇: 처리 대기 → 전사 완료')).toBeInTheDocument()
+  })
+
+  it('음성을 불러오지 못하면 안내하고, 다시 재생할 수 있게 되면 지운다', async () => {
+    await openDetail(1)
+    const audio = screen.getByLabelText('원본 음성 재생')
+    expect(screen.queryByText(/음성을 불러오지 못했어요/)).not.toBeInTheDocument()
+    fireEvent.error(audio)
+    expect(screen.getByText('음성을 불러오지 못했어요. 음성 파일이 없거나 서버에 문제가 있을 수 있어요.')).toBeInTheDocument()
+    fireEvent.loadedMetadata(audio)
+    expect(screen.queryByText(/음성을 불러오지 못했어요/)).not.toBeInTheDocument()
+  })
+
   it('모르는 처리 단계와 결과도 그대로 보여준다', async () => {
     server.use(
       http.get('*/api/calls/1', () =>
@@ -259,6 +279,32 @@ describe('상담 상세: 수정', () => {
     expect(screen.queryByRole('button', { name: '검토 완료' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['extra_forbidden', ['body', 'category'], '유형, 요약, 조치, 검토 완료는 아직 서버에 저장할 수 없어요. 담당자, 고객사, 통화 일시만 바꿔서 저장해 주세요'],
+    ['datetime_range', ['body', 'call_datetime'], '통화 일시는 2000년부터 2100년까지 입력할 수 있어요'],
+  ])('서버가 받지 않는 값이면 무엇이 문제인지 알려준다: %s', async (type, loc, message) => {
+    server.use(
+      http.patch('*/api/calls/2', () =>
+        HttpResponse.json({ code: 'VALIDATION_ERROR', message: '요청 형식이 올바르지 않습니다.', detail: { errors: [{ loc, msg: 'x', type }] } }, { status: 422 }),
+      ),
+    )
+    await openDetail(2)
+    await userEvent.type(screen.getByLabelText('담당자'), 'A')
+    await userEvent.click(button('저장'))
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(button('저장')).toBeEnabled()
+  })
+
+  it('저장한 뒤에는 앞뒤 공백 때문에 다시 저장할 것이 남지 않는다', async () => {
+    const sent = await capturePatch(2)
+    await openDetail(2)
+    await userEvent.type(screen.getByLabelText('담당자'), 'A ')
+    await userEvent.click(button('저장'))
+    expect(await screen.findByText('저장했어요')).toBeInTheDocument()
+    expect(sent).toEqual([{ agent_name: `${call(2).agent_name}A` }])
+    expect(button('저장')).toBeDisabled()
+  })
+
   it('저장에 실패하면 이유를 보여주고 입력을 지우지 않는다', async () => {
     server.use(http.patch('*/api/calls/2', () => HttpResponse.json({ code: 'VALIDATION_ERROR', message: '요청 형식이 올바르지 않습니다.', detail: null }, { status: 422 })))
     await openDetail(2)
@@ -310,6 +356,25 @@ describe('상담 상세: 재처리와 삭제', () => {
     await openDetail(21)
     await userEvent.click(button('재처리 요청'))
     expect(await screen.findByRole('alert')).toHaveTextContent('현재 상태에서 허용되지 않는 요청입니다.')
+  })
+
+  it.each([
+    [' 홍길동 ', '?editor=%ED%99%8D%EA%B8%B8%EB%8F%99'],
+    ['   ', ''],
+  ])('삭제한 사람 이름을 적으면 함께 보낸다 (%j)', async (typed, query) => {
+    let sent = 'none'
+    server.use(
+      http.delete('*/api/calls/1', ({ request }) => {
+        sent = new URL(request.url).search
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    await openDetail(1)
+    await userEvent.click(button('삭제'))
+    await userEvent.type(screen.getByLabelText('삭제하는 사람 (선택)'), typed)
+    await userEvent.click(within(screen.getByRole('group', { name: '삭제 확인' })).getByRole('button', { name: '삭제' }))
+    await waitFor(() => expect(location()).toBe('/calls'))
+    expect(sent).toBe(query)
   })
 
   it('확인을 거쳐 삭제하고 목록으로 간다', async () => {

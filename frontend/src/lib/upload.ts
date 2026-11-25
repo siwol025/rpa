@@ -6,6 +6,7 @@ export const MAX_UPLOAD_MB = 100
 export function checkFile(file: { name: string; size: number }): string | null {
   const ext = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : ''
   if (!ALLOWED_EXTENSIONS.includes(ext)) return `지원하지 않는 형식이에요. ${ALLOWED_EXTENSIONS.join(', ')} 파일만 올릴 수 있어요`
+  if (file.size === 0) return '빈 파일이에요'
   if (file.size > MAX_UPLOAD_MB * 1024 * 1024) return `파일이 너무 커요. ${MAX_UPLOAD_MB}MB까지 올릴 수 있어요`
   return null
 }

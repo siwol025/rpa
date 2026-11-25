@@ -153,6 +153,9 @@ export const handlers = [
     const c = find(params.id)
     if (!c) return notFound()
     const p = (await request.json()) as CallPatch
+    const badText = (v: string | null | undefined, max: number) => typeof v === 'string' && (!v.trim() || [...v.trim()].length > max)
+    const day = p.call_datetime?.slice(0, 10)
+    if (badText(p.agent_name, 50) || badText(p.client_company, 100) || badText(p.editor, 50) || (day && periodProblem({ from: day }))) return invalidRequest()
     if (p.review_completed && c.status !== 'NEEDS_REVIEW') return invalidState()
     if (c.analysis) {
       if (p.category !== undefined) c.analysis.category = p.category
@@ -259,8 +262,9 @@ export const handlers = [
     return error(501, 'MOCK_ONLY', '예시 데이터 모드에서는 엑셀 파일을 만들지 않아요.')
   }),
 
-  http.post(`*${BASE}/uploads`, async () => {
+  http.post(`*${BASE}/uploads`, async ({ request }) => {
     await delay(WAIT)
-    return new HttpResponse(null, { status: 202 })
+    const files = (await request.formData()).getAll('files').filter((f) => f instanceof File)
+    return HttpResponse.json({ items: files.map((f) => ({ name: f.name.replace(/[^.]+$/, (ext) => ext.toLowerCase()) })) }, { status: 202 })
   }),
 ]

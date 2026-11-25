@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { audioUrl, useCall, useDeleteCall, useRetryCall, useUpdateCall } from '../api/calls'
+import { audioUrl, updateProblem, useCall, useDeleteCall, useRetryCall, useUpdateCall } from '../api/calls'
 import { ApiError } from '../api/client'
 import { ACTION_STATUSES, CATEGORIES, type ActionStatus, type CallDetail, type CallPatch, type Category, type Entity } from '../api/types'
 import { CategoryChip } from '../components/CategoryChip'
 import { ErrorState } from '../components/ErrorState'
 import { Badge, StatusBadges } from '../components/StatusBadge'
 import { formatDateTime, formatSeconds, fromInputValue, toInputValue } from '../lib/format'
-import { ACTION_LABEL, canRetry, categoryLabel, ENTITY_LABEL, STEP_LABEL, type StatusTone } from '../lib/status'
+import { ACTION_LABEL, canRetry, categoryLabel, ENTITY_LABEL, logMessage, STEP_LABEL, type StatusTone } from '../lib/status'
 import { useToast } from '../lib/toast'
 
 const MASK = /([0-9A-Za-z-]*\*{3,}[0-9A-Za-z*-]*|\[[A-Z]+\])/g
@@ -34,12 +34,30 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Alert({ error }: { error: Error | null }) {
-  if (!error) return null
+function Alert({ message }: { message: string | undefined }) {
+  if (!message) return null
   return (
     <p role="alert" className="m-0 rounded-md bg-crit-bg p-3 text-[13px] text-crit">
-      {error.message}
+      {message}
     </p>
+  )
+}
+
+function Audio({ id }: { id: number }) {
+  const [failed, setFailed] = useState(false)
+  return (
+    <>
+      <audio
+        aria-label="원본 음성 재생"
+        className="w-full"
+        controls
+        preload="none"
+        src={audioUrl(id)}
+        onError={() => setFailed(true)}
+        onLoadedMetadata={() => setFailed(false)}
+      />
+      {failed && <p className="notice mt-2">음성을 불러오지 못했어요. 음성 파일이 없거나 서버에 문제가 있을 수 있어요.</p>}
+    </>
   )
 }
 
@@ -100,7 +118,7 @@ function Logs({ c }: { c: CallDetail }) {
           <li key={i} className="grid grid-cols-[72px_auto_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-line py-1.5 first:border-t-0">
             <span>{STEP_LABEL[l.step] ?? l.step}</span>
             <Badge tone={tone}>{label}</Badge>
-            <span className="break-words">{l.message}</span>
+            <span className="break-words">{logMessage(l.message)}</span>
             <span className="num text-muted">{formatDateTime(l.created_at)}</span>
           </li>
         )
@@ -205,8 +223,9 @@ function EditForm({ c }: { c: CallDetail }) {
     const patch: CallPatch = { ...changes, ...extra }
     if (editor.trim()) patch.editor = editor.trim()
     update.mutate(patch, {
-      onSuccess: () => {
-        setSaved(form)
+      onSuccess: (detail) => {
+        // 서버가 정리한 값(앞뒤 공백 등)을 기준으로 다음에 바뀐 값을 찾는다
+        setSaved(toForm(detail))
         toast(done)
       },
     })
@@ -270,7 +289,7 @@ function EditForm({ c }: { c: CallDetail }) {
           <input id="f-editor" className="field w-full" autoComplete="off" maxLength={50} value={editor} onChange={(e) => setEditor(e.target.value)} />
         </Field>
       </div>
-      <Alert error={update.error} />
+      <Alert message={update.error ? updateProblem(update.error) : undefined} />
       <div className="flex flex-wrap gap-2">
         <button type="submit" className="btn btn-primary" disabled={!dirty || update.isPending}>
           저장
@@ -294,6 +313,7 @@ function retryNotice(c: CallDetail): string {
 
 function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
   const [confirming, setConfirming] = useState(false)
+  const [editor, setEditor] = useState('')
   const retry = useRetryCall()
   const remove = useDeleteCall()
   const toast = useToast()
@@ -321,17 +341,29 @@ function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
       {confirming && (
         <div role="group" aria-label="삭제 확인" className="flex flex-wrap items-center gap-2.5 rounded-md bg-crit-bg p-3 text-[13px]">
           <span className="min-w-[150px] flex-1">이 상담을 삭제할까요?</span>
+          <input
+            aria-label="삭제하는 사람 (선택)"
+            placeholder="삭제하는 사람 (선택)"
+            className="field w-44"
+            autoComplete="off"
+            maxLength={50}
+            value={editor}
+            onChange={(e) => setEditor(e.target.value)}
+          />
           <button
             type="button"
             className="btn text-crit"
             disabled={remove.isPending}
             onClick={() =>
-              remove.mutate(c.id, {
-                onSuccess: () => {
-                  toast('삭제했어요')
-                  navigate(backTo)
+              remove.mutate(
+                { id: c.id, editor: editor.trim() },
+                {
+                  onSuccess: () => {
+                    toast('삭제했어요')
+                    navigate(backTo)
+                  },
                 },
-              })
+              )
             }
           >
             삭제
@@ -341,7 +373,7 @@ function Actions({ c, backTo }: { c: CallDetail; backTo: string }) {
           </button>
         </div>
       )}
-      <Alert error={retry.error ?? remove.error} />
+      <Alert message={(retry.error ?? remove.error)?.message} />
     </div>
   )
 }
@@ -375,7 +407,7 @@ export function CallDetailPage() {
           <div className="grid grid-cols-1 items-start gap-3 min-[900px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
             <div className="flex min-w-0 flex-col gap-3">
               <Panel title="원본 음성">
-                <audio aria-label="원본 음성 재생" className="w-full" controls preload="none" src={audioUrl(c.id)} />
+                <Audio key={c.id} id={c.id} />
               </Panel>
               <Panel title="전사 원문">
                 <Transcript c={c} />

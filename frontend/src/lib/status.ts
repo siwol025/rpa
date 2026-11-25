@@ -69,3 +69,38 @@ export const ENTITY_LABEL: Record<string, string> = {
   REF_NO: '접수 번호',
   OTHER: '기타',
 }
+
+const ACTOR_LABEL: Record<string, string> = { robot: '로봇', web: '웹' }
+
+/** 실패한 단계 (stt/schema/call_schema.json의 error.stage) */
+const STAGE_LABEL: Record<string, string> = {
+  INPUT: '입력',
+  STT: '전사',
+  PII: '개인정보 가리기',
+  GENAI: 'AI 분석',
+  VALIDATION: '결과 검증',
+}
+
+/** "[STT] 사유" → "전사: 사유". 모르는 단계는 그대로 */
+function stageText(text: string): string {
+  const m = /^\[([A-Z]+)\]\s*([\s\S]*)$/.exec(text)
+  const label = m && STAGE_LABEL[m[1]]
+  if (!label) return text
+  return m[2] ? `${label}: ${m[2]}` : label
+}
+
+/** 서버가 남긴 "[robot] QUEUED -> STT_DONE: 사유" 형식을 한글로 바꾼다. 다른 형식은 그대로 */
+export function logMessage(message: string | null): string {
+  const m = /^\[(robot|web)\]\s*([\s\S]*)$/.exec(message ?? '')
+  if (!m) return message ?? ''
+  const actor = ACTOR_LABEL[m[1]]
+  const name = (code: string) => STATUS_LABEL[code as CallStatus] ?? code
+  const move = /^([A-Z_]+) -> ([A-Z_]+)(?:: ([\s\S]*))?$/.exec(m[2])
+  if (move) {
+    // 로봇 큐의 내부 번호는 화면에 보여주지 않는다
+    const reason = stageText((move[3] ?? '').replace(/^queue_item_id=\d+$/, ''))
+    return `${actor}: ${name(move[1])} → ${name(move[2])}${reason ? ` (${reason})` : ''}`
+  }
+  if (!m[2]) return actor
+  return `${actor}: ${m[2] === 'registered' ? '등록' : stageText(m[2])}`
+}

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, type UseQueryResult } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ApiError } from '../api/client'
+import { hasValidationError } from '../api/client'
 import { fetchExcel, useBreakdown, useSummary, useTrend } from '../api/stats'
 import { CATEGORIES, type Granularity, type Period, type StatsSummary } from '../api/types'
 import { BarList } from '../components/BarList'
@@ -14,7 +14,7 @@ import { categoryLabel } from '../lib/status'
 import { useToast } from '../lib/toast'
 import { dateParam, periodProblem, useUrlParams } from '../lib/useUrlParams'
 
-const KPIS: [label: string, value: (s: StatsSummary) => number][] = [
+const KPIS: [label: string, value: (s: StatsSummary) => number | null][] = [
   ['총 건수', (s) => s.total],
   ['미조치', (s) => s.action_open],
   ['검토 필요', (s) => s.needs_review],
@@ -53,13 +53,6 @@ function Loaded<T>({ query, isEmpty, children }: { query: UseQueryResult<T>; isE
   if (query.data === undefined) return <div aria-label="불러오는 중" role="status" className="skeleton h-28" />
   if (isEmpty?.(query.data)) return <EmptyState title="이 기간에는 상담이 없어요" />
   return <div className={query.isPlaceholderData ? 'opacity-60' : ''}>{children(query.data)}</div>
-}
-
-/** 추이의 구간이 서버 한도(400개)를 넘음 (규약 §4.3) */
-function isRangeTooLarge(error: Error | null): boolean {
-  if (!(error instanceof ApiError) || error.code !== 'VALIDATION_ERROR') return false
-  const errors = (error.detail as { errors?: { type?: string }[] } | null)?.errors
-  return Array.isArray(errors) && errors.some((e) => e.type === 'range_too_large')
 }
 
 function ExcelButton({ period, disabled }: { period: Period; disabled: boolean }) {
@@ -101,17 +94,20 @@ function Stats({ period }: { period: Period }) {
       <div className="mb-3">
         <Loaded query={summary}>
           {(s) => (
-            <div className="kpis">
-              {KPIS.map(([label, value]) => (
-                <div key={label} role="group" aria-label={label} className="flex flex-col gap-0.5 px-4 py-3.5">
-                  <span className="text-xs font-medium text-fg-2">{label}</span>
-                  <b className="num text-[26px] leading-tight tracking-tight">
-                    {value(s)}
-                    <small className="ml-0.5 text-[13px] font-medium text-fg-2">건</small>
-                  </b>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="kpis">
+                {KPIS.map(([label, value]) => (
+                  <div key={label} role="group" aria-label={label} className="flex flex-col gap-0.5 px-4 py-3.5">
+                    <span className="text-xs font-medium text-fg-2">{label}</span>
+                    <b className="num text-[26px] leading-tight tracking-tight">
+                      {value(s) ?? '-'}
+                      {value(s) !== null && <small className="ml-0.5 text-[13px] font-medium text-fg-2">건</small>}
+                    </b>
+                  </div>
+                ))}
+              </div>
+              {s.stale === null && <p className="mt-2 mb-0 text-xs text-muted">미조치와 정체는 서버의 통계 요약이 준비되면 보여요</p>}
+            </>
           )}
         </Loaded>
       </div>
@@ -135,7 +131,8 @@ function Stats({ period }: { period: Period }) {
             </div>
           }
         >
-          {isRangeTooLarge(trend.error) ? (
+          {/* 구간이 서버 한도(400개)를 넘음 (규약 §4.3) */}
+          {hasValidationError(trend.error, 'range_too_large') ? (
             <EmptyState title="기간이 길어서 이 단위로는 볼 수 없어요. 주나 월로 바꾸거나 기간을 줄여 주세요" />
           ) : (
             <Loaded query={trend} isEmpty={(d) => d.items.length === 0}>

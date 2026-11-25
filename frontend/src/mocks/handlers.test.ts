@@ -66,6 +66,14 @@ describe('mock: 목록', () => {
     await expect(list(params)).rejects.toMatchObject({ status: 422, code: 'VALIDATION_ERROR' })
   })
 
+  it.each([
+    ['빈 이름', { agent_name: ' ' }],
+    ['긴 이름', { agent_name: '가'.repeat(51) }],
+    ['범위 밖 통화 일시', { call_datetime: '1999-12-31T23:59:00+09:00' }],
+  ])('백엔드처럼 수정 422: %s', async (_, patch) => {
+    await expect(updateCall(1, patch)).rejects.toMatchObject({ status: 422, code: 'VALIDATION_ERROR' })
+  })
+
   it('범위를 넘는 페이지는 빈 목록', async () => {
     expect(await fetchCalls({ page: 99, size: 20 })).toMatchObject({ items: [], total: MOCK_CALLS.length })
   })

@@ -35,7 +35,7 @@ npm run build      # 배포용 빌드 (dist/). 예시 데이터는 들어가지 
 
 ## 백엔드와 맞춘 것
 
-백엔드 `backend/docs/api/convention.md` v0.1 (API 규약)을 따른다. 목록·상세·통계 추이·통계 분류는 `main`(`7e3eab1`)의 `backend/docs/api/openapi.json`과 대조했고, 그 FastAPI 앱에 연결해 확인했다 (DB 조회만 메모리 데이터로 바꿈. 실제 PostgreSQL로는 아직 확인하지 않음).
+백엔드 `backend/docs/api/convention.md` v0.1 (API 규약)을 따른다. 목록·상세·통계 추이·통계 분류·업로드·메타데이터 보정·삭제·재처리·음성은 `main`(`ef6ccee`)의 `backend/docs/api/openapi.json`과 대조했고, 그 FastAPI 앱에 연결해 확인했다 (DB 조회만 메모리 데이터로 바꿈. 실제 PostgreSQL로는 아직 확인하지 않음).
 
 - 에러는 `{code, message, detail}`. 화면에는 `message`, 분기는 `code`로 한다
 - 유형은 코드(`INQUIRY` 등)로 주고받고 한글 이름은 `src/lib/status.ts`에서 붙인다. 나중에 추가된 값은 코드를 그대로 보여준다
@@ -48,12 +48,20 @@ npm run build      # 배포용 빌드 (dist/). 예시 데이터는 들어가지 
 - 전사 구간은 `start_sec`·`end_sec`(소수 초), 화자는 `AGENT`·`CUSTOMER`·`UNKNOWN`. 개체명은 `[{type, value}]` 배열이고 모르는 종류는 코드를 그대로 보여준다
 - 개인정보 표시는 `***`와 `[PHONE]` 같은 STT 표시를 강조한다
 - 통계 분류에서 담당자·고객사가 없는 상담은 `name`이 `null`인 한 행이다. 대시보드는 "미지정", 목록의 선택지에서는 뺀다
+- 통계 요약 API(W-09)가 없으면(404) 목록의 건수와 분류 통계로 총 건수·유형별·검토 필요·메타데이터 확인 필요·실패를 센다. 미조치와 정체는 `-`로 보인다 (`src/api/stats.ts`)
+- 업로드는 폼 필드 `files`, 파일마다 따로 보낸다. 결과에는 서버가 저장한 이름을 보여준다. 415와 `filename_invalid`(422)는 이유를 풀어서 보여준다
+- 수정(PATCH)은 지금 담당자·고객사·통화 일시·수정자만 받는다. 유형·요약·조치·검토 완료를 보내면 요청 전체가 422(`extra_forbidden`)라 이유를 안내한다. 분석 수정(W-03)이 생기면 코드 수정 없이 저장된다 (필드 이름이 같을 때)
+- 통화 일시는 2000~2100년만 (`datetime_range`). 값 비우기는 `null`
+- 삭제할 때 이름을 적으면 `?editor=`로 보낸다
+- 음성은 `<audio>`가 Range로 받는다. 파일이 없으면(404) 안내 문구를 보여준다
+- `GET /health`는 모니터링용이라 화면에서 쓰지 않는다
+- 처리 이력의 `[robot] QUEUED -> STT_DONE` 형식은 한글로 바꿔 보여준다
+- `/api/robot/*`는 로봇 전용이다. 키가 화면에 드러나므로 프론트에서 부르지 않는다
 - 통계 추이는 구간이 400개를 넘으면 422(`range_too_large`). 단위를 바꾸라고 안내한다
 
 ## 백엔드 확인이 필요한 것
 
-아직 API가 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위와 `src/api/uploads.ts`에 있다.
+아직 API가 없어 임시로 정했다. 목록은 `src/api/types.ts` 맨 위에 있다.
 
 1. 검토 완료를 알리는 필드 (`PATCH`의 `review_completed`)
 2. 통계 요약(`/stats/summary`) 응답의 필드
-3. 업로드 폼의 필드 이름 (`files`)

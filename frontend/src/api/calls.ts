@@ -1,11 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiSend, apiUrl } from './client'
+import { apiGet, apiSend, apiUrl, hasValidationError, toQueryString } from './client'
 import { PAGE_SIZE_MAX, type CallDetail, type CallListItem, type CallListParams, type CallPatch, type Page, type RetryResult } from './types'
 
 export const fetchCalls = (p: CallListParams) => apiGet<Page<CallListItem>>('/calls', { ...p })
 export const fetchCall = (id: number) => apiGet<CallDetail>(`/calls/${id}`)
 export const updateCall = (id: number, patch: CallPatch) => apiSend<CallDetail>('PATCH', `/calls/${id}`, patch)
-export const deleteCall = (id: number) => apiSend('DELETE', `/calls/${id}`)
+export const deleteCall = (id: number, editor?: string) => apiSend('DELETE', `/calls/${id}${toQueryString({ editor })}`)
 export const retryCall = (id: number) => apiSend<RetryResult>('POST', `/calls/${id}/retry`)
 export const audioUrl = (id: number) => apiUrl(`/calls/${id}/audio`)
 
@@ -46,6 +46,14 @@ export function useUpdateCall(id: number) {
   return useMutation({ mutationFn: (patch: CallPatch) => updateCall(id, patch), onSuccess: () => invalidate(id) })
 }
 
+/** 서버 문구만으로는 무엇을 고칠지 알기 어려운 오류를 풀어 쓴다 */
+export function updateProblem(e: Error): string {
+  // 분석 수정(W-03)이 없는 서버는 분석 필드가 하나라도 있으면 요청 전체를 거절한다
+  if (hasValidationError(e, 'extra_forbidden')) return '유형, 요약, 조치, 검토 완료는 아직 서버에 저장할 수 없어요. 담당자, 고객사, 통화 일시만 바꿔서 저장해 주세요'
+  if (hasValidationError(e, 'datetime_range')) return '통화 일시는 2000년부터 2100년까지 입력할 수 있어요'
+  return e.message
+}
+
 export function useRetryCall() {
   const invalidate = useInvalidate()
   // 실패(409 등)해도 화면의 상태가 낡았다는 뜻이므로 다시 불러온다
@@ -55,5 +63,5 @@ export function useRetryCall() {
 export function useDeleteCall() {
   const invalidate = useInvalidate()
   // 지운 상담의 상세는 다시 조회하지 않는다 (404)
-  return useMutation({ mutationFn: deleteCall, onSuccess: () => invalidate() })
+  return useMutation({ mutationFn: ({ id, editor }: { id: number; editor?: string }) => deleteCall(id, editor), onSuccess: () => invalidate() })
 }

@@ -23,6 +23,13 @@ export class ApiError extends Error {
   }
 }
 
+/** 422 응답에 그 종류의 오류가 들어 있는지 (규약 §3) */
+export function hasValidationError(error: unknown, type: string): boolean {
+  if (!(error instanceof ApiError) || error.code !== 'VALIDATION_ERROR') return false
+  const errors = (error.detail as { errors?: { type?: string }[] } | null)?.errors
+  return Array.isArray(errors) && errors.some((e) => e.type === type)
+}
+
 /** 빈 값과 false는 보내지 않는다 (켜진 필터만 전달). 여러 값은 같은 이름을 반복한다 */
 export function toQueryString(params: Params): string {
   const sp = new URLSearchParams()
@@ -97,8 +104,10 @@ export async function apiSend<T = void>(method: 'POST' | 'PATCH' | 'DELETE', pat
   return readJson<T>(new Response(text, { status: res.status }))
 }
 
-export async function apiUpload(path: string, form: FormData, opts: Options): Promise<void> {
-  await request(path, { method: 'POST', body: form }, opts)
+/** 이미 접수된 뒤이므로 본문을 못 읽어도 실패로 보지 않는다 (undefined) */
+export async function apiUpload<T>(path: string, form: FormData, opts: Options): Promise<T | undefined> {
+  const res = await request(path, { method: 'POST', body: form }, opts)
+  return res.json().catch(() => undefined)
 }
 
 export async function apiBlob(path: string, params: Params = {}, opts: Options = {}): Promise<Blob> {

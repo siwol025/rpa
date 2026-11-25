@@ -35,6 +35,25 @@ describe('업로드', () => {
     expect(requests).toBe(2)
   })
 
+  it('서버가 저장한 이름으로 보여준다 (목록의 파일 이름과 같음)', async () => {
+    server.use(http.post('*/api/uploads', () => HttpResponse.json({ items: [{ name: 'a.wav' }] }, { status: 202 })))
+    await open()
+    await user.upload(screen.getByLabelText('음성 파일'), [file('a.WAV')])
+    await waitFor(() => expect(results()).toEqual(['a.wav접수됨, 처리 대기']))
+  })
+
+  it.each([
+    [422, 'VALIDATION_ERROR', { errors: [{ loc: ['body', 'files', 0], msg: '사용할 수 없는 파일명입니다', type: 'filename_invalid' }] }, '사용할 수 없는 파일 이름이에요. 이름을 바꿔서 다시 올려 주세요'],
+    [415, 'UNSUPPORTED_MEDIA', { index: 0 }, '파일 내용이 wav, mp3가 아니거나 확장자와 달라요'],
+    [422, 'VALIDATION_ERROR', { errors: [{ loc: ['body', 'files'], msg: 'x', type: 'missing' }] }, '서버 문구'],
+    [503, 'INBOX_UNAVAILABLE', null, '서버 문구'],
+  ])('%i %s이면 이유를 알려준다', async (status, code, detail, message) => {
+    server.use(http.post('*/api/uploads', () => HttpResponse.json({ code, message: '서버 문구', detail }, { status })))
+    await open()
+    await user.upload(screen.getByLabelText('음성 파일'), [file('a.wav')])
+    await waitFor(() => expect(results()).toEqual([`a.wav${message}`]))
+  })
+
   it('한 파일이 실패해도 나머지는 계속 올린다', async () => {
     let n = 0
     server.use(
