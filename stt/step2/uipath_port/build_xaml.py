@@ -5,10 +5,10 @@ UiPath 프로젝트에 넣을 XAML 4개를 만든다.  python build_xaml.py
   Step1_BuildPrompt_Test.xaml   프롬프트 조립 단계 테스트  (입력: test_data\\step1, 출력: test_data_out\\step1)
   Step2_Validate_Test.xaml      응답 검증 단계 테스트      (입력: test_data\\step2, 출력: test_data_out\\step2)
   Step3_Retry_Test.xaml         재시도 루프 테스트         (입력: test_data\\step3, 출력: test_data_out\\step3)
-  Main_Step123.xaml             현재 Main.xaml 구조를 유지하고 Step1~3을 넣은 전체 흐름 (실제 Content Generation 호출)
+  Main_Step123.xaml             Main_ModelTest.xaml(옛 Main.xaml) 구조를 유지하고 Step1~3을 넣은 전체 흐름 (실제 Content Generation 호출)
 
 Invoke Code 에 들어가는 코드는 snippets\\*.vb 파일 그대로다 (vb_check.py 가 컴파일·검증한 것과 같은 파일).
-기존 Main.xaml 은 건드리지 않는다.
+Main.xaml 은 Main_Folder 를 호출하는 시작 파일로 생성한다. 모델 호출 연결 테스트는 Main_ModelTest.xaml 이며, 이 파일에서 Content Generation 설정을 읽는다.
 """
 import json
 import os
@@ -264,11 +264,11 @@ def step3(scenarios):
 
 # ---------------------------------------------------------------- Main_Step123
 def main_step123():
-    with open(os.path.join(C.UIPATH, "Main.xaml"), encoding="utf-8") as f:
+    with open(os.path.join(C.UIPATH, "Main_ModelTest.xaml"), encoding="utf-8") as f:
         orig = f.read()
     m = re.search(r"<isactr:ConnectorActivity .*?</isactr:ConnectorActivity>", orig, flags=re.S)
     if not m:
-        raise SystemExit("현재 Main.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다. 먼저 Studio 에서 연결을 구성하세요.")
+        raise SystemExit("현재 Main_ModelTest.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다. 먼저 Studio 에서 연결을 구성하세요.")
     connector = m.group(0)
     header = orig[:orig.index("<Sequence ")]
     header = re.sub(r' x:Class="[^"]*"', ' x:Class="@@CLASS@@"', header, count=1)
@@ -337,6 +337,7 @@ def main():
         "Step8_Folder_Test.xaml": build_xaml89.folder_flow(True),
         "Main_Folder.xaml": build_xaml89.folder_flow(False),
         "Run_All.xaml": build_xaml45.run_all(),
+        "Main.xaml": build_xaml45.main_entry(),  # 시작 파일: Main_Folder 호출 (기존 연결 테스트는 Main_ModelTest.xaml)
     }
     import xml.etree.ElementTree as ET
     for name, text in files.items():

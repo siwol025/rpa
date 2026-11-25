@@ -23,11 +23,11 @@ def log_warn(display, msg_expr):
 
 
 def folder_flow(test):
-    with open(os.path.join(C.UIPATH, "Main.xaml"), encoding="utf-8") as f:
+    with open(os.path.join(C.UIPATH, "Main_ModelTest.xaml"), encoding="utf-8") as f:
         orig = f.read()
     m = re.search(r"<isactr:ConnectorActivity .*?</isactr:ConnectorActivity>", orig, flags=re.S)
     if not m:
-        raise SystemExit("현재 Main.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다.")
+        raise SystemExit("현재 Main_ModelTest.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다.")
     connector = m.group(0)
     header = orig[:orig.index("<Sequence ")]
     header = re.sub(r' x:Class="[^"]*"', ' x:Class="@@CLASS@@"', header, count=1)

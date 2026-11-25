@@ -91,7 +91,7 @@ python test_step2.py                                           # 32개 테스트
 
 ## 9. 알려진 한계 (중요)
 
-- **STT 응답 구조는 가정입니다.** 엔드포인트, `segments[]`/`text`/`speaker.label` 필드, 시간 단위(ms)는 기억·추정 기반입니다. 실제 응답과 다르면 파서를 고쳐야 합니다.
+- **STT 응답 구조는 실제 응답 5건으로 확인했습니다.** 엔드포인트(`/recognizer/upload`), `segments[]`/`text`/`speaker.label` 필드, 시간 단위(ms)가 가정과 맞았습니다(11/24 Python 호출). 다만 UiPath(Studio)에서 실제 CLOVA를 호출해 확인한 적은 없고, Studio 쪽은 가짜 CLOVA 서버와 저장된 응답으로만 검증했습니다.
 - **분류 결과는 아직 검증되지 않았습니다.** `step2\analyze.py`의 `mock_llm`은 키워드 규칙으로 JSON을 흉내 내는 가짜 LLM입니다. 프롬프트 조립·파싱·검증·재시도·스키마 조립 같은 연결 부분을 이 가짜 LLM으로 검증했습니다. 분류 정확도는 실제 LLM으로 가상 대본에서만 확인했고(아래 v1_2 항목), 실제 통화 녹음 기준 평가는 아직 없습니다.
 - **마스킹은 정규식 기반입니다.** 숫자를 한글로 읽어 적은 경우("공일공…")는 못 잡고, 이름은 "상담원 ○○○입니다"·"성함은 ○○○" 같은 문맥만 잡습니다. 계좌번호는 하이픈 구분 형식만 대상입니다.
 - **프롬프트는 v1_2를 채택했습니다.** 평가표 오분류 결과를 반영한 것이 아니라, 'v1_1은 문제 제기가 조금만 있어도 불만으로 분류한다'는 관찰(5건 중 4건이 불만)에 따라 규칙을 완화한 것입니다. 효과는 입증되지 않았습니다. AI Hub 샘플 5건(Groq `openai/gpt-oss-120b`)으로 돌려 보니 정답이 있는 3건 기준 정확도가 v1_1 2/3 → v1_2 1/3이었고, 정답 라벨 자체가 의심스러워 우열을 판단할 수 없습니다. 상세는 `test\정확도_평가표_v2.xlsx`의 `GenAI_검수_gptoss`(v1_1)·`GenAI_검수_v1_2` 시트.
@@ -102,5 +102,5 @@ python test_step2.py                                           # 32개 테스트
   - 실제 통화 녹음과 정의가 합의된 경계 사례로 다시 평가해야 분류 정확도를 말할 수 있습니다.
 - 기본 프롬프트 경로는 `prompt_v1_2.txt`로 바꿨습니다(`run_genai_test.py`, `run_folder.py`, `uipath_port\build_xaml*.py`·`make_fixtures.py`, `Step3_Analyze_설계.md`). 생성 스크립트를 다시 실행해 Studio 프로젝트의 `Main_*.xaml`·`Step8_Folder_Test.xaml`·`prompts\`도 갱신했습니다. `analyze.py`의 기본값(`prompt_v1.txt`)은 모의 LLM 테스트용이라 그대로 뒀습니다.
 - GenAI 연결 테스트는 `config.json`의 `openai.base_url`로 OpenAI 호환 서버(예: Groq)를 지정할 수 있고, `run_genai_test.py --max-output-tokens`로 출력 한도를 올릴 수 있습니다(추론 모델은 추론 토큰도 포함).
-- 파일 손상·타임아웃 등 실제 파일 대상 이상 케이스, 단계별 로그 기록은 미구현입니다.
-- UiPath xaml(Step1~3, Main)은 미작성입니다. 현재는 Python 레퍼런스 구현만 있습니다.
+- 빈 파일·미지원 형식·STT 실패·모델 응답 검증 실패는 구현하고 `Step8_Folder_Test`로 검증했습니다(14건 일치, 가짜 CLOVA·모의 응답 기준). 파일 손상 같은 예상 밖 예외의 안전장치는 직접 확인하지 못했습니다. 단계별 로그는 Studio 로그(건별·요약)만 남기고 별도 로그 파일은 만들지 않습니다.
+- UiPath 프로젝트(`stt/uipath`)에 단계별 테스트(Step1~8)와 전체 흐름(`Main_Step1to7`)·운영용 폴더 처리(`Main_Folder`)가 구현돼 있고 Python과 같은 결과가 나옴을 확인했습니다(자세한 내용은 `stt/uipath/README.md`). 실제 CLOVA·Content Generation 연동은 Studio에서 검증하지 못했습니다.

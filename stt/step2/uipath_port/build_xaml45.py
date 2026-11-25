@@ -59,11 +59,11 @@ def step5(scenarios):
 
 
 def main_step1to5():
-    with open(os.path.join(C.UIPATH, "Main.xaml"), encoding="utf-8") as f:
+    with open(os.path.join(C.UIPATH, "Main_ModelTest.xaml"), encoding="utf-8") as f:
         orig = f.read()
     m = re.search(r"<isactr:ConnectorActivity .*?</isactr:ConnectorActivity>", orig, flags=re.S)
     if not m:
-        raise SystemExit("현재 Main.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다.")
+        raise SystemExit("현재 Main_ModelTest.xaml 에서 Content Generation(ConnectorActivity)을 찾지 못했습니다.")
     connector = m.group(0)
     header = orig[:orig.index("<Sequence ")]
     header = re.sub(r' x:Class="[^"]*"', ' x:Class="@@CLASS@@"', header, count=1)
@@ -115,6 +115,15 @@ def main_step1to5():
             var(S, "promptVersion", '"v1_2"'), var(S, "sttEngine", '"clova-speech"'), var(S, "genaiModel", '"gpt-6-luna"'),
             var("scg:List(x:String)", "sessions", str_list(C.SIDS))])
     return wrap(header, "Main_Step1to5", body)
+
+
+def main_entry():
+    """프로젝트 시작 파일 Main.xaml: 운영 흐름(Main_Folder.xaml)을 호출한다.
+    모델 호출 연결 테스트(5건)는 Main_ModelTest.xaml 로 옮겼고, 생성 스크립트는 거기서 Content Generation 설정을 읽는다."""
+    children = [log("시작 로그", '"=== Main 시작: Main_Folder 실행 (calls\in 처리) ==="'),
+                '<ui:InvokeWorkflowFile DisplayName="운영 흐름: Main_Folder (calls\in → out / done / failed)" UnSafe="False" WorkflowFileName="Main_Folder.xaml" />',
+                log("종료 로그", '"=== Main 끝 ==="')]
+    return wrap(add_refs(HEADER_TEST), "Main", seq("Main - 운영 흐름 실행 (Main_Folder 호출)", children))
 
 
 def run_all():
