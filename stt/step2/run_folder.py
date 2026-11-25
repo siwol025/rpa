@@ -75,7 +75,7 @@ def process_file(path, seq, config_path, llm, prompt_version):
     return run_dummy.process(out["stt_json"], name, seq, llm=llm, prompt_version=prompt_version)
 
 
-def run_folder(in_dir, out_dir, done_dir, failed_dir, config_path, llm_for, prompt_version="v1_1"):
+def run_folder(in_dir, out_dir, done_dir, failed_dir, config_path, llm_for, prompt_version="v1_2"):
     """llm_for(파일 이름 stem) → llm(system, user) 함수. 반환: [(원본 파일 이름, 문서, 결과 JSON 경로, 이동 후 경로)]"""
     for d in (in_dir, out_dir, done_dir, failed_dir):
         os.makedirs(d, exist_ok=True)

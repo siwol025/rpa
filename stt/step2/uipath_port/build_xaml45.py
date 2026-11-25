@@ -110,9 +110,9 @@ def main_step1to5():
         foreach(S, "세션별 반복", "sessions", "sid", per)],
         variables=[
             var(S, "baseDir", 'System.IO.Path.Combine(System.Environment.CurrentDirectory, "genai_test") & System.IO.Path.DirectorySeparatorChar'),
-            var(S, "promptPath", 'System.IO.Path.Combine(System.Environment.CurrentDirectory, "prompts", "prompt_v1_1.txt")'),
+            var(S, "promptPath", 'System.IO.Path.Combine(System.Environment.CurrentDirectory, "prompts", "prompt_v1_2.txt")'),
             var("x:Int32", "maxRetry", "2"), var(S, "promptText"),
-            var(S, "promptVersion", '"v1_1"'), var(S, "sttEngine", '"clova-speech"'), var(S, "genaiModel", '"gpt-6-luna"'),
+            var(S, "promptVersion", '"v1_2"'), var(S, "sttEngine", '"clova-speech"'), var(S, "genaiModel", '"gpt-6-luna"'),
             var("scg:List(x:String)", "sessions", str_list(C.SIDS))])
     return wrap(header, "Main_Step1to5", body)
 

@@ -26,7 +26,7 @@
 | `config.example.json` | 키 없는 양식 (공유용) |
 | `step1\` | STT 호출(`clova_stt.py`), 응답 파싱·화자 매핑(`parse_clova.py`), 테스트, `Step1_STT_설계.md`(xaml 설계서) |
 | `step2\` | 마스킹(`mask_pii.py`), 프롬프트 조립·검증(`analyze.py`), 더미 파이프라인(`run_dummy.py`), 테스트 |
-| `prompts\` | `prompt_v1.txt`, `prompt_v1_1.txt`(초안: 마스킹 토큰 목록 추가) |
+| `prompts\` | `prompt_v1.txt`, `prompt_v1_1.txt`(마스킹 토큰 목록 추가), **`prompt_v1_2.txt`(채택: v1_1에서 '불만 우선' 규칙을 약하게 — COMPLAINT는 불만이 통화의 주된 용건일 때만)** |
 | `schema\` | `call_schema.json`(출력 스키마 v1.0), `sample_success.json`, `sample_failed.json` |
 | `test\` | 더미 CLOVA 응답, 녹음 대본(`녹음_대본_5건.md`), 정확도 평가표, 더미 결과(`out\`) |
 | `calls\` | `in` 입력 / `out` 결과 / `done` 처리 완료 / `failed` 실패 |
@@ -94,6 +94,8 @@ python test_step2.py                                           # 32개 테스트
 - **STT 응답 구조는 가정입니다.** 엔드포인트, `segments[]`/`text`/`speaker.label` 필드, 시간 단위(ms)는 기억·추정 기반입니다. 실제 응답과 다르면 파서를 고쳐야 합니다.
 - **분류 결과는 아직 검증되지 않았습니다.** `step2\analyze.py`의 `mock_llm`은 키워드 규칙으로 JSON을 흉내 내는 가짜 LLM입니다. 프롬프트 조립·파싱·검증·재시도·스키마 조립 같은 연결 부분만 검증했고, 분류 정확도는 실제 LLM으로 평가표 5건을 돌려야 알 수 있습니다.
 - **마스킹은 정규식 기반입니다.** 숫자를 한글로 읽어 적은 경우("공일공…")는 못 잡고, 이름은 "상담원 ○○○입니다"·"성함은 ○○○" 같은 문맥만 잡습니다. 계좌번호는 하이픈 구분 형식만 대상입니다.
-- 프롬프트 v1.1은 초안입니다. 평가표 오분류 결과는 아직 반영되지 않았습니다.
+- **프롬프트는 v1_2를 채택했습니다.** 평가표 오분류 결과를 반영한 것이 아니라, 'v1_1은 문제 제기가 조금만 있어도 불만으로 분류한다'는 관찰(5건 중 4건이 불만)에 따라 규칙을 완화한 것입니다. 효과는 입증되지 않았습니다. AI Hub 샘플 5건(Groq `openai/gpt-oss-120b`)으로 돌려 보니 정답이 있는 3건 기준 정확도가 v1_1 2/3 → v1_2 1/3이었고, 정답 라벨 자체가 의심스러워 우열을 판단할 수 없습니다. 상세는 `test\정확도_평가표_v2.xlsx`의 `GenAI_검수_gptoss`(v1_1)·`GenAI_검수_v1_2` 시트. 유형 정확도는 정답이 확실한 유형별 샘플로 다시 평가해야 합니다.
+- 기본 프롬프트 경로는 `prompt_v1_2.txt`로 바꿨습니다(`run_genai_test.py`, `run_folder.py`, `uipath_port\build_xaml*.py`·`make_fixtures.py`, `Step3_Analyze_설계.md`). 생성 스크립트를 다시 실행해 Studio 프로젝트의 `Main_*.xaml`·`Step8_Folder_Test.xaml`·`prompts\`도 갱신했습니다. `analyze.py`의 기본값(`prompt_v1.txt`)은 모의 LLM 테스트용이라 그대로 뒀습니다.
+- GenAI 연결 테스트는 `config.json`의 `openai.base_url`로 OpenAI 호환 서버(예: Groq)를 지정할 수 있고, `run_genai_test.py --max-output-tokens`로 출력 한도를 올릴 수 있습니다(추론 모델은 추론 토큰도 포함).
 - 파일 손상·타임아웃 등 실제 파일 대상 이상 케이스, 단계별 로그 기록은 미구현입니다.
 - UiPath xaml(Step1~3, Main)은 미작성입니다. 현재는 Python 레퍼런스 구현만 있습니다.

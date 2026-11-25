@@ -1,6 +1,15 @@
 {
   "clova_invoke_url": "<CLOVA Speech Domain의 Invoke URL>",
   "clova_secret_key": "<Secret Key - 실제 값은 config.json에만 저장, 공유 금지>",
+  "openai": {
+    "api_key": "<OpenAI API Key - 실제 값은 config.json에만 저장, 공유 금지>",
+    "model": "<사용할 모델 이름>",
+    "temperature": 0,
+    "max_output_tokens": 1500,
+    "timeout_sec": 90,
+    "json_mode": false,
+    "base_url": "https://api.openai.com/v1"
+  },
   "stt": {
     "language": "ko-KR",
     "completion": "sync",
