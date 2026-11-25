@@ -1,0 +1,51 @@
+{
+ "prompt": "prompt_v1_2.txt",
+ "model": "openai/gpt-oss-120b",
+ "rows": [
+  {
+   "call": "call_01",
+   "expected": "INQUIRY",
+   "pred": "INQUIRY",
+   "conf": 0.97,
+   "valid": true,
+   "problems": [],
+   "match": true
+  },
+  {
+   "call": "call_02",
+   "expected": "COMPLAINT",
+   "pred": "COMPLAINT",
+   "conf": 0.96,
+   "valid": true,
+   "problems": [],
+   "match": true
+  },
+  {
+   "call": "call_03",
+   "expected": "SUGGESTION",
+   "pred": "SUGGESTION",
+   "conf": 0.96,
+   "valid": true,
+   "problems": [],
+   "match": true
+  },
+  {
+   "call": "call_04",
+   "expected": "TRAINING",
+   "pred": "TRAINING",
+   "conf": 0.96,
+   "valid": true,
+   "problems": [],
+   "match": true
+  },
+  {
+   "call": "call_05",
+   "expected": "OTHER",
+   "pred": "OTHER",
+   "conf": 0.96,
+   "valid": true,
+   "problems": [],
+   "match": true
+  }
+ ]
+}
