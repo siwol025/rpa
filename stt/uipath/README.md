@@ -92,7 +92,7 @@ VB 코드 원본은 `stt/step2/uipath_port/snippets/`에 있습니다(위 도식
 
 (번호는 만든 순서입니다. 실제 처리 순서는 6 → 7 → 4 → 1 → 모델 호출 → 2 → 3 → 5 → 결과 저장·이동.)
 
-그 밖의 워크플로: `Main_Step1to7.xaml`(저장된 CLOVA 응답으로 전체 흐름, `sttMode`=`live`이면 실제 호출), `Main_Step1to5.xaml`, `Main_Step123.xaml`(앞부분 생략한 축소 흐름), `Run_All.xaml`(Step1~8 테스트를 차례로 실행하고 `Main_Step1to7`까지). `Main.xaml`은 처음의 모델 호출 연결 테스트입니다.
+그 밖의 워크플로: `Main_Step1to7.xaml`(저장된 CLOVA 응답으로 전체 흐름, `sttMode`=`live`이면 실제 호출), `Main_Step1to5.xaml`, `Main_Step123.xaml`(앞부분 생략한 축소 흐름), `Run_All.xaml`(Step1~8 테스트를 차례로 실행하고 `Main_Step1to7`까지). `Main.xaml`은 프로젝트 시작 파일로, 운영 흐름 `Main_Folder.xaml`을 호출합니다(Studio의 일반 **실행** 버튼이 이 파일을 실행하므로 `calls\in` 처리가 시작됩니다). 처음의 모델 호출 연결 테스트는 `Main_ModelTest.xaml`로 옮겼습니다(5건을 호출해 `genai_test\{세션}_response.txt`만 저장). `Main.xaml`·`Main_ModelTest.xaml` 외 xaml은 `build_xaml*.py`가 생성하며, 생성 스크립트는 `Main_ModelTest.xaml`에서 Content Generation 설정을 읽습니다.
 
 테스트 입력·정답·비교 도구는 `stt/step2/uipath_port/`에 있습니다 (사용법은 그쪽 README). `Invoke Code`의 VB 코드 원본도 거기(`snippets\`)에 있고, XAML은 그 파일에서 생성됩니다. **XAML을 직접 고치면 다음 생성 때 사라지니 `snippets\`나 `build_xaml*.py`를 고치세요.**
 
