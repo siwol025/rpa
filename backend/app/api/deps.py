@@ -6,10 +6,13 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import Settings
 from app.infra.inbox import InboxWriter
+from app.infra.storage import AudioStorage
 from app.repositories.call_repository import CallRepository
 from app.repositories.stats_repository import StatsRepository
 from app.services.call_service import CallService
+from app.services.robot_service import RobotService
 from app.services.stats_service import StatsService
 
 
@@ -35,3 +38,21 @@ def get_call_service(session: DbSession) -> CallService:
 
 def get_stats_service(session: DbSession) -> StatsService:
     return StatsService(StatsRepository(session))
+
+
+def get_audio_storage(request: Request) -> AudioStorage:
+    storage: AudioStorage = request.app.state.audio_storage
+    return storage
+
+
+def get_settings_from_app(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings
+
+
+def get_robot_service(
+    session: DbSession,
+    storage: Annotated[AudioStorage, Depends(get_audio_storage)],
+    settings: Annotated[Settings, Depends(get_settings_from_app)],
+) -> RobotService:
+    return RobotService(session, storage, stale_threshold_min=settings.stale_threshold_min)

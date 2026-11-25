@@ -1,0 +1,7 @@
+{
+  "step": "GENAI",
+  "status": "FAIL",
+  "stage": "GENAI",
+  "message": "응답 형식 오류, 재시도 3회 소진",
+  "orchestrator_job_id": "job-0001"
+}

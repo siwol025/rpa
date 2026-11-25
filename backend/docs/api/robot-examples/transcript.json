@@ -1,0 +1,8 @@
+{
+  "segments": [
+    { "speaker": "AGENT", "start_sec": 0.4, "end_sec": 3.1, "text": "안녕하세요, 한빛물산 고객센터입니다." },
+    { "speaker": "CUSTOMER", "start_sec": 3.6, "end_sec": 6.0, "text": "주문한 물건이 아직 안 왔어요." }
+  ],
+  "full_text": "[상담원] 안녕하세요, 한빛물산 고객센터입니다.\n[고객] 주문한 물건이 아직 안 왔어요.",
+  "stt_engine": "clova-speech"
+}
