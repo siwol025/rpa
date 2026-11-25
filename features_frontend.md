@@ -2,10 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.3 (API 규약에 맞춤) |
+| 문서 버전 | v0.5 (통계 추이·분류 API에 맞춤) |
 | 작성일 | 2026-11-24 |
-| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1(`feat/api-convention` 브랜치, `main` 합치기 전), 화면 시안 `design/dashboard-mockup-v0.2.html` |
+| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1, `backend/docs/api/openapi.json`(목록·상세·통계 추이·분류, `main` `7e3eab1`), 화면 시안 `design/dashboard-mockup-v0.2.html` |
 
+> **v0.5에서 바뀐 점**: 통계 추이·분류 API 반영, 전사 구간과 개체명 형식 확정 반영, `main`의 백엔드 앱에 연결해 확인(DB 제외).
+>
+> **v0.4에서 바뀐 점**: 목록·상세 API 반영 — 정체 여부가 없는 서버, 빈 값, 조회 조건 제한, 등록 시각.
+>
 > **v0.3에서 바뀐 점**: API 규약 v0.1 반영 — 유형 코드, `is_stale`, 정렬 형식, 상태 여러 개 조회, `code`로 분기.
 >
 > **v0.2에서 바뀐 점**: 챗봇 제외(PRD §3.2), 처리 상태 7개를 묶지 않고 각각 표시, 통계를 문서에 있는 항목으로 한정, 엑셀은 기간만 지정, 확인이 끝난 요청 정리.
@@ -25,7 +29,7 @@
 | F-C03 | 공통 부품: 배지, 차트, 로딩·빈 상태·오류 표시, 알림, 라이트·다크 | P0 | 1 | ✅ |
 | F-C04 | API 호출: 에러 `{code, message, detail}`의 `message`를 그대로 표시하고 `code`로 분기, `X-Request-Id` 기록, 시간 제한, 4xx는 재시도 안 함 | P0 | 1 | ✅ |
 | F-C05 | 예시 데이터 모드 (`npm run dev`), 실제 백엔드 모드 (`npm run dev:api`) | P0 | 1 | ✅ |
-| F-C06 | OpenAPI에서 타입 생성 | P1 | 1 | ⬜ 웹 API 구현 후 |
+| F-C06 | OpenAPI에서 타입 생성 | P1 | 1 | ⬜ 나머지 웹 API 구현 후 (구현된 4개는 손으로 대조함) |
 
 ### 1.2 대시보드
 
@@ -46,7 +50,7 @@
 | F-L01 | 목록 표 | W-01 | WEB-02 | P0 | 1 | ✅ |
 | F-L02 | 기간·유형·담당자·고객사·처리 상태·키워드 조회 | W-01 | WEB-02 | P0 | 1 | ✅ |
 | F-L03 | 페이지 이동, 통화 일시 정렬 | W-01 | WEB-02 | P0 | 1 | ✅ |
-| F-L04 | 메타데이터 확인 필요·정체 조회 | W-01 | WEB-02·05 | P0 | 2 | ✅ |
+| F-L04 | 메타데이터 확인 필요·정체 조회 (정체는 서버가 `is_stale`을 줄 때만) | W-01 | WEB-02·05 | P0 | 2 | ✅ |
 
 ### 1.4 상담 상세
 
@@ -93,7 +97,9 @@
 
 유형은 코드를 한글로 표시한다: `INQUIRY` 질의, `COMPLAINT` 불만, `SUGGESTION` 건의, `EDUCATION` 교육 내용, `ETC` 기타 문의. 모르는 값은 코드를 그대로 보여준다.
 
-"정체"(`is_stale`)와 "메타데이터 확인 필요"는 상태와 별개로 함께 표시한다. 조치 상태는 `OPEN` 미조치, `DONE` 조치 완료로 표시한다.
+"정체"(`is_stale`)와 "메타데이터 확인 필요"는 상태와 별개로 함께 표시한다. 조치 상태는 `OPEN` 미조치, `DONE` 조치 완료로 표시하고, 비어 있으면 `-`로 표시한다.
+
+서버가 `is_stale`을 주지 않으면(정체 감지 R-11 이전) 정체 표시와 정체 조회를 하지 않고, 처리 중인 상담은 재처리를 요청할 수 없다.
 
 ---
 
@@ -109,18 +115,18 @@
 | FE-10 | 챗봇 | 개발 제외 (PRD §3.2) |
 | FE-12 | 유형 값 | 영문 코드. 한글 표시는 프론트 (규약 §5.3) |
 | FE-16 | 통화 일시가 없는 상담 | 기간 필터에 걸리지 않음. `metadata_incomplete` 필터로 조회 (규약 §4.3) |
+| FE-13 | 상세 응답의 `is_stale` | 정체 감지(R-11) 이후 목록·상세에 함께 추가. 그전에는 없음 |
+| FE-05 | 전사 `segments` | `speaker`(`AGENT`·`CUSTOMER`·`UNKNOWN`), `start_sec`, `end_sec`, `text` |
+| FE-06 | 분석 결과와 `entities` | `[{type, value}]` 배열. 유형 코드는 백엔드가 변환(`EDUCATION`·`ETC`) |
 | FE-17 | 상태 여러 개 조회 | 같은 이름을 반복 (규약 §4.3) |
 
 ### 남은 요청
 | ID | 내용 | 대상 | 막힌 기능 |
 |---|---|---|---|
-| FE-01 | 목록·상세·통계 3개의 응답 예시 JSON | 백엔드 B | 실제 연결 전체 |
-| FE-04 | 웹 API가 들어간 OpenAPI | 백엔드 B | F-C06 |
-| FE-05 | 전사 `segments` 확정 (`speaker`, `start`, `end`, `text`) | GenAI·STT | F-V02 |
-| FE-06 | 분석 결과와 `entities` 확정 | GenAI·STT | F-V03 |
+| FE-01 | 통계 요약(`/stats/summary`) API와 응답 형식 (추이·분류는 확인함) | 백엔드 B | F-D02, F-D04, F-D06 |
+| FE-04 | 나머지 웹 API(W-03~W-07, W-09, W-11, W-12)가 들어간 OpenAPI | 백엔드 B | F-C06 |
 | FE-09 | 담당자·고객사 목록을 받을 방법 (지금은 통계 분류 응답의 이름 사용) | 백엔드 B | F-L02 |
 | FE-11 | 프론트 배포 방식 | 백엔드 B | F-O01 |
-| FE-13 | 상세 응답에도 `is_stale`이 있는지 (목록은 있음, 규약 §5.3) | 백엔드 B | 상세의 배지, 재처리 조건 |
 | FE-14 | `PATCH`에서 검토 완료를 알리는 방법 | 백엔드 B | F-V05 |
 | FE-15 | 업로드 폼 필드 이름 | 백엔드 B | F-U01 |
 | FE-18 | 수정 이력(`edit_history`)을 화면에서 볼지, 본다면 API | 팀, 백엔드 B | — |
