@@ -23,7 +23,9 @@ def repo() -> FakeStatsRepository:
 @pytest.fixture
 def api(build_app: Callable[..., FastAPI], repo: FakeStatsRepository) -> Iterator[TestClient]:
     app = build_app()
-    app.dependency_overrides[get_stats_service] = lambda: StatsService(cast(StatsRepository, repo))
+    app.dependency_overrides[get_stats_service] = lambda: StatsService(
+        cast(StatsRepository, repo), stale_threshold_min=30
+    )
     with TestClient(app) as client:
         yield client
 
@@ -141,3 +143,41 @@ def test_openapi_breakdown(spec: dict[str, Any]) -> None:
         "INQUIRY", "COMPLAINT", "SUGGESTION", "EDUCATION", "ETC",
     }  # fmt: skip
     assert set(schemas["BreakdownItem"]["required"]) == {"name", "count", "by_category"}
+
+
+def test_summary_defaults(api: TestClient, repo: FakeStatsRepository) -> None:
+    response = api.get("/api/stats/summary")
+
+    zero = {"INQUIRY": 0, "COMPLAINT": 0, "SUGGESTION": 0, "EDUCATION": 0, "ETC": 0}
+    assert response.status_code == 200
+    assert response.json() == {
+        "total": 0,
+        "by_category": zero,
+        "action_open": 0,
+        "needs_review": 0,
+        "metadata_incomplete": 0,
+        "failed": 0,
+        "stale": 0,
+    }
+    assert repo.calls == [("summary", StatsPeriod(), 30)]
+
+
+def test_summary_from_after_to_is_422(api: TestClient, repo: FakeStatsRepository) -> None:
+    response = api.get("/api/stats/summary", params={"from": "2026-11-02", "to": "2026-11-01"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["errors"][0]["type"] == "date_range"
+    assert repo.calls == []
+
+
+def test_openapi_summary(spec: dict[str, Any]) -> None:
+    operation = spec["paths"]["/api/stats/summary"]["get"]
+    params = {p["name"] for p in operation["parameters"]}
+
+    assert operation["operationId"] == "get_stats_summary"
+    assert operation["tags"] == ["stats"]
+    assert params == {"from", "to"}
+    assert set(spec["components"]["schemas"]["StatsSummary"]["required"]) == {
+        "total", "by_category", "action_open", "needs_review",
+        "metadata_incomplete", "failed", "stale",
+    }  # fmt: skip

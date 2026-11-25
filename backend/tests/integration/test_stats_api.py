@@ -56,3 +56,15 @@ def test_breakdown_end_to_end(api: TestClient, db_session: Session) -> None:
             {"name": None, "count": 1, "by_category": zero},
         ],
     }
+
+
+def test_summary_end_to_end(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, status="NEEDS_REVIEW")
+    make_analysis(db_session, call, category="건의")
+
+    response = api.get("/api/stats/summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["total"], body["needs_review"], body["action_open"]) == (1, 1, 1)
+    assert body["by_category"]["SUGGESTION"] == 1

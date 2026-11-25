@@ -1,4 +1,4 @@
-"""통계 유스케이스 (W-10 추이·분류)."""
+"""통계 유스케이스: 추이·분류·요약."""
 
 from collections.abc import Iterator
 from datetime import date, timedelta
@@ -12,6 +12,7 @@ from app.schemas.stats import (
     CategoryCounts,
     Granularity,
     StatsPeriod,
+    StatsSummary,
     TrendPoint,
     TrendResponse,
 )
@@ -64,8 +65,12 @@ def ensure_bucket_limit(first: date, last: date, granularity: Granularity) -> No
 
 
 class StatsService:
-    def __init__(self, repository: StatsRepository) -> None:
+    def __init__(self, repository: StatsRepository, *, stale_threshold_min: int) -> None:
         self._repository = repository
+        self._stale_threshold_min = stale_threshold_min
+
+    def summary(self, period: StatsPeriod) -> StatsSummary:
+        return self._repository.summary(period, stale_threshold_min=self._stale_threshold_min)
 
     def trend(self, period: StatsPeriod, granularity: Granularity) -> TrendResponse:
         start = bucket_start(period.from_, granularity) if period.from_ else None

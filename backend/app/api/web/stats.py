@@ -1,4 +1,4 @@
-"""웹 통계 API: `GET /api/stats/trend`, `GET /api/stats/breakdown`."""
+"""웹 통계 API: `GET /api/stats/summary`, `GET /api/stats/trend`, `GET /api/stats/breakdown`."""
 
 from typing import Annotated
 
@@ -10,6 +10,7 @@ from app.schemas.stats import (
     BreakdownResponse,
     Granularity,
     StatsPeriod,
+    StatsSummary,
     TrendResponse,
 )
 from app.services.stats_service import StatsService
@@ -17,6 +18,14 @@ from app.services.stats_service import StatsService
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 StatsServiceDep = Annotated[StatsService, Depends(get_stats_service)]
+
+
+@router.get("/summary")
+def get_stats_summary(
+    period: Annotated[StatsPeriod, Depends()],
+    service: StatsServiceDep,
+) -> StatsSummary:
+    return service.summary(period)
 
 
 @router.get("/trend")
