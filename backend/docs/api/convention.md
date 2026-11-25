@@ -54,6 +54,8 @@
 | POST | `/api/robot/calls/{id}/logs` | 201 | 404, 409, 422 |
 | GET | `/health` | 200 (`OK`·`DEGRADED`) / 503 (`FAIL`), 본문은 둘 다 헬스 형식(§3.6) | 500 |
 
+엑셀 보고서(`GET /api/reports/excel?from=&to=`)의 `from`·`to`는 KST 날짜(양 끝 포함)이고 기간은 최대 366일이다(넘으면 422 `period_too_long`). 비우면 `to`는 오늘(KST), `from`은 `to`의 365일 전이다. RPA 파트 보고서 양식(`templates/report.xlsx`)의 통화이력·예외 표에 행을 채워 `Content-Disposition: attachment`(`filename*` UTF-8)로 내려준다. 피벗·차트·대시보드는 Excel에서 열 때 다시 계산되며, 다운로드 파일이 제한된 보기로 열리면 "편집 사용" 후에 갱신된다. 대상: 통화 일시가 기간 안이거나 통화 일시가 없고 등록 시각이 기간 안인 삭제되지 않은 건. 통화이력은 `STORED`·`NEEDS_REVIEW`(분석 결과 있음), 예외는 `FAILED`.
+
 로봇 API는 모두 401(`UNAUTHORIZED`)·403(`FORBIDDEN_IP`)이 추가로 가능하다. 모든 API는 422·500이 가능하다.
 
 메타데이터 보정(담당자·고객사·통화 일시, `PATCH /api/calls/{id}`)과 삭제(`DELETE /api/calls/{id}`)는 처리 상태와 관계없이 허용한다(삭제는 상태를 바꾸지 않는 소프트 삭제). 두 요청은 대상 행을 잠그고(`SELECT ... FOR UPDATE`) 한 트랜잭션으로 처리한다.
