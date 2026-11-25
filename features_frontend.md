@@ -2,10 +2,14 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v0.7 (보정·삭제·재처리·음성 API에 맞춤) |
+| 문서 버전 | v0.9 (분석 수정·검토 완료 API에 맞춤) |
 | 작성일 | 2026-11-24 |
-| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1, `backend/docs/api/openapi.json`(목록·상세·보정·삭제·재처리·음성·통계 추이·분류·업로드, `main` `ef6ccee`), 화면 시안 `design/dashboard-mockup-v0.2.html` |
+| 근거 | `docs/prd.md` v0.1, `docs/input_flow.md`, `backend/docs/features/features.md` v0.2, `backend/docs/architecture/architecture.md`, `backend/docs/researchs/research.md` §4·§5, `backend/docs/api/convention.md` v0.1, `backend/docs/api/openapi.json`(목록·상세·수정·검토 완료·삭제·재처리·음성·통계·업로드, `main` `e9490fc`), 화면 시안 `design/dashboard-mockup-v0.2.html` |
 
+> **v0.9에서 바뀐 점**: 분석 수정·검토 완료 API 반영(빈 값은 `null`, 2000자, 거절되면 다시 불러오기), 재처리하면 수정 내용이 사라진다는 안내.
+>
+> **v0.8에서 바뀐 점**: 통계 요약(처리 대기 건수는 전체 기간)과 `is_stale`·`stale` 반영, 이 API가 없을 때의 임시 처리 삭제.
+>
 > **v0.7에서 바뀐 점**: 메타데이터 보정·삭제·재처리·음성 API 반영, 저장할 수 없는 값 안내, 삭제하는 사람 이름, 음성 오류 안내, 처리 이력 단계 이름.
 >
 > **v0.6에서 바뀐 점**: 업로드 API 반영, 통계 요약 API가 없을 때 목록·분류 API로 세기, 처리 이력 문구를 한글로 표시.
@@ -54,7 +58,7 @@
 | F-L01 | 목록 표 | W-01 | WEB-02 | P0 | 1 | ✅ |
 | F-L02 | 기간·유형·담당자·고객사·처리 상태·키워드 조회 | W-01 | WEB-02 | P0 | 1 | ✅ |
 | F-L03 | 페이지 이동, 통화 일시 정렬 | W-01 | WEB-02 | P0 | 1 | ✅ |
-| F-L04 | 메타데이터 확인 필요·정체 조회 (정체는 서버가 `is_stale`을 줄 때만) | W-01 | WEB-02·05 | P0 | 2 | ✅ |
+| F-L04 | 메타데이터 확인 필요·정체 조회 | W-01 | WEB-02·05 | P0 | 2 | ✅ |
 
 ### 1.4 상담 상세
 
@@ -64,7 +68,7 @@
 | F-V02 | 화자별 전사 원문, 가려진 개인정보 강조 | W-02 | WEB-03 | P0 | 1 | ✅ |
 | F-V03 | 분석 결과 (유형, 요약, 조치, 신뢰도, 후속 조치, 개체명) | W-02 | WEB-03 | P0 | 1 | ✅ |
 | F-V04 | 원본 음성 재생 | W-06 | WEB-03 | P0 | 2 | ✅ |
-| F-V05 | 분석 결과 수정, 검토 완료, 수정자 이름 (서버에 W-03이 없으면 저장할 수 없다고 안내) | W-03 | WEB-04·08 | P0 | 2 | ✅ |
+| F-V05 | 분석 결과 수정, 검토 완료, 수정자 이름 | W-03 | WEB-04·08 | P0 | 2 | ✅ |
 | F-V06 | 담당자·고객사·통화 일시 보정 | W-12 | WEB-04 | P0 | 2 | ✅ |
 | F-V07 | 삭제 (화면 안에서 확인, 삭제하는 사람 선택 입력) | W-04 | WEB-04 | P0 | 2 | ✅ |
 | F-V08 | 재처리 요청 (가능한 상태에서만) | W-05 | WEB-09 | P1 | 2 | ✅ |
@@ -103,7 +107,7 @@
 
 "정체"(`is_stale`)와 "메타데이터 확인 필요"는 상태와 별개로 함께 표시한다. 조치 상태는 `OPEN` 미조치, `DONE` 조치 완료로 표시하고, 비어 있으면 `-`로 표시한다.
 
-서버가 `is_stale`을 주지 않으면(정체 감지 R-11 이전) 정체 표시와 정체 조회를 하지 않고, 처리 중인 상담은 재처리를 요청할 수 없다.
+정체 기준 시간은 서버 설정(`STALE_THRESHOLD_MIN`, 기본 30분)이고 화면에서 계산하지 않는다.
 
 ---
 
@@ -119,20 +123,19 @@
 | FE-10 | 챗봇 | 개발 제외 (PRD §3.2) |
 | FE-12 | 유형 값 | 영문 코드. 한글 표시는 프론트 (규약 §5.3) |
 | FE-16 | 통화 일시가 없는 상담 | 기간 필터에 걸리지 않음. `metadata_incomplete` 필터로 조회 (규약 §4.3) |
-| FE-13 | 상세 응답의 `is_stale` | 정체 감지(R-11) 이후 목록·상세에 함께 추가. 그전에는 없음 |
+| FE-13 | 상세 응답의 `is_stale` | 목록·상세 모두 있음 (규약 §5.3) |
+| FE-01 | 통계 요약·추이·분류의 응답 형식 | 모두 확인. 요약의 처리 대기 건수는 기간과 무관한 전체 (규약 §4.3) |
 | FE-05 | 전사 `segments` | `speaker`(`AGENT`·`CUSTOMER`·`UNKNOWN`), `start_sec`, `end_sec`, `text` |
 | FE-06 | 분석 결과와 `entities` | `[{type, value}]` 배열. 유형 코드는 백엔드가 변환(`EDUCATION`·`ETC`) |
 | FE-15 | 업로드 폼 필드 이름 | `files` (최대 10개, 규약 §3.5). 프론트는 파일마다 따로 보냄 |
 | FE-19 | 정체된 `RETRY_REQUESTED`의 재처리 요청 | 409로 거절 (`retry_service.py`). 프론트와 같음 |
+| FE-14 | `PATCH`에서 검토 완료를 알리는 방법 | `review_completed: true`, `NEEDS_REVIEW`에서만 (규약 §2.2) |
 | FE-17 | 상태 여러 개 조회 | 같은 이름을 반복 (규약 §4.3) |
 
 ### 남은 요청
 | ID | 내용 | 대상 | 막힌 기능 |
 |---|---|---|---|
-| FE-01 | 통계 요약(`/stats/summary`) API와 응답 형식 (추이·분류는 확인함) | 백엔드 B | F-D02(미조치·정체), F-D06 |
-| FE-04 | 나머지 웹 API(W-03, W-09, W-11)가 들어간 OpenAPI | 백엔드 B | F-C06 |
+| FE-04 | 나머지 웹 API(W-11 엑셀)가 들어간 OpenAPI | 백엔드 B | F-C06 |
 | FE-09 | 담당자·고객사 목록을 받을 방법 (지금은 통계 분류 응답의 이름 사용) | 백엔드 B | F-L02 |
 | FE-11 | 프론트 배포 방식 | 백엔드 B | F-O01 |
-| FE-14 | `PATCH`에서 검토 완료를 알리는 방법 | 백엔드 B | F-V05 |
-| FE-20 | 목록·상세에 `is_stale`, 목록에 `stale` 필터. 정체 감지(R-11)는 `main`에 있지만 웹 응답에는 없어 정체된 처리 중 상담을 화면에서 재처리할 수 없다 | 백엔드 B | F-L04, F-V08, F-U02, F-U03 |
 | FE-18 | 수정 이력(`edit_history`)을 화면에서 볼지, 본다면 API | 팀, 백엔드 B | — |
