@@ -7,6 +7,7 @@ from typing import BinaryIO
 
 import structlog
 
+from app.core.audio_format import CANONICAL_MIME, HEAD_BYTES, detect_audio_format
 from app.core.config import AudioExtension
 from app.core.errors import AppError, ErrorCode
 from app.infra.inbox import InboxUnavailableError, InboxWriter
@@ -15,11 +16,7 @@ from app.schemas.upload import UploadedFile, UploadResponse
 
 MAX_FILES_PER_REQUEST = 10
 MAX_NAME_LENGTH = 255  # NTFS 경로 성분 한도(UTF-16 코드 단위)
-HEAD_BYTES = 12  # 매직 바이트 판정에 읽는 앞부분 길이
 _TOO_MANY_FILES_MSG = f"파일은 한 번에 최대 {MAX_FILES_PER_REQUEST}개까지 올릴 수 있습니다"
-
-# Drive mimeType으로 넘기는 정규 MIME. 클라이언트가 보낸 Content-Type은 쓰지 않는다.
-CANONICAL_MIME: dict[AudioExtension, str] = {"wav": "audio/wav", "mp3": "audio/mpeg"}
 
 _log = structlog.stdlib.get_logger("app.upload")
 
@@ -56,20 +53,6 @@ def normalize_filename(raw: str | None) -> str | None:
     if len(name.encode("utf-16-le")) // 2 > MAX_NAME_LENGTH:
         return None
     return name
-
-
-def detect_audio_format(head: bytes) -> AudioExtension | None:
-    """앞부분으로 형식을 판정한다. WAV = RIFF…WAVE, MP3 = ID3 태그 또는 Layer III 프레임 동기."""
-    if head[:4] == b"RIFF" and head[8:12] == b"WAVE":
-        return "wav"
-    if head[:3] == b"ID3":
-        return "mp3"
-    if len(head) >= 2 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0:
-        version = (head[1] >> 3) & 0b11  # 01은 예약값
-        layer = (head[1] >> 1) & 0b11  # 01 = Layer III (00이면 ADTS AAC)
-        if version != 0b01 and layer == 0b01:
-            return "mp3"
-    return None
 
 
 def _filename_error(index: int) -> AppError:
