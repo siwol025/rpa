@@ -12,10 +12,12 @@ from app.repositories.call_repository import CallRepository
 from app.schemas.call import CallBase, CallDetail, CallListItem, CallListQuery, CallUpdateRequest
 from app.schemas.common import KST, Page, PageParams
 from app.services.call_metadata import is_metadata_incomplete
+from app.services.state_machine import is_stale
 
 
-def _base_fields(call: CallRecord) -> dict[str, Any]:
-    return {name: getattr(call, name) for name in CallBase.model_fields}
+def _base_fields(call: CallRecord, stale_threshold_min: int, now: datetime) -> dict[str, Any]:
+    fields = {name: getattr(call, name) for name in CallBase.model_fields if name != "is_stale"}
+    return {**fields, "is_stale": is_stale(call, stale_threshold_min, now)}
 
 
 @dataclass(frozen=True)
@@ -47,16 +49,23 @@ def apply_changes(target: object, changes: dict[str, Any]) -> list[FieldChange]:
 
 
 class CallService:
-    def __init__(self, repository: CallRepository, session: Session) -> None:
+    def __init__(
+        self, repository: CallRepository, session: Session, *, stale_threshold_min: int
+    ) -> None:
         self._repository = repository
         self._session = session  # 유스케이스 단위 트랜잭션: 쓰기 메서드가 커밋한다.
+        self._stale_threshold_min = stale_threshold_min
 
     def list_calls(self, query: CallListQuery, page: PageParams) -> Page[CallListItem]:
-        rows = self._repository.list_calls(query, offset=page.offset, limit=page.size)
+        now = datetime.now(UTC)  # 정체 필터와 is_stale을 같은 시각으로 판단
+        threshold = self._stale_threshold_min
+        rows = self._repository.list_calls(
+            query, offset=page.offset, limit=page.size, stale_threshold_min=threshold, now=now
+        )
         items = [
             CallListItem.model_validate(
                 {
-                    **_base_fields(call),
+                    **_base_fields(call, threshold, now),
                     "category": category,
                     "question_summary": question_summary,
                     "action_status": action_status,
@@ -64,7 +73,7 @@ class CallService:
             )
             for call, category, question_summary, action_status in rows
         ]
-        total = self._repository.count_calls(query)
+        total = self._repository.count_calls(query, stale_threshold_min=threshold, now=now)
         return Page(items=items, page=page.page, size=page.size, total=total)
 
     def get_call(self, call_id: int) -> CallDetail:
@@ -73,7 +82,7 @@ class CallService:
             raise AppError(ErrorCode.NOT_FOUND)
         return CallDetail.model_validate(
             {
-                **_base_fields(call),
+                **_base_fields(call, self._stale_threshold_min, datetime.now(UTC)),
                 "transcript": call.transcript,
                 "analysis": call.analysis,
                 "processing_log": self._repository.list_logs(call_id),

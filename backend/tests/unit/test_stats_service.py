@@ -6,7 +6,7 @@ import pytest
 from app.core.errors import AppError
 from app.repositories.stats_repository import DimensionCount, StatsRepository
 from app.schemas.call import Category
-from app.schemas.stats import BreakdownBy, Granularity, StatsPeriod
+from app.schemas.stats import BreakdownBy, Granularity, StatsPeriod, StatsSummary
 from app.services.stats_service import StatsService
 
 
@@ -18,7 +18,8 @@ class FakeStatsRepository:
     ) -> None:
         self.periods = periods or {}
         self.dimensions = dimensions or []
-        self.calls: list[tuple[str, StatsPeriod, str]] = []
+        self.calls: list[tuple[str, StatsPeriod, object]] = []
+        self.summary_result = StatsSummary.empty()
 
     def count_by_period(self, period: StatsPeriod, granularity: Granularity) -> dict[date, int]:
         self.calls.append(("period", period, granularity))
@@ -28,9 +29,13 @@ class FakeStatsRepository:
         self.calls.append(("dimension", period, by))
         return self.dimensions
 
+    def summary(self, period: StatsPeriod, *, stale_threshold_min: int) -> StatsSummary:
+        self.calls.append(("summary", period, stale_threshold_min))
+        return self.summary_result
+
 
 def _service(repo: FakeStatsRepository) -> StatsService:
-    return StatsService(cast(StatsRepository, repo))
+    return StatsService(cast(StatsRepository, repo), stale_threshold_min=30)
 
 
 def _row(name: str | None, count: int, **by_category: int) -> DimensionCount:
@@ -148,3 +153,13 @@ def test_breakdown_sorts_by_count_then_name_with_null_last() -> None:
 
 def test_breakdown_without_data_returns_empty_items() -> None:
     assert _service(FakeStatsRepository()).breakdown(StatsPeriod(), "agent").items == []
+
+
+def test_summary_passes_period_and_stale_threshold() -> None:
+    repo = FakeStatsRepository()
+    period = StatsPeriod(from_=date(2026, 11, 1))
+
+    result = _service(repo).summary(period)
+
+    assert result is repo.summary_result
+    assert repo.calls == [("summary", period, 30)]

@@ -109,6 +109,7 @@ class CallListQuery:
     status: Annotated[list[CallStatus] | None, Query()] = None
     q: Annotated[str | None, Query(max_length=Q_MAX_LENGTH)] = None
     metadata_incomplete: Annotated[bool | None, Query()] = None
+    stale: Annotated[bool | None, Query()] = None  # 정체 감지 기준(STALE_THRESHOLD_MIN)
     sort: Annotated[CallSort, Query()] = "-created_at"
 
     def __post_init__(self) -> None:
@@ -191,6 +192,7 @@ class CallBase(BaseModel):
     status_changed_at: KstDatetime
     retry_count: int
     created_at: KstDatetime
+    is_stale: bool  # 서버 계산. 처리 중 상태로 정체 기준 시간을 넘김
 
 
 class CallListItem(CallBase):

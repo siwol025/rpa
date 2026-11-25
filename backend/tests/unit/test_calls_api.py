@@ -35,6 +35,7 @@ _DETAIL = CallDetail.model_validate(
         "status_changed_at": datetime(2026, 11, 23, 5, 30, tzinfo=UTC),
         "retry_count": 0,
         "created_at": datetime(2026, 11, 23, 5, 30, tzinfo=UTC),
+        "is_stale": False,
         "transcript": None,
         "analysis": None,
         "processing_log": [],
@@ -109,6 +110,7 @@ def test_list_parses_all_params(api: TestClient, fake: FakeCallService) -> None:
             ("status", "NEEDS_REVIEW"),
             ("q", "환불"),
             ("metadata_incomplete", "true"),
+            ("stale", "true"),
             ("sort", "-call_datetime"),
             ("page", "2"),
             ("size", "100"),
@@ -126,6 +128,7 @@ def test_list_parses_all_params(api: TestClient, fake: FakeCallService) -> None:
         status=[CallStatus.FAILED, CallStatus.NEEDS_REVIEW],
         q="환불",
         metadata_incomplete=True,
+        stale=True,
         sort="-call_datetime",
     )
     assert (page.page, page.size) == (2, 100)
@@ -146,6 +149,7 @@ def test_list_parses_all_params(api: TestClient, fake: FakeCallService) -> None:
         ({"to": "9999-12-31"}, ["query", "to"]),
         ({"q": "가" * 101}, ["query", "q"]),
         ({"metadata_incomplete": "maybe"}, ["query", "metadata_incomplete"]),
+        ({"stale": "maybe"}, ["query", "stale"]),
         ({"from": "2026-11-02", "to": "2026-11-01"}, ["query", "from"]),
     ],
 )
@@ -170,9 +174,9 @@ def test_q_with_100_chars_is_allowed(api: TestClient) -> None:
     assert api.get("/api/calls", params={"q": "가" * 100}).status_code == 200
 
 
-def test_unknown_param_stale_is_ignored(api: TestClient, fake: FakeCallService) -> None:
-    assert api.get("/api/calls", params={"stale": "true"}).status_code == 200
-    assert fake.calls[0][0] == CallListQuery()
+def test_stale_false_is_parsed(api: TestClient, fake: FakeCallService) -> None:
+    assert api.get("/api/calls", params={"stale": "false"}).status_code == 200
+    assert fake.calls[0][0] == CallListQuery(stale=False)
 
 
 def test_get_call_returns_detail(api: TestClient) -> None:
@@ -318,7 +322,7 @@ def test_openapi_list_calls(spec: dict[str, Any]) -> None:
     assert operation["tags"] == ["calls"]
     assert set(params) == {
         "from", "to", "category", "agent", "client", "status", "q",
-        "metadata_incomplete", "sort", "page", "size",
+        "metadata_incomplete", "stale", "sort", "page", "size",
     }  # fmt: skip
     assert params["sort"]["default"] == "-created_at"
     assert set(params["sort"]["enum"]) == {
@@ -344,7 +348,8 @@ def test_openapi_enums(spec: dict[str, Any]) -> None:
     assert set(schemas["CallStatus"]["enum"]) == set(CallStatus)
     assert set(schemas["Category"]["enum"]) == set(Category)
     assert set(schemas["LogStep"]["enum"]) == set(LogStep)
-    assert "is_stale" not in schemas["CallListItem"]["properties"]
+    assert "is_stale" in schemas["CallListItem"]["required"]
+    assert "is_stale" in schemas["CallDetail"]["required"]
     assert "processing_log" in schemas["CallDetail"]["required"]
 
 

@@ -276,6 +276,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_stale": {
+            "title": "Is Stale",
+            "type": "boolean"
+          },
           "metadata_incomplete": {
             "title": "Metadata Incomplete",
             "type": "boolean"
@@ -330,6 +334,7 @@
           "status_changed_at",
           "retry_count",
           "created_at",
+          "is_stale",
           "transcript",
           "analysis",
           "processing_log"
@@ -413,6 +418,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_stale": {
+            "title": "Is Stale",
+            "type": "boolean"
+          },
           "metadata_incomplete": {
             "title": "Metadata Incomplete",
             "type": "boolean"
@@ -461,6 +470,7 @@
           "status_changed_at",
           "retry_count",
           "created_at",
+          "is_stale",
           "category",
           "question_summary",
           "action_status"
@@ -1331,6 +1341,49 @@
         "title": "Speaker",
         "type": "string"
       },
+      "StatsSummary": {
+        "description": "통계 요약. `total`·`by_category`만 기간을 적용하고, 처리 대기 건수는 기간과 무관한 전체.",
+        "properties": {
+          "action_open": {
+            "title": "Action Open",
+            "type": "integer"
+          },
+          "by_category": {
+            "$ref": "#/components/schemas/CategoryCounts"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "metadata_incomplete": {
+            "title": "Metadata Incomplete",
+            "type": "integer"
+          },
+          "needs_review": {
+            "title": "Needs Review",
+            "type": "integer"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "by_category",
+          "action_open",
+          "needs_review",
+          "metadata_incomplete",
+          "failed",
+          "stale"
+        ],
+        "title": "StatsSummary",
+        "type": "object"
+      },
       "TranscriptOut": {
         "properties": {
           "segments": {
@@ -1639,6 +1692,22 @@
                 }
               ],
               "title": "Metadata Incomplete"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stale"
             }
           },
           {
@@ -2871,6 +2940,83 @@
           }
         },
         "summary": "Get Stats Breakdown",
+        "tags": [
+          "stats"
+        ]
+      }
+    },
+    "/api/stats/summary": {
+      "get": {
+        "operationId": "get_stats_summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL_ERROR"
+          }
+        },
+        "summary": "Get Stats Summary",
         "tags": [
           "stats"
         ]

@@ -1,16 +1,27 @@
 """통계 집계 쿼리. 조건(삭제 제외·기간)은 목록과 같은 `filter_conditions`를 쓴다."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, DateTime, Label, case, func, literal_column, null, select
+from sqlalchemy import (
+    ColumnElement,
+    DateTime,
+    Label,
+    and_,
+    case,
+    func,
+    literal_column,
+    null,
+    select,
+)
 from sqlalchemy.orm import Session
 
 from app.models import Analysis, CallRecord
 from app.repositories.call_repository import filter_conditions
-from app.schemas.call import CATEGORY_DB_VALUES, Category
-from app.schemas.stats import BreakdownBy, Granularity, StatsPeriod
+from app.schemas.call import CATEGORY_DB_VALUES, CallStatus, Category
+from app.schemas.stats import BreakdownBy, CategoryCounts, Granularity, StatsPeriod, StatsSummary
+from app.services.stale_detection import stale_condition
 
 # date_trunc 단위. SQL에 상수로 들어가므로 이 허용 목록의 값만 쓴다.
 _TRUNC_UNITS: dict[Granularity, str] = {"day": "day", "week": "week", "month": "month"}
@@ -78,3 +89,40 @@ class StatsRepository:
             )
             for row in self._session.execute(stmt)
         ]
+
+    def summary(
+        self, period: StatsPeriod, *, stale_threshold_min: int, now: datetime | None = None
+    ) -> StatsSummary:
+        """쿼리 1회. 기간은 `total`·`by_category`에만 적용한다(삭제 제외는 전체 공통)."""
+        in_period = and_(*filter_conditions(period.call_filter()))
+        by_category = [
+            func.count().filter(in_period, Analysis.category == CATEGORY_DB_VALUES[code])
+            for code in Category
+        ]
+        stmt = (
+            select(
+                func.count().filter(in_period),
+                func.count().filter(Analysis.action_status == "OPEN"),
+                func.count().filter(CallRecord.status == CallStatus.NEEDS_REVIEW),
+                func.count().filter(CallRecord.metadata_incomplete.is_(True)),
+                func.count().filter(CallRecord.status == CallStatus.FAILED),
+                func.count().filter(stale_condition(stale_threshold_min, now)),
+                *by_category,
+            )
+            .select_from(CallRecord)
+            .outerjoin(Analysis, Analysis.call_id == CallRecord.id)
+            .where(CallRecord.deleted_at.is_(None))
+        )
+        row = self._session.execute(stmt).one()
+        total, action_open, needs_review, metadata_incomplete, failed, stale = row[:6]
+        return StatsSummary(
+            total=total,
+            by_category=CategoryCounts.model_validate(
+                dict(zip((code.value for code in Category), row[6:], strict=True))
+            ),
+            action_open=action_open,
+            needs_review=needs_review,
+            metadata_incomplete=metadata_incomplete,
+            failed=failed,
+            stale=stale,
+        )

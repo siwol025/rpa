@@ -1,4 +1,4 @@
-"""통계 추이·분류 API 스키마 (W-10)."""
+"""통계 추이·분류·요약 API 스키마."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -64,3 +64,28 @@ class BreakdownItem(BaseModel):
 class BreakdownResponse(BaseModel):
     by: BreakdownBy
     items: list[BreakdownItem]
+
+
+class StatsSummary(BaseModel):
+    """통계 요약. `total`·`by_category`만 기간을 적용하고, 처리 대기 건수는 기간과 무관한 전체."""
+
+    total: int
+    by_category: CategoryCounts
+    action_open: int  # 분석 조치 상태 OPEN
+    needs_review: int  # 상태 NEEDS_REVIEW
+    metadata_incomplete: int
+    failed: int  # 상태 FAILED
+    stale: int  # 정체 감지 기준(STALE_THRESHOLD_MIN)
+
+    @classmethod
+    def empty(cls) -> "StatsSummary":
+        zero = CategoryCounts(INQUIRY=0, COMPLAINT=0, SUGGESTION=0, EDUCATION=0, ETC=0)
+        return cls(
+            total=0,
+            by_category=zero,
+            action_open=0,
+            needs_review=0,
+            metadata_incomplete=0,
+            failed=0,
+            stale=0,
+        )

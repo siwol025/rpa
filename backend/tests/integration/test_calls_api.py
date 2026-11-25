@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -76,3 +76,21 @@ def test_get_deleted_call_is_404(api: TestClient, db_session: Session) -> None:
 
     assert response.status_code == 404
     assert response.json()["code"] == "NOT_FOUND"
+
+
+def test_list_calls_stale_filter_and_flag(api: TestClient, db_session: Session) -> None:
+    old = datetime.now(UTC) - timedelta(hours=2)
+    stale = make_call(db_session, status="QUEUED", status_changed_at=old)
+    fresh = make_call(db_session, status="QUEUED")
+    make_call(db_session, status="STORED", status_changed_at=old)
+    make_call(db_session, status="QUEUED", status_changed_at=old, deleted_at=old)
+
+    stale_body = api.get("/api/calls", params={"stale": "true"}).json()
+    fresh_body = api.get("/api/calls", params={"stale": "false"}).json()
+
+    assert [(i["id"], i["is_stale"]) for i in stale_body["items"]] == [(stale.id, True)]
+    assert stale_body["total"] == 1
+    assert fresh_body["total"] == 2
+    assert fresh.id in {i["id"] for i in fresh_body["items"]}
+    assert not any(i["is_stale"] for i in fresh_body["items"])
+    assert api.get(f"/api/calls/{stale.id}").json()["is_stale"] is True
