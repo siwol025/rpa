@@ -1,4 +1,4 @@
-"""상담 조회 쿼리. 소프트 삭제된 건은 항상 제외한다 (architecture.md §3.1)."""
+"""상담 조회·수정 쿼리. 소프트 삭제된 건은 항상 제외한다 (architecture.md §3.1)."""
 
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, Row, Select, UnaryExpression, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Analysis, CallRecord, ProcessingLog, Transcript
+from app.models import Analysis, CallRecord, EditHistory, ProcessingLog, Transcript
 from app.schemas.call import CATEGORY_DB_VALUES, CallListQuery, CallSort
 from app.schemas.common import KST
 
@@ -97,6 +97,35 @@ class CallRepository:
             .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
         )
         return self._session.scalars(stmt).one_or_none()
+
+    def lock_call(self, call_id: int) -> CallRecord | None:
+        """삭제되지 않은 건을 행 잠금(`FOR UPDATE`)으로 읽는다. 트랜잭션 끝까지 잠금이 유지된다.
+
+        상태 머신·로봇 서비스의 잠금 조회와 같은 SQL이다. 관계를 함께 읽지 않는다
+        (PostgreSQL은 OUTER JOIN의 NULL 가능 쪽에 FOR UPDATE 불가).
+        """
+        stmt = (
+            select(CallRecord)
+            .where(CallRecord.id == call_id, CallRecord.deleted_at.is_(None))
+            .with_for_update()
+        )
+        return self._session.scalars(stmt).one_or_none()
+
+    def add_edit_history(
+        self,
+        call_id: int,
+        field: str,
+        before: str | None,
+        after: str | None,
+        *,
+        editor: str | None,
+    ) -> None:
+        """수정 이력 1행. `edited_at`은 DB 기본값(now())."""
+        self._session.add(
+            EditHistory(
+                call_id=call_id, field=field, before_val=before, after_val=after, editor=editor
+            )
+        )
 
     def list_logs(self, call_id: int) -> Sequence[ProcessingLog]:
         # CallRecord.logs 관계에는 순서가 없어 별도 쿼리로 처리 순서를 보장한다.

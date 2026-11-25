@@ -4,8 +4,9 @@ import unicodedata
 
 import pytest
 
+from app.core.audio_format import detect_audio_format
 from app.infra.inbox.local import validate_local_name
-from app.services.upload_service import detect_audio_format, normalize_filename
+from app.services.upload_service import normalize_filename
 
 _NAME = "20261124_101500_김상담_A산업.mp3"
 

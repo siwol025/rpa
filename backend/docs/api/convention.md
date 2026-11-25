@@ -43,7 +43,7 @@
 | PATCH | `/api/calls/{id}` | 200 (갱신된 상세) | 404, 409, 422 |
 | DELETE | `/api/calls/{id}` | 204 | 404 (이미 삭제된 건 포함) |
 | POST | `/api/calls/{id}/retry` | 202 `{call_id, status, retry_count}` | 404, 409 |
-| GET | `/api/calls/{id}/audio` | 200 / 206(Range) / 302(GCS 서명 URL) | 404 |
+| GET | `/api/calls/{id}/audio` | 200 / 206(Range) / 302(GCS 서명 URL) | 404, 416 |
 | GET | `/api/stats/*` | 200 (집계 객체) | 422 |
 | GET | `/api/reports/excel` | 200 (xlsx) | 422 |
 | POST | `/api/robot/calls` | 201 `{call_id}` | 409 `DUPLICATE_FILE`, 413, 415, 422 |
@@ -52,8 +52,11 @@
 | GET | `/api/robot/calls/{id}/audio` | 200 | 404 |
 | PUT | `/api/robot/calls/{id}/transcript`, `.../analysis` | 200 `{call_id, status}` (같은 내용 재전송도 200) | 404, 409, 422 |
 | POST | `/api/robot/calls/{id}/logs` | 201 | 404, 409, 422 |
+| GET | `/health` | 200 (`OK`·`DEGRADED`) / 503 (`FAIL`), 본문은 둘 다 헬스 형식(§3.6) | 500 |
 
 로봇 API는 모두 401(`UNAUTHORIZED`)·403(`FORBIDDEN_IP`)이 추가로 가능하다. 모든 API는 422·500이 가능하다.
+
+메타데이터 보정(담당자·고객사·통화 일시, `PATCH /api/calls/{id}`)과 삭제(`DELETE /api/calls/{id}`)는 처리 상태와 관계없이 허용한다(삭제는 상태를 바꾸지 않는 소프트 삭제). 두 요청은 대상 행을 잠그고(`SELECT ... FOR UPDATE`) 한 트랜잭션으로 처리한다.
 
 ### 2.3 본문 규칙
 1. 상태를 바꾸는 동작 API는 결과 상태를 돌려준다(`{call_id, status}`). 웹은 재조회 없이 화면을 갱신하고, 로봇은 결과를 로그에 남긴다.
@@ -106,6 +109,23 @@
 - 503 `INBOX_UNAVAILABLE`은 업로드 저장소가 꺼져 있거나(`INBOX_BACKEND=disabled`) 업로드 중 실패한 경우다. 업로드 중 실패면 앞 순서의 파일은 이미 올라갔을 수 있다(다시 올리면 등록 단계에서 중복으로 정리된다). `detail`은 `null`.
 - 202 본문은 `{"items": [{"name": ...}]}`이고, `name`은 저장된 이름(경로 성분 제거, NFC 정규화, 확장자 소문자)이다.
 
+### 3.6 헬스 체크 (`GET /health`) — 에러 형식의 예외
+- 503도 §3.1 에러 형식이 아니라 200과 같은 **헬스 형식**으로 돌려준다(어느 구성요소가 문제인지 보이도록). 헬스용 `ErrorCode`는 없다.
+  ```json
+  { "status": "FAIL", "checks": { "db": "FAIL", "audio_storage": "OK", "inbox": "OK" } }
+  ```
+- `status`: `OK`(200), `DEGRADED`(200, 선택 구성요소 `inbox`만 실패), `FAIL`(503, 필수 구성요소 `db`·`audio_storage` 중 하나 이상 실패).
+- `checks`의 값: `OK`, `FAIL`, `DISABLED`(`INBOX_BACKEND=disabled`, 전체 판정에서 제외).
+- 실패 원인은 응답에 넣지 않는다. 원인은 로그(`app.health` 로거 `health_check_failed`, 필드 `component`·`reason`)에 있으며 응답의 `X-Request-Id`로 찾는다.
+- `inbox` 확인 결과는 서버 프로세스마다 30초 동안 재사용된다(성공·실패 모두). `db`·`audio_storage`는 요청마다 확인한다.
+- 인증이 없다(로봇 API Key·IP 검사 대상 아님). 응답에 `Cache-Control: no-store`.
+- 예상하지 못한 서버 오류는 §3.1 형식의 500 `INTERNAL_ERROR`다.
+
+### 3.7 음성 재생 (`GET /api/calls/{id}/audio`)
+- 단일 바이트 범위(`bytes=a-b`, `bytes=a-`, `bytes=-n`)만 206으로 응답한다(`Content-Range`, `Accept-Ranges: bytes`). 문법 오류·모르는 단위·다중 범위이거나 `If-Range`가 함께 오면 Range를 무시하고 200 전체를 보낸다.
+- 범위가 파일 밖이면 416 `RANGE_NOT_SATISFIABLE`(§3.1 형식, `detail: null`)과 `Content-Range: bytes */<크기>` 헤더. 헤더가 필요해 라우터가 `error_response(..., headers=...)`를 직접 반환한다(§3.4-2의 예외).
+- 없는 건·삭제된 건·음성 사본 파일이 없는 건은 모두 404 `NOT_FOUND`다. 응답은 `Cache-Control: private, no-store`.
+
 ## 4. 목록
 
 ### 4.1 형식
@@ -141,11 +161,15 @@
 - 요청의 시각은 오프셋이 있으면 그대로 해석하고, **오프셋이 없으면 KST로 간주**한다(`"2026-11-23T14:30:05"` = `14:30:05+09:00`).
 - 날짜만 필요한 값(기간 필터)은 `YYYY-MM-DD`.
 - 코드: 요청·응답 모델의 시각 필드는 `KstDatetime`으로 선언한다. 서버 내부·DB는 aware 값만 쓴다(`datetime.now(UTC)`; `datetime.now()`·`utcnow()` 금지). 응답 모델을 `model_construct()`로 만들지 않는다(검증을 건너뛰면 naive 값이 그대로 남는다).
+- 요청의 통화 일시(`call_datetime`)는 KST 날짜 기준 `2000-01-01`~`2100-12-31`만 허용한다(기간 필터와 같은 범위, 벗어나면 422 `type: "datetime_range"`).
 
 ### 5.2 null과 빈 값
 - 값이 없는 필드는 생략하지 않고 `null`로 보낸다. 빈 목록은 `[]`.
 - 처리 전이라 없는 하위 객체(상세의 `transcript`·`analysis`)는 `null`, 로그는 `[]`.
 - PATCH는 보낸 키만 변경한다. `null`은 값 비우기이며 비울 수 있는 필드에만 허용한다(코드: `model_dump(exclude_unset=True)`).
+- 문자열 입력은 앞뒤 공백을 지운 뒤 검사한다. 지운 결과가 빈 값이면 422(`string_too_short`)다. 값 비우기는 `null` 한 가지로만 표현한다.
+- PATCH 요청 모델은 선언하지 않은 키를 받지 않는다(422 `extra_forbidden`, `loc: ["body", "<키>"]`). 필드는 선택 필드로 추가한다(호환 변경).
+- 수정·삭제는 `edit_history`에 남긴다: 실제로 바뀐 필드마다 1행(같은 값 재전송은 기록하지 않음), 값은 문자열(시각은 응답과 같은 초 단위 `+09:00`). 파생 값(`metadata_incomplete`)은 기록하지 않는다. 삭제는 `field: "deleted_at"` 1행이다. 수정자 이름은 선택 입력(공백 제거 후 1~50자)으로 PATCH는 본문 `editor`, DELETE는 쿼리 `?editor=`로 받는다. 로그인이 없으므로 자기 신고 값이다.
 
 ### 5.3 enum
 - 값은 영문 대문자 상수다. OpenAPI `enum`으로 노출한다.
@@ -160,6 +184,8 @@
 | `speaker` | `AGENT`, `CUSTOMER` |
 | `processing_log.step` | `REGISTER`, `QUEUE`, `STT`, `GENAI`, `STORE`, `EXCEL`, `CRM`, `RETRY` |
 | `processing_log.status` | `SUCCESS`, `FAIL`, `RETRY` |
+| 헬스 `status` | `OK`, `DEGRADED`, `FAIL` |
+| 헬스 `checks.*` | `OK`, `FAIL`, `DISABLED` |
 
 - 정체(stale)는 상태 값이 아니다. 목록 항목의 `is_stale`(서버 계산)과 `stale` 필터로 표현한다. 두 항목은 정체 감지(R-11) 이후 추가된다(그전에는 응답에 없고 `stale` 파라미터는 무시된다).
 
@@ -179,5 +205,5 @@
 1. 계약 파일은 `backend/docs/api/openapi.json`이다. 라우트·요청·응답 모델을 바꾸면 `cd backend && uv run python -m scripts.export_openapi`로 다시 생성해 **같은 PR에 포함**한다. 파일이 코드와 다르면 `pytest`가 실패한다. 리뷰어는 이 파일의 diff로 계약 변경을 확인한다.
 2. 개발 서버에서는 `/docs`(Swagger UI)·`/redoc`·`/openapi.json`을 연다. 운영은 `DOCS_ENABLED=false`로 모두 끈다(404).
 3. operationId는 라우트 함수 이름이다(`list_calls`). 함수 이름은 앱 전체에서 고유해야 한다(테스트로 확인).
-4. 라우터에 `tags`를 붙인다: 웹 `calls`·`uploads`·`stats`·`reports`, 로봇 `robot`.
+4. 라우터에 `tags`를 붙인다: 웹 `calls`·`uploads`·`stats`·`reports`, 로봇 `robot`, 운영 `health`.
 5. 프론트 타입 생성 도구 선택은 프론트가 정한다(`openapi.json`은 OpenAPI 3.1).

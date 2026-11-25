@@ -1,15 +1,16 @@
-"""상담 목록·상세 API 스키마 (W-01, W-02)."""
+"""상담 목록·상세·수정·삭제 API 스키마."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import Query
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, StringConstraints, field_validator
+from pydantic_core import PydanticCustomError
 
 from app.core.errors import AppError, ErrorCode
-from app.schemas.common import KstDatetime
+from app.schemas.common import KST, KstDatetime
 
 # ---------------------------------------------------------------- enum (convention.md §5.3)
 # 값은 모델의 CHECK 상수(app/models/*.py)와 같아야 한다 (tests/unit/test_call_enums.py).
@@ -130,6 +131,46 @@ class CallListQuery:
         """앞뒤 공백을 뺀 검색어. 비면 None(필터 없음)."""
         stripped = (self.q or "").strip()
         return stripped or None
+
+
+# 문자열 값은 앞뒤 공백을 지운 뒤 검사한다. 비우기는 null 한 가지로만 표현한다(빈 값 422).
+AgentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+ClientCompany = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+]
+# 수정자 이름. 로그인이 없어 자기 신고 값이다. PATCH 본문·DELETE 쿼리에서 선택 입력.
+EditorName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+
+METADATA_FIELDS = ("agent_name", "client_company", "call_datetime")
+
+
+class CallUpdateRequest(BaseModel):
+    """`PATCH /api/calls/{id}`. 보낸 키만 변경하고 `null`은 값 비우기다.
+
+    선언하지 않은 키는 422(`extra_forbidden`). 유형·요약·조치·검토 완료 필드는
+    분석 수정 기능에서 선택 필드로 추가한다(호환 변경).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_name: AgentName | None = None
+    client_company: ClientCompany | None = None
+    call_datetime: KstDatetime | None = None
+    editor: EditorName | None = None
+
+    @field_validator("call_datetime")
+    @classmethod
+    def _call_datetime_in_range(cls, value: datetime | None) -> datetime | None:
+        # 범위는 목록 기간 필터와 같다(KST 날짜 기준). 메시지에 입력값을 넣지 않는다.
+        if value is not None and not DATE_MIN <= value.astimezone(KST).date() <= DATE_MAX:
+            raise PydanticCustomError(
+                "datetime_range", "통화 일시는 2000-01-01부터 2100-12-31 사이여야 합니다"
+            )
+        return value
+
+    def metadata_changes(self) -> dict[str, Any]:
+        """요청에 들어 있는 메타데이터 키와 값(`null` 포함). 보낸 키가 없으면 빈 dict."""
+        return self.model_dump(include=set(METADATA_FIELDS), exclude_unset=True)
 
 
 # ---------------------------------------------------------------- 응답

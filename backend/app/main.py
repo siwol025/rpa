@@ -7,9 +7,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
+from app.api import health
 from app.api.robot import calls as robot_calls
 from app.api.robot.auth import RobotAuthMiddleware
-from app.api.web import calls, stats, uploads
+from app.api.web import audio, calls, retry, stats, uploads
 from app.core.config import Settings, get_settings
 from app.core.db import create_session_factory
 from app.core.errors import ErrorCode, register_exception_handlers
@@ -53,9 +54,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 폴더는 첫 저장·헬스 체크 때 만든다 (시작 시 디스크를 건드리지 않는다).
     app.state.audio_storage = create_audio_storage(settings)
     app.include_router(calls.router)
+    app.include_router(audio.router)
     app.include_router(robot_calls.router)
     app.include_router(stats.router)
     app.include_router(uploads.router)
+    app.include_router(retry.router)
+    app.include_router(health.router)
 
     # add_middleware는 목록 맨 앞에 끼워 넣으므로 나중에 등록한 것이 바깥에서 실행된다.
     # 실행 순서(바깥 → 안): RequestId → CORS → UnhandledError → RobotAuth → BodySizeLimit → 라우터

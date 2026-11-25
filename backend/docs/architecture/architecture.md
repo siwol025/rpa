@@ -113,15 +113,18 @@ backend/
 │   │   └── security.py          # 로봇 API Key 검증
 │   ├── api/
 │   │   ├── deps.py              # DB 세션, 서비스 주입
-│   │   ├── web/                 # uploads.py, calls.py, stats.py, reports.py
+│   │   ├── health.py            # GET /health (헬스 체크)
+│   │   ├── web/                 # uploads.py, calls.py, retry.py, stats.py, reports.py
 │   │   └── robot/               # calls.py
-│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, common
+│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, retry, health, common
 │   ├── models/                  # SQLAlchemy ORM
 │   ├── repositories/
 │   ├── services/
-│   │   ├── call_service.py      # 웹 조회·수정·삭제·재처리 요청
+│   │   ├── call_service.py      # 웹 조회·수정·삭제
+│   │   ├── retry_service.py     # 웹 재처리 요청 (상태 머신 호출)
 │   │   ├── robot_service.py     # 등록·상태·적재·실패 보고
 │   │   ├── upload_service.py    # 웹 업로드 검증 → InboxWriter
+│   │   ├── health_service.py    # DB·음성 저장소·inbox 확인, 판정, inbox 결과 캐시
 │   │   ├── state_machine.py
 │   │   ├── stats_service.py     # 통계, 정체 건 집계
 │   │   └── report_service.py    # openpyxl, 템플릿 기반
@@ -379,7 +382,7 @@ erDiagram
 |---|---|---|---|
 | `/api/uploads`, `/api/calls`, `/api/stats`, `/api/reports` | 웹 | 없음 | VM 방화벽 IP 허용 목록 |
 | `/api/robot/*` | Dispatcher · Performer | `X-API-Key` | 키는 Orchestrator Credential Asset 보관 |
-| `/health` | 모니터링 | 없음 | DB·음성 저장소·Drive `inbox/` 접근 확인 |
+| `/health` | 모니터링 | 없음 | DB·음성 저장소(필수, 실패 시 503)·Drive `inbox/`(선택, 실패 시 200 `DEGRADED`) 접근 확인. 503도 헬스 형식(`convention.md` §3.6) |
 | `/docs` | 개발자 | 운영 환경에서는 비활성(`DOCS_ENABLED=false`) | OpenAPI = 팀 간 계약서. 커밋된 `backend/docs/api/openapi.json`으로 공유 |
 
 엔드포인트 목록은 `research.md` §5, 로봇 API 상세는 `input_flow.md` §9 참조.
@@ -418,16 +421,21 @@ erDiagram
 
 ### 8.1 AudioStorage (음성 사본)
 ```python
+ByteRange = tuple[int, int | None]  # (시작, 끝) 끝 포함, None이면 파일 끝까지
+
 class AudioStorage(Protocol):
-    def put(self, key: str, stream: BinaryIO, content_type: str) -> None: ...
-    def open(self, key: str, byte_range: tuple[int, int] | None = None) -> BinaryIO: ...
+    def save(self, stream: BinaryIO, *, extension: str) -> str: ...  # UUID 키 반환
+    def open(self, key: str, byte_range: ByteRange | None = None) -> BinaryIO: ...
+    def size(self, key: str) -> int: ...
     def delete(self, key: str) -> None: ...
-    def signed_url(self, key: str, expires_sec: int) -> str | None: ...  # Local은 None
+    def check(self) -> None: ...  # 헬스 체크
 ```
 | 구현체 | Phase | 음성 재생 방식 |
 |---|---|---|
-| `LocalStorage` (Docker 볼륨) | 1~2 | API가 Range 응답으로 직접 스트리밍 |
+| `LocalStorage` (Docker 볼륨) | 1~2 | API가 Range 응답으로 직접 스트리밍(`StreamingResponse` + `app/core/http_range.py`) |
 | `GCSStorage` | 3 (선택) | 서명 URL로 302 리다이렉트 |
+
+`GCSStorage`의 서명 URL 발급 메서드는 X-02에서 Protocol에 추가한다.
 
 ### 8.2 InboxWriter (웹 업로드 → 클라우드 inbox/)
 ```python
@@ -543,7 +551,7 @@ flowchart TB
 | 클라우드 폴더 자체 | 공유 드라이브 멤버를 담당자·RPA 계정·서비스 계정으로 한정, 링크 공유 금지, `done/` 보관 기간 단축 |
 | API → DB | 전용 DB 계정(앱 권한만), 마이그레이션 계정 분리 |
 | 업로드 파일 (웹·로봇) | 확장자 + 매직 바이트 검증(둘이 같은 형식이어야 함, 클라이언트 MIME은 판정에 쓰지 않고 판정 형식의 정규 MIME 사용)(웹 업로드 기준), 음성 사본은 UUID 파일명, 실행 권한 없는 볼륨 |
-| 데이터 | 마스킹된 텍스트만 저장, 음성 재생·다운로드 접근 로그 기록 |
+| 데이터 | 마스킹된 텍스트만 저장, 음성 재생·다운로드 접근 로그 기록(`app.audio` `audio_access`: `call_id`·구간·상태·바이트. `Range` 원문·클라이언트 IP는 남기지 않음) |
 | 오조작 | 소프트 삭제, `edit_history`, 일일 백업 |
 | 비밀 | `.env`(Git 제외) → 클라우드에서는 Secret Manager |
 
@@ -557,7 +565,7 @@ Orchestrator 자격 증명·Webhook 시크릿은 백엔드에 존재하지 않�
 |---|---|
 | 로그 | JSON 구조화 로그(`request_id`, `call_id`, `path`, `status`, `latency_ms`), Docker 로그 로테이션 |
 | 처리 추적 | `processing_log` 테이블 — 웹 상세 화면에서 단계별 이력 조회 |
-| 헬스 체크 | `GET /health` → DB `SELECT 1`, 음성 저장소 쓰기, Drive `inbox/` 폴더 메타데이터 조회 가능 여부 |
+| 헬스 체크 | `GET /health` → DB `SELECT 1`(연결 타임아웃 5초), 음성 저장소 폴더 생성·쓰기 권한(`AudioStorage.check()`), Drive `inbox/` 폴더 메타데이터 조회(`InboxWriter.check()`, 결과 30초 캐시). DB·음성 저장소 실패 → 503 `FAIL`, inbox 실패 → 200 `DEGRADED`, `INBOX_BACKEND=disabled`면 `DISABLED`(판정 제외). 원인은 응답이 아니라 로그 `health_check_failed`에만 |
 | **정체 감지** | `REGISTERED`·`QUEUED`·`STT_DONE`·`RETRY_REQUESTED` 상태에서 `status_changed_at`이 `STALE_THRESHOLD_MIN`(기본 30분 **[가정]**) 초과 → 통계 API에 정체 건수로 노출, 목록 API `stale=true` 필터로 해당 건 조회, 대시보드 경고. 로봇 크래시·Dispatcher 중단을 잡는 **유일한 서버 측 장치**. 복구: `REGISTERED`·`QUEUED`·`STT_DONE` 정체 건은 웹 재처리 요청, `RETRY_REQUESTED` 정체는 Dispatcher 자체가 멈춘 것이므로 RPA 파트에 로봇 점검 요청 |
 | 운영 지표 | 상태별 건수, 실패율, 평균 처리 시간(`REGISTERED` → `STORED`) |
 | 백업·복구 | `pg_dump` 일 1회 + 음성 사본 볼륨 백업, 복구 절차 문서화 |
