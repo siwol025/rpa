@@ -8,7 +8,7 @@ Python 레퍼런스: `step2/analyze.py` (`build_prompt` → LLM → `extract_jso
 | 이름 | 방향 | 타입 | 내용 |
 |---|---|---|---|
 | `in_Transcript` | In | String | PII 마스킹이 끝난 `full_text` (`[상담원] …\n[고객] …`) |
-| `in_PromptPath` | In | String | `prompts\prompt_v1_1.txt` (확정 후 v1.2) |
+| `in_PromptPath` | In | String | `prompts\prompt_v1_2.txt` (채택) |
 | `in_MaxRetry` | In | Int32 | 기본 2 (Config에서 받음) |
 | `out_ResultJson` | Out | String | 검증을 통과한 분석 JSON 문자열 |
 | `out_Success` | Out | Boolean | 성공 여부 |

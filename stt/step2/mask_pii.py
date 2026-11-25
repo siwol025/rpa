@@ -10,6 +10,7 @@ Step2-A: 개인정보(PII) 정규식 마스킹 (일정표 21·22번 초안)
     v1.1에서 토큰 목록을 시스템 프롬프트에 명시하는 것을 권장.
 
 한계(알려진 것)
+  - [ID]는 '아이디는 ...' 뒤 영문·숫자 어절만 잡는다. 말로 읽은 이메일은 '골뱅이 … 점 …' 형태만 잡는다.
   - 숫자를 한글로 읽어 적은 경우("공일공 일이삼사")는 못 잡는다. STT가 숫자를 아라비아 숫자로 주는지 실제 응답으로 확인 필요.
   - 이름은 '상담원 ○○○입니다', '성함은 ○○○' 같은 문맥 패턴만 잡는다(이름 비식별 보강은 후순위 작업).
   - 계좌번호는 형식이 은행마다 달라 '하이픈으로 구분된 10~14자리' 정도만 잡는다.
@@ -30,6 +31,12 @@ _PROV = (r"(?:서울특별시|서울시|서울|부산광역시|부산|대구광�
          r"전북특별자치도|전라북도|전북|전라남도|전남|경상북도|경북|경상남도|경남|제주특별자치도|제주도|제주)")
 _PWTOK = r"(?:[A-Za-z0-9]+|느낌표|골뱅이|별표|샵|언더바|물결|대시|하이픈)[가-힣]{0,2}"
 RULES = [
+    # 말로 읽은 이메일: "dabin prince 123 골뱅이 네이버 점 컴" (주소 규칙보다 먼저)
+    ("email", "[EMAIL]", re.compile(
+        r"[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+){0,3}\s*골뱅이\s*[가-힣A-Za-z0-9]+(?:\s*점\s*(?:컴|닷컴|넷|케이알|씨오|com|net|kr|co)){1,2}")),
+    # 시·도 없이 말한 아파트·빌라 주소: "연희동 현대 21차 아파트"
+    ("address", "[ADDRESS]", re.compile(
+        r"[가-힣]{1,6}[동읍면리]\s+[가-힣0-9]+(?:\s*\d+\s*(?:차|단지|동|호))*\s*(?:아파트|빌라|오피스텔|APT)")),
     ("address", "[ADDRESS]", re.compile(
         _PROV + r"\s*[가-힣]{1,6}[시군구]\s+(?:[가-힣0-9\-]+\s+){0,5}[가-힣0-9\-]*\d[가-힣0-9\-]*")),
     ("rrn", "[RRN]", re.compile(r"(?<!\d)\d{6}\s*[-–]\s*[1-4]\d{6}(?!\d)")),
@@ -41,14 +48,23 @@ RULES = [
 ]
 # 비밀번호: 앞 문맥('비밀번호는')은 남기고 값 어절들만 치환
 PASSWORD_RULE = re.compile(r"(비밀\s?번호(?:는|가|를|도)?\s*)(" + _PWTOK + r"(?:\s+" + _PWTOK + r")*)")
+# 카드번호를 말로 불러 준 경우: "카드번호는 02345-5648632 다시 132546974이고요" (그룹 1 문맥은 유지)
+CARD_SPOKEN_RULE = re.compile(r"(카드\s?번호(?:는|가|를|도)?\s*)((?:\d[\d\-]*(?:\s*다시\s*)?)+)")
+# 비밀번호 앞·뒷자리: "비밀번호 앞자리는 00이에요"
+PASSWORD_PART_RULE = re.compile(r"(비밀\s?번호\s*(?:앞|뒷|뒤)\s?자리(?:는|가|를|도)?\s*)(\d{1,6})")
+# 아이디: "아이디는 dabin jang으로" (영문·숫자 어절만)
+ID_RULE = re.compile(r"(아이디(?:는|가|를|도)?\s*)([A-Za-z0-9]+(?:\s+[A-Za-z0-9]+){0,2})(?=[가-힣\s,.]|$)")
 # 이름: 그룹 1(앞 문맥)은 남기고 그룹 2(이름)만 치환
 NAME_RULES = [
     re.compile(r"(상담원\s*)([가-힣]{2,4})(?=\s*(?:입니다|이에요|예요|이라고))"),
     re.compile(r"((?:제\s*이름은|성함은|이름은|저는)\s*)([가-힣]{2,4})(?=\s*(?:입니다|이에요|예요|이라고|씨|님|인데))"),
+    re.compile(r"((?:아이\s*|자녀\s*|아들\s*|딸\s*)?이름은\s*)([가-힣]{2,4})(?=\s*(?:이고|이며|이구요|이에요|예요|입니다))"),
+    # 통화 끝 인사: "감사합니다. 강은빈이었습니다."
+    re.compile(r"((?:^|[.?!]\s+))([가-힣]{3})(?=이었습니다)"),
 ]
-NAME_STOPWORDS = {"고객", "상담원", "담당자", "회원", "관리자"}
+NAME_STOPWORDS = {"고객", "상담원", "담당자", "회원", "관리자", "그것", "이것", "문제", "원인", "결과", "내용"}
 EMPTY_COUNTS = {"phone": 0, "rrn": 0, "card": 0, "account": 0, "email": 0, "name": 0,
-                "address": 0, "password": 0, "birth": 0}
+                "address": 0, "password": 0, "birth": 0, "id": 0}
 
 
 def mask_text(text):
@@ -57,8 +73,14 @@ def mask_text(text):
     for kind, token, rx in RULES:
         text, n = rx.subn(token, text)
         counts[kind] += n
+    text, n = CARD_SPOKEN_RULE.subn(lambda m: m.group(1) + "[CARD]", text)
+    counts["card"] += n
+    text, n = PASSWORD_PART_RULE.subn(lambda m: m.group(1) + "[PASSWORD]", text)
+    counts["password"] += n
     text, n = PASSWORD_RULE.subn(lambda m: m.group(1) + "[PASSWORD]", text)
     counts["password"] += n
+    text, n = ID_RULE.subn(lambda m: m.group(1) + "[ID]", text)
+    counts["id"] += n
     for rx in NAME_RULES:
         def _sub(m):
             if m.group(2) in NAME_STOPWORDS:

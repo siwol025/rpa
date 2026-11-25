@@ -137,8 +137,8 @@ def folder_flow(test):
                  var(S, "mockDir", '""'), var(S, "configPath", 'If(Not String.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("CLOVA_CONFIG")), System.Environment.GetEnvironmentVariable("CLOVA_CONFIG"), System.IO.Path.GetFullPath(System.IO.Path.Combine(System.Environment.CurrentDirectory, "..", "config.json")))'),
                  var(S, "llmMode", '"live"'), var(S, "genaiModel", '"gpt-6-luna"')]
         title, cls = "Main_Folder - calls\\in 의 음성 파일을 처리하고 out / done / failed 로 정리", "Main_Folder"
-    vars_ += [var(S, "promptPath", P("prompts", "prompt_v1_1.txt")), var("x:Int32", "maxRetry", "2"), var(S, "promptText"),
-              var(S, "promptVersion", '"v1_1"'), var(S, "sttEngine", '"clova-speech"'), var(L, "files"),
+    vars_ += [var(S, "promptPath", P("prompts", "prompt_v1_2.txt")), var("x:Int32", "maxRetry", "2"), var(S, "promptText"),
+              var(S, "promptVersion", '"v1_2"'), var(S, "sttEngine", '"clova-speech"'), var(L, "files"),
               var("x:Int32", "doneCount", "0"), var("x:Int32", "failedCount", "0")]
     body = seq(title, body_children, variables=vars_)
     return wrap(header, cls, body)

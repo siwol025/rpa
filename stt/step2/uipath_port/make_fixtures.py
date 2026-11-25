@@ -5,7 +5,7 @@ UiPath 단계별 테스트용 입력(fixtures)과 Python 정답(expected)을 만
   python make_fixtures.py
 
 생성 위치 (UiPath 프로젝트 폴더):
-  prompts\\prompt_v1_1.txt                      프롬프트 템플릿 (프로젝트 안으로 복사)
+  prompts\\prompt_v1_2.txt                      프롬프트 템플릿 (프로젝트 안으로 복사)
   genai_test\\{세션}_transcript.txt             마스킹된 전사본 (Main_Step123 입력)
   test_data\\step1\\{case}\\prompt.txt, transcript.txt      Step1 입력
   test_data\\step2\\{case}.txt                  Step2 입력 (모델 응답 원문)
@@ -18,7 +18,7 @@ import shutil
 
 import common as C
 
-PROMPT_SRC = os.path.join(C.ROOT, "prompts", "prompt_v1_1.txt")
+PROMPT_SRC = os.path.join(C.ROOT, "prompts", "prompt_v1_2.txt")
 GENAI_SRC = os.path.join(C.ROOT, "test", "out", "stt", "genai")
 GENAI_DST = os.path.join(C.UIPATH, "genai_test")
 
@@ -139,6 +139,8 @@ def step4_cases():
                                             "서울 마포구 아싸동 암흑길 30 빌딩 305호입니다."])
     cases["pii_password_birth"] = make_transcript(["비밀번호는 imkin g123 느낌표 느낌표로 해주세요", "비밀 번호가 abc1234예요", "01년생이고 1990년생도 있어요", "제가 99년생이에요"])
     cases["pii_names"] = make_transcript(["안녕하세요 상담원 김하늘입니다", "성함은 홍길동입니다", "저는 박서준이에요", "저는 고객입니다", "이름은 최민수님이라고 합니다"])
+    cases["pii_spoken_rules"] = make_transcript(["메일은 dabin prince 123 골뱅이 네이버 점 컴 이에요", "저희 집은 연희동 현대 21차 아파트예요", "카드번호는 02345-5648632 다시 132546974이고요",
+                                                  "비밀번호 앞자리는 00이에요", "아이디는 dabin jang으로 해 주세요", "아이 이름은 김서연이고 나이는 일곱 살이에요", "감사합니다. 강은빈이었습니다.", "그것이었습니다."])
     cases["no_pii_false_positives"] = make_transcript(["오늘로 3일째입니다", "2026-11-24에 접수", "5분 정도 분량", "고객센터입니다", "상담원 연결해 주세요",
                                                        "서울 지점에 방문했어요", "서울에서 3일째입니다", "부산 사는데 1학년이에요", "비밀번호는 잊어버렸어요", "90년대생이에요"])
     cases["mixed_overlap"] = make_transcript(["주민번호 900101-2345678 전화 010-9999-8888 카드 1111-2222-3333-4444 입니다", "계좌 123-456-7890123 / 2026-11-24 / 010-1234-5678"])
@@ -163,7 +165,7 @@ def step5_scenarios():
     sc["stt_failed"] = dict(raw=failed, attempts=[NOJSON])
     sc["input_failed"] = dict(raw=failed, attempts=[NOJSON], forced_stt_error={"stage": "INPUT", "reason": "음성 파일이 없음"})
     for i, (name, d) in enumerate(sc.items(), 1):
-        d.update(file_name=name + ".wav", seq=i, now="2026-11-24T17:%02d:05+09:00" % i, prompt_version="v1_1", genai_model="mock-rule-based")
+        d.update(file_name=name + ".wav", seq=i, now="2026-11-24T17:%02d:05+09:00" % i, prompt_version="v1_2", genai_model="mock-rule-based")
         if d.get("forced_stt_error"):
             d["stt_stage"], d["stt_error"], d["tr"] = d["forced_stt_error"]["stage"], d["forced_stt_error"]["reason"], None
             continue
@@ -182,7 +184,7 @@ def main():
         __import__("sys").stdout.reconfigure(encoding="utf-8")
     # 프롬프트 템플릿과 전사본을 UiPath 프로젝트 안으로
     os.makedirs(os.path.join(C.UIPATH, "prompts"), exist_ok=True)
-    shutil.copyfile(PROMPT_SRC, os.path.join(C.UIPATH, "prompts", "prompt_v1_1.txt"))
+    shutil.copyfile(PROMPT_SRC, os.path.join(C.UIPATH, "prompts", "prompt_v1_2.txt"))
     for sid in C.SIDS:
         shutil.copyfile(os.path.join(GENAI_SRC, "%s_transcript.txt" % sid), os.path.join(GENAI_DST, "%s_transcript.txt" % sid))
     # 이전 실행의 fixtures 는 지우고 다시 만든다 (정답과 어긋나지 않게)
