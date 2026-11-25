@@ -10,7 +10,7 @@ from fastapi.routing import APIRoute
 from app.api import health
 from app.api.robot import calls as robot_calls
 from app.api.robot.auth import RobotAuthMiddleware
-from app.api.web import audio, calls, retry, stats, uploads
+from app.api.web import audio, calls, reports, retry, stats, uploads
 from app.core.config import Settings, get_settings
 from app.core.db import create_session_factory
 from app.core.errors import ErrorCode, register_exception_handlers
@@ -57,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audio.router)
     app.include_router(robot_calls.router)
     app.include_router(stats.router)
+    app.include_router(reports.router)
     app.include_router(uploads.router)
     app.include_router(retry.router)
     app.include_router(health.router)

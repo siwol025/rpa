@@ -10,8 +10,10 @@ from app.core.config import Settings
 from app.infra.inbox import InboxWriter
 from app.infra.storage import AudioStorage
 from app.repositories.call_repository import CallRepository
+from app.repositories.report_repository import ReportRepository
 from app.repositories.stats_repository import StatsRepository
 from app.services.call_service import CallService
+from app.services.report_service import ReportService
 from app.services.robot_service import RobotService
 from app.services.stats_service import StatsService
 from app.services.upload_service import UploadService
@@ -41,6 +43,10 @@ def get_call_service(session: DbSession, request: Request) -> CallService:
 def get_stats_service(session: DbSession, request: Request) -> StatsService:
     threshold = get_settings_from_app(request).stale_threshold_min
     return StatsService(StatsRepository(session), stale_threshold_min=threshold)
+
+
+def get_report_service(session: DbSession) -> ReportService:
+    return ReportService(ReportRepository(session))
 
 
 def get_audio_storage(request: Request) -> AudioStorage:
