@@ -52,6 +52,7 @@
 | GET | `/api/robot/calls/{id}/audio` | 200 | 404 |
 | PUT | `/api/robot/calls/{id}/transcript`, `.../analysis` | 200 `{call_id, status}` (같은 내용 재전송도 200) | 404, 409, 422 |
 | POST | `/api/robot/calls/{id}/logs` | 201 | 404, 409, 422 |
+| GET | `/health` | 200 (`OK`·`DEGRADED`) / 503 (`FAIL`), 본문은 둘 다 헬스 형식(§3.6) | 500 |
 
 로봇 API는 모두 401(`UNAUTHORIZED`)·403(`FORBIDDEN_IP`)이 추가로 가능하다. 모든 API는 422·500이 가능하다.
 
@@ -105,6 +106,18 @@
 - 415 `UNSUPPORTED_MEDIA`의 `detail`은 `{"index": i}`(요청에서 몇 번째 파일인지, 0부터). 확장자가 허용 목록(`ALLOWED_EXTENSIONS`)에 없거나, 내용이 확장자와 다른 형식이거나, 빈 파일이면 415다.
 - 503 `INBOX_UNAVAILABLE`은 업로드 저장소가 꺼져 있거나(`INBOX_BACKEND=disabled`) 업로드 중 실패한 경우다. 업로드 중 실패면 앞 순서의 파일은 이미 올라갔을 수 있다(다시 올리면 등록 단계에서 중복으로 정리된다). `detail`은 `null`.
 - 202 본문은 `{"items": [{"name": ...}]}`이고, `name`은 저장된 이름(경로 성분 제거, NFC 정규화, 확장자 소문자)이다.
+
+### 3.6 헬스 체크 (`GET /health`) — 에러 형식의 예외
+- 503도 §3.1 에러 형식이 아니라 200과 같은 **헬스 형식**으로 돌려준다(어느 구성요소가 문제인지 보이도록). 헬스용 `ErrorCode`는 없다.
+  ```json
+  { "status": "FAIL", "checks": { "db": "FAIL", "audio_storage": "OK", "inbox": "OK" } }
+  ```
+- `status`: `OK`(200), `DEGRADED`(200, 선택 구성요소 `inbox`만 실패), `FAIL`(503, 필수 구성요소 `db`·`audio_storage` 중 하나 이상 실패).
+- `checks`의 값: `OK`, `FAIL`, `DISABLED`(`INBOX_BACKEND=disabled`, 전체 판정에서 제외).
+- 실패 원인은 응답에 넣지 않는다. 원인은 로그(`app.health` 로거 `health_check_failed`, 필드 `component`·`reason`)에 있으며 응답의 `X-Request-Id`로 찾는다.
+- `inbox` 확인 결과는 서버 프로세스마다 30초 동안 재사용된다(성공·실패 모두). `db`·`audio_storage`는 요청마다 확인한다.
+- 인증이 없다(로봇 API Key·IP 검사 대상 아님). 응답에 `Cache-Control: no-store`.
+- 예상하지 못한 서버 오류는 §3.1 형식의 500 `INTERNAL_ERROR`다.
 
 ## 4. 목록
 
@@ -160,6 +173,8 @@
 | `speaker` | `AGENT`, `CUSTOMER` |
 | `processing_log.step` | `REGISTER`, `QUEUE`, `STT`, `GENAI`, `STORE`, `EXCEL`, `CRM`, `RETRY` |
 | `processing_log.status` | `SUCCESS`, `FAIL`, `RETRY` |
+| 헬스 `status` | `OK`, `DEGRADED`, `FAIL` |
+| 헬스 `checks.*` | `OK`, `FAIL`, `DISABLED` |
 
 - 정체(stale)는 상태 값이 아니다. 목록 항목의 `is_stale`(서버 계산)과 `stale` 필터로 표현한다. 두 항목은 정체 감지(R-11) 이후 추가된다(그전에는 응답에 없고 `stale` 파라미터는 무시된다).
 
@@ -179,5 +194,5 @@
 1. 계약 파일은 `backend/docs/api/openapi.json`이다. 라우트·요청·응답 모델을 바꾸면 `cd backend && uv run python -m scripts.export_openapi`로 다시 생성해 **같은 PR에 포함**한다. 파일이 코드와 다르면 `pytest`가 실패한다. 리뷰어는 이 파일의 diff로 계약 변경을 확인한다.
 2. 개발 서버에서는 `/docs`(Swagger UI)·`/redoc`·`/openapi.json`을 연다. 운영은 `DOCS_ENABLED=false`로 모두 끈다(404).
 3. operationId는 라우트 함수 이름이다(`list_calls`). 함수 이름은 앱 전체에서 고유해야 한다(테스트로 확인).
-4. 라우터에 `tags`를 붙인다: 웹 `calls`·`uploads`·`stats`·`reports`, 로봇 `robot`.
+4. 라우터에 `tags`를 붙인다: 웹 `calls`·`uploads`·`stats`·`reports`, 로봇 `robot`, 운영 `health`.
 5. 프론트 타입 생성 도구 선택은 프론트가 정한다(`openapi.json`은 OpenAPI 3.1).

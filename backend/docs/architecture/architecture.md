@@ -113,9 +113,10 @@ backend/
 │   │   └── security.py          # 로봇 API Key 검증
 │   ├── api/
 │   │   ├── deps.py              # DB 세션, 서비스 주입
+│   │   ├── health.py            # GET /health (헬스 체크)
 │   │   ├── web/                 # uploads.py, calls.py, retry.py, stats.py, reports.py
 │   │   └── robot/               # calls.py
-│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, retry, common
+│   ├── schemas/                 # Pydantic: call, transcript, analysis(GenAI JSON), stats, retry, health, common
 │   ├── models/                  # SQLAlchemy ORM
 │   ├── repositories/
 │   ├── services/
@@ -123,6 +124,7 @@ backend/
 │   │   ├── retry_service.py     # 웹 재처리 요청 (상태 머신 호출)
 │   │   ├── robot_service.py     # 등록·상태·적재·실패 보고
 │   │   ├── upload_service.py    # 웹 업로드 검증 → InboxWriter
+│   │   ├── health_service.py    # DB·음성 저장소·inbox 확인, 판정, inbox 결과 캐시
 │   │   ├── state_machine.py
 │   │   ├── stats_service.py     # 통계, 정체 건 집계
 │   │   └── report_service.py    # openpyxl, 템플릿 기반
@@ -380,7 +382,7 @@ erDiagram
 |---|---|---|---|
 | `/api/uploads`, `/api/calls`, `/api/stats`, `/api/reports` | 웹 | 없음 | VM 방화벽 IP 허용 목록 |
 | `/api/robot/*` | Dispatcher · Performer | `X-API-Key` | 키는 Orchestrator Credential Asset 보관 |
-| `/health` | 모니터링 | 없음 | DB·음성 저장소·Drive `inbox/` 접근 확인 |
+| `/health` | 모니터링 | 없음 | DB·음성 저장소(필수, 실패 시 503)·Drive `inbox/`(선택, 실패 시 200 `DEGRADED`) 접근 확인. 503도 헬스 형식(`convention.md` §3.6) |
 | `/docs` | 개발자 | 운영 환경에서는 비활성(`DOCS_ENABLED=false`) | OpenAPI = 팀 간 계약서. 커밋된 `backend/docs/api/openapi.json`으로 공유 |
 
 엔드포인트 목록은 `research.md` §5, 로봇 API 상세는 `input_flow.md` §9 참조.
@@ -558,7 +560,7 @@ Orchestrator 자격 증명·Webhook 시크릿은 백엔드에 존재하지 않�
 |---|---|
 | 로그 | JSON 구조화 로그(`request_id`, `call_id`, `path`, `status`, `latency_ms`), Docker 로그 로테이션 |
 | 처리 추적 | `processing_log` 테이블 — 웹 상세 화면에서 단계별 이력 조회 |
-| 헬스 체크 | `GET /health` → DB `SELECT 1`, 음성 저장소 쓰기, Drive `inbox/` 폴더 메타데이터 조회 가능 여부 |
+| 헬스 체크 | `GET /health` → DB `SELECT 1`(연결 타임아웃 5초), 음성 저장소 폴더 생성·쓰기 권한(`AudioStorage.check()`), Drive `inbox/` 폴더 메타데이터 조회(`InboxWriter.check()`, 결과 30초 캐시). DB·음성 저장소 실패 → 503 `FAIL`, inbox 실패 → 200 `DEGRADED`, `INBOX_BACKEND=disabled`면 `DISABLED`(판정 제외). 원인은 응답이 아니라 로그 `health_check_failed`에만 |
 | **정체 감지** | `REGISTERED`·`QUEUED`·`STT_DONE`·`RETRY_REQUESTED` 상태에서 `status_changed_at`이 `STALE_THRESHOLD_MIN`(기본 30분 **[가정]**) 초과 → 통계 API에 정체 건수로 노출, 목록 API `stale=true` 필터로 해당 건 조회, 대시보드 경고. 로봇 크래시·Dispatcher 중단을 잡는 **유일한 서버 측 장치**. 복구: `REGISTERED`·`QUEUED`·`STT_DONE` 정체 건은 웹 재처리 요청, `RETRY_REQUESTED` 정체는 Dispatcher 자체가 멈춘 것이므로 RPA 파트에 로봇 점검 요청 |
 | 운영 지표 | 상태별 건수, 실패율, 평균 처리 시간(`REGISTERED` → `STORED`) |
 | 백업·복구 | `pg_dump` 일 1회 + 음성 사본 볼륨 백업, 복구 절차 문서화 |
