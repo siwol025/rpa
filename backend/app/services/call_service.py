@@ -1,4 +1,4 @@
-"""웹 상담 유스케이스: 목록·상세 조회, 메타데이터 보정, 삭제."""
+"""웹 상담 유스케이스: 목록·상세 조회, 메타데이터 보정·분석 수정·검토 완료, 삭제."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -9,10 +9,17 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError, ErrorCode
 from app.models import CallRecord
 from app.repositories.call_repository import CallRepository
-from app.schemas.call import CallBase, CallDetail, CallListItem, CallListQuery, CallUpdateRequest
+from app.schemas.call import (
+    CallBase,
+    CallDetail,
+    CallListItem,
+    CallListQuery,
+    CallStatus,
+    CallUpdateRequest,
+)
 from app.schemas.common import KST, Page, PageParams
 from app.services.call_metadata import is_metadata_incomplete
-from app.services.state_machine import is_stale
+from app.services.state_machine import CallStateMachine, is_stale
 
 
 def _base_fields(call: CallRecord, stale_threshold_min: int, now: datetime) -> dict[str, Any]:
@@ -90,15 +97,32 @@ class CallService:
         )
 
     def update_call(self, call_id: int, request: CallUpdateRequest) -> CallDetail:
-        """보낸 키만 바꾸고 바뀐 필드마다 이력 1행. 상태는 바꾸지 않는다."""
+        """보낸 키만 바꾸고 바뀐 필드마다 이력 1행. `review_completed`면 `NEEDS_REVIEW → STORED`.
+
+        409(분석 결과 없음·검토 완료 불가)는 어떤 값도 바꾸기 전에 낸다.
+        """
         call = self._lock(call_id)
+        analysis_changes = request.analysis_changes()
+        if analysis_changes and call.analysis is None:
+            raise AppError(ErrorCode.INVALID_STATE_TRANSITION, "분석 결과가 없는 상담입니다.")
+        status_change: list[FieldChange] = []
+        if request.review_completed:
+            before = call.status
+            # 같은 트랜잭션이라 이미 잡은 행 잠금을 다시 잡아도 막히지 않는다. flush까지만 한다.
+            CallStateMachine(
+                self._session, stale_threshold_min=self._stale_threshold_min
+            ).transition(call_id, CallStatus.STORED, actor="web", reason="검토 완료")
+            if call.analysis is not None:
+                call.analysis.needs_review = False
+            status_change.append(FieldChange("status", before, call.status))
+
         metadata = request.metadata_changes()
         changes = apply_changes(call, metadata)
         if metadata:
             call.metadata_incomplete = is_metadata_incomplete(call.agent_name, call.call_datetime)
-        # 분석 필드 적용·검토 완료 전이(CallStateMachine.transition, flush만)는 이 자리에
-        # 추가한다. 같은 트랜잭션이라 이미 잡은 행 잠금을 다시 잡아도 막히지 않는다.
-        for change in changes:
+        if analysis_changes:
+            changes += apply_changes(call.analysis, analysis_changes)
+        for change in changes + status_change:
             self._repository.add_edit_history(
                 call_id, change.field, change.before, change.after, editor=request.editor
             )

@@ -141,15 +141,19 @@ ClientCompany = Annotated[
 ]
 # 수정자 이름. 로그인이 없어 자기 신고 값이다. PATCH 본문·DELETE 쿼리에서 선택 입력.
 EditorName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+SummaryText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+]
 
 METADATA_FIELDS = ("agent_name", "client_company", "call_datetime")
+ANALYSIS_FIELDS = ("category", "question_summary", "action_summary", "action_status")
 
 
 class CallUpdateRequest(BaseModel):
     """`PATCH /api/calls/{id}`. 보낸 키만 변경하고 `null`은 값 비우기다.
 
-    선언하지 않은 키는 422(`extra_forbidden`). 유형·요약·조치·검토 완료 필드는
-    분석 수정 기능에서 선택 필드로 추가한다(호환 변경).
+    선언하지 않은 키는 422(`extra_forbidden`). 비울 수 없는 필드(`category`·`action_status`·
+    `review_completed`)에 `null`을 보내면 422. `review_completed`는 `true`만 받는다.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -157,7 +161,20 @@ class CallUpdateRequest(BaseModel):
     agent_name: AgentName | None = None
     client_company: ClientCompany | None = None
     call_datetime: KstDatetime | None = None
+    category: Category | None = None
+    question_summary: SummaryText | None = None
+    action_summary: SummaryText | None = None
+    action_status: ActionStatus | None = None
+    review_completed: Literal[True] | None = None
     editor: EditorName | None = None
+
+    @field_validator("category", "action_status", "review_completed")
+    @classmethod
+    def _not_null(cls, value: object) -> object:
+        # 기본값(키 없음)에는 실행되지 않으므로 명시한 null만 막는다.
+        if value is None:
+            raise PydanticCustomError("not_nullable", "null로 비울 수 없는 필드입니다")
+        return value
 
     @field_validator("call_datetime")
     @classmethod
@@ -172,6 +189,15 @@ class CallUpdateRequest(BaseModel):
     def metadata_changes(self) -> dict[str, Any]:
         """요청에 들어 있는 메타데이터 키와 값(`null` 포함). 보낸 키가 없으면 빈 dict."""
         return self.model_dump(include=set(METADATA_FIELDS), exclude_unset=True)
+
+    def analysis_changes(self) -> dict[str, Any]:
+        """요청에 들어 있는 분석 키와 값. 유형은 DB 저장 값, 조치 상태는 문자열로 바꾼다."""
+        changes = self.model_dump(include=set(ANALYSIS_FIELDS), exclude_unset=True)
+        if "category" in changes:
+            changes["category"] = CATEGORY_DB_VALUES[changes["category"]]
+        if "action_status" in changes:
+            changes["action_status"] = str(changes["action_status"])
+        return changes
 
 
 # ---------------------------------------------------------------- 응답

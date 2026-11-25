@@ -1,4 +1,4 @@
-"""웹 상담 API: 목록·상세 조회, 메타데이터 보정(`PATCH`), 삭제(`DELETE`)."""
+"""웹 상담 API: 목록·상세 조회, 메타데이터 보정·분석 수정·검토 완료(`PATCH`), 삭제(`DELETE`)."""
 
 from typing import Annotated
 
@@ -37,7 +37,10 @@ def get_call(
     return service.get_call(call_id)
 
 
-@router.patch("/{call_id}", responses=error_responses(ErrorCode.NOT_FOUND))
+@router.patch(
+    "/{call_id}",
+    responses=error_responses(ErrorCode.NOT_FOUND, ErrorCode.INVALID_STATE_TRANSITION),
+)
 def update_call(
     call_id: Annotated[int, Path(ge=1, le=BIGINT_MAX)],
     body: CallUpdateRequest,

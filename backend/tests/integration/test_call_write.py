@@ -9,7 +9,7 @@ from sqlalchemy import Engine, delete, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from app.models import CallRecord, EditHistory
+from app.models import Analysis, CallRecord, EditHistory, ProcessingLog
 from app.repositories.call_repository import CallRepository
 from app.schemas.common import KST
 from app.services.state_machine import CallStateMachine
@@ -199,14 +199,12 @@ def test_patch_deleted_call_is_404(api: TestClient, db_session: Session) -> None
     assert _history(db_session, call.id) == []
 
 
-def test_patch_with_analysis_field_is_422_and_changes_nothing(
+def test_patch_with_unknown_key_is_422_and_changes_nothing(
     api: TestClient, db_session: Session
 ) -> None:
     call = make_call(db_session)
 
-    response = api.patch(
-        f"/api/calls/{call.id}", json={"agent_name": "김상담", "category": "COMPLAINT"}
-    )
+    response = api.patch(f"/api/calls/{call.id}", json={"agent_name": "김상담", "status": "STORED"})
 
     assert response.status_code == 422
     db_session.expire_all()
@@ -214,6 +212,152 @@ def test_patch_with_analysis_field_is_422_and_changes_nothing(
     assert stored is not None
     assert stored.agent_name is None
     assert _history(db_session, call.id) == []
+
+
+# ---------------------------------------------------------------- PATCH 분석 수정·검토 완료
+
+
+def _analysis(session: Session, call_id: int) -> Analysis:
+    session.expire_all()
+    analysis = session.scalars(select(Analysis).where(Analysis.call_id == call_id)).one()
+    return analysis
+
+
+def _status(session: Session, call_id: int) -> str:
+    session.expire_all()
+    stored = session.get(CallRecord, call_id)
+    assert stored is not None
+    return stored.status
+
+
+def test_patch_analysis_fields_updates_and_records_history(
+    api: TestClient, db_session: Session
+) -> None:
+    call = make_call(db_session, status="STORED", status_changed_at=T0)
+    make_analysis(
+        db_session, call, category="질의", question_summary="원래 질문", action_status="OPEN"
+    )
+
+    response = api.patch(
+        f"/api/calls/{call.id}",
+        json={
+            "category": "COMPLAINT",
+            "question_summary": " 바뀐 질문 ",
+            "action_summary": "환불 안내",
+            "action_status": "DONE",
+            "editor": "이수정",
+        },
+    )
+
+    assert response.status_code == 200
+    analysis = response.json()["analysis"]
+    assert analysis["category"] == "COMPLAINT"
+    assert analysis["question_summary"] == "바뀐 질문"
+    assert analysis["action_summary"] == "환불 안내"
+    assert analysis["action_status"] == "DONE"
+    assert response.json()["status"] == "STORED"
+    assert _analysis(db_session, call.id).category == "불만"
+    assert _history(db_session, call.id) == [
+        ("category", "질의", "불만", "이수정"),
+        ("question_summary", "원래 질문", "바뀐 질문", "이수정"),
+        ("action_summary", None, "환불 안내", "이수정"),
+        ("action_status", "OPEN", "DONE", "이수정"),
+    ]
+
+
+def test_patch_summary_null_clears(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, status="STORED")
+    make_analysis(db_session, call, action_summary="안내")
+
+    body = api.patch(f"/api/calls/{call.id}", json={"action_summary": None}).json()
+
+    assert body["analysis"]["action_summary"] is None
+    assert _history(db_session, call.id) == [("action_summary", "안내", None, None)]
+
+
+def test_patch_same_analysis_values_writes_no_history(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, status="STORED")
+    make_analysis(db_session, call, category="불만", action_status="OPEN")
+
+    response = api.patch(
+        f"/api/calls/{call.id}", json={"category": "COMPLAINT", "action_status": "OPEN"}
+    )
+
+    assert response.status_code == 200
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_analysis_without_analysis_is_409_and_rolls_back(
+    api: TestClient, db_session: Session
+) -> None:
+    call = make_call(db_session, status="QUEUED")
+
+    response = api.patch(
+        f"/api/calls/{call.id}", json={"agent_name": "김상담", "category": "COMPLAINT"}
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "INVALID_STATE_TRANSITION"
+    db_session.expire_all()
+    stored = db_session.get(CallRecord, call.id)
+    assert stored is not None
+    assert stored.agent_name is None
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_review_completed_moves_needs_review_to_stored(
+    api: TestClient, db_session: Session
+) -> None:
+    call = make_call(db_session, status="NEEDS_REVIEW", status_changed_at=T0)
+    make_analysis(db_session, call, category="질의", needs_review=True)
+
+    response = api.patch(
+        f"/api/calls/{call.id}",
+        json={"category": "ETC", "review_completed": True, "editor": "이수정"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "STORED"
+    assert body["analysis"]["category"] == "ETC"
+    assert body["analysis"]["needs_review"] is False
+    assert body["status_changed_at"] != "2026-11-23T14:30:05+09:00"
+    assert _history(db_session, call.id) == [
+        ("category", "질의", "기타 문의", "이수정"),
+        ("status", "NEEDS_REVIEW", "STORED", "이수정"),
+    ]
+    logs = db_session.scalars(select(ProcessingLog).where(ProcessingLog.call_id == call.id)).all()
+    assert [(log.step, log.status) for log in logs] == [("STORE", "SUCCESS")]
+    assert logs[0].message is not None and "web" in logs[0].message
+
+
+@pytest.mark.parametrize("status", ["STORED", "FAILED"])
+def test_patch_review_completed_outside_needs_review_is_409_and_rolls_back(
+    api: TestClient, db_session: Session, status: str
+) -> None:
+    call = make_call(db_session, status=status)
+    make_analysis(db_session, call, category="질의")
+
+    response = api.patch(
+        f"/api/calls/{call.id}",
+        json={"agent_name": "김상담", "category": "ETC", "review_completed": True},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "INVALID_STATE_TRANSITION"
+    assert _status(db_session, call.id) == status
+    assert _analysis(db_session, call.id).category == "질의"
+    assert _history(db_session, call.id) == []
+
+
+def test_patch_analysis_edit_keeps_needs_review(api: TestClient, db_session: Session) -> None:
+    call = make_call(db_session, status="NEEDS_REVIEW")
+    make_analysis(db_session, call, needs_review=True)
+
+    body = api.patch(f"/api/calls/{call.id}", json={"action_status": "DONE"}).json()
+
+    assert body["status"] == "NEEDS_REVIEW"
+    assert body["analysis"]["needs_review"] is True
 
 
 # ---------------------------------------------------------------- DELETE
