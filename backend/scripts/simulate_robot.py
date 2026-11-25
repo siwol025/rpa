@@ -211,7 +211,7 @@ def _step_for_stage(stage: str) -> str:
 # ---------------------------------------------------------------- 서버 점검용 실행
 
 
-def _scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
+def run_scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
     results: list[tuple[str, bool, str]] = []
 
     def check(title: str, ok: bool, detail: str) -> None:
@@ -237,12 +237,11 @@ def _scenarios(sim: RobotSimulator, run_id: str) -> list[tuple[str, bool, str]]:
         sim.status(failed.call_id),
     )
 
-    for title, call, expected in [
-        ("409 재등록: STORED → done/", success, DispatchAction.MOVE_DONE),
-        ("409 재등록: NEEDS_REVIEW → done/", review, DispatchAction.MOVE_DONE),
-        ("409 재등록: FAILED → failed/", failed, DispatchAction.MOVE_FAILED),
+    for title, seed, call, expected in [
+        ("409 재등록: STORED → done/", "success", success, DispatchAction.MOVE_DONE),
+        ("409 재등록: NEEDS_REVIEW → done/", "review", review, DispatchAction.MOVE_DONE),
+        ("409 재등록: FAILED → failed/", "failed", failed, DispatchAction.MOVE_FAILED),
     ]:
-        seed = {success: "success", review: "review", failed: "failed"}[call]
         again = sim.dispatch(make_wav(f"{run_id}-{seed}"))
         check(title, again.action is expected and again.call_id == call.call_id, again.action)
 
@@ -278,7 +277,7 @@ def main() -> int:
     with httpx.Client(
         base_url=args.base_url, headers={"X-API-Key": args.api_key}, timeout=30
     ) as client:
-        results = _scenarios(RobotSimulator(client), run_id)
+        results = run_scenarios(RobotSimulator(client), run_id)
 
     for title, ok, detail in results:
         print(f"{'PASS' if ok else 'FAIL'}  {title}  ({detail})")

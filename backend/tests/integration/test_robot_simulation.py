@@ -22,6 +22,7 @@ from scripts.simulate_robot import (
     RobotSimulator,
     load_sample,
     make_wav,
+    run_scenarios,
 )
 
 pytestmark = pytest.mark.integration
@@ -358,3 +359,11 @@ def test_every_published_json_example_is_valid_json() -> None:
     assert names == ["log-fail.json", "log-step.json", "status-queued.json", "transcript.json"]
     for name in names:
         _example(name)
+
+
+def test_cli_scenarios_all_pass(robot: RobotSimulator) -> None:
+    # `python -m scripts.simulate_robot`이 실제 서버에 돌리는 점검 시나리오.
+    results = run_scenarios(robot, run_id="cli")
+
+    assert len(results) >= 7
+    assert [title for title, ok, _ in results if not ok] == []
