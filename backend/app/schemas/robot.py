@@ -170,6 +170,8 @@ class RobotAnalysisRequest(BaseModel):
     status: Literal["SUCCESS", "NEEDS_REVIEW"]
     type: AnalysisType
     type_confidence: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    # 길이를 검증하지 않는다: GenAI 추출 값이 길다고 분석 전체를 거절하지 않고 저장만 건너뛴다.
+    customer_company: str | None = None
     customer_question: str | None = None
     agent_action: str | None = None
     follow_up_required: bool | None = None

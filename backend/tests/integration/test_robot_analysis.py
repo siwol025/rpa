@@ -190,6 +190,39 @@ def test_missing_duration_keeps_the_existing_value(robot_client: TestClient, db:
     assert call.duration_sec == 90
 
 
+# ------------------------------------------------------------------ 고객사
+
+
+def test_genai_company_fills_only_an_empty_client_company(
+    robot_client: TestClient, db: Session
+) -> None:
+    empty = make_call_record(db, status=S.STT_DONE, client_company=None)
+    named = make_call_record(db, status=S.STT_DONE, client_company="파일명고객사")
+
+    put(robot_client, empty.id, sample("case01_success", customer_company="  한빛물산 "))
+    put(robot_client, named.id, sample("case01_success", customer_company="한빛물산"))
+
+    db.refresh(empty)
+    db.refresh(named)
+    assert empty.client_company == "한빛물산"
+    assert named.client_company == "파일명고객사"  # 파일명·웹 보정 값이 우선
+    assert robot_client.get(f"/api/calls/{empty.id}").json()["client_company"] == "한빛물산"
+
+
+@pytest.mark.parametrize("company", [None, "", "   ", "가" * 101])
+def test_unusable_genai_company_is_skipped_without_rejecting_the_result(
+    robot_client: TestClient, db: Session, company: str | None
+) -> None:
+    call = make_call_record(db, status=S.STT_DONE, client_company=None)
+
+    response = put(robot_client, call.id, sample("case01_success", customer_company=company))
+
+    assert response.status_code == 200
+    db.refresh(call)
+    assert call.client_company is None
+    assert call.status == S.STORED
+
+
 # ------------------------------------------------------------------ 멱등·재분석
 
 
