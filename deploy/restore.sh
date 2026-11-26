@@ -5,7 +5,9 @@
 # 확인 없이 실행(자동화·연습용): RESTORE_YES=1 deploy/restore.sh ...
 set -euo pipefail
 
-DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Git Bash에서는 C:/... 형식으로 구한다. 아래 MSYS_NO_PATHCONV 때문에 /c/... 를 넘기면
+# docker가 C:\c\... 로 읽어 파일을 못 찾는다. Linux bash에는 pwd -W가 없어 pwd를 쓴다.
+DEPLOY_DIR="$(cd "$(dirname "$0")" && { pwd -W 2>/dev/null || pwd; })"
 ENV_FILE="${ENV_FILE:-$DEPLOY_DIR/.env}"
 # Windows Git Bash가 /data/... 인자를 Windows 경로로 바꾸지 않게 한다(Linux에서는 영향 없음).
 export MSYS_NO_PATHCONV=1
