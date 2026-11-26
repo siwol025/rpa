@@ -73,6 +73,19 @@ Dispatcher 실행 전에 `Runtime\out`에 JSON 7개가 있고 `Runtime\report`�
 - 다른 폴더를 쓰려면 ③의 `stt\config.json`에 `paths`(입출력 폴더)를 넣고 `STT_INPUT_DIR`와 이 `outFolder`를 같은 값으로 맞춥니다(자세한 방법은 `stt/uipath/README.md`의 "입출력 폴더를 설정으로 바꾸기").
 - 옛 JSON 폴더 흐름(`Main.xaml`, `Flow_Dispatcher/Performer`)과 시험 샘플(`Runtime\out`의 7종)은 `outFolder`가 바뀌면 그 폴더를 더는 읽지 않습니다. 시험하려면 `outFolder`를 `Runtime\out`으로 되돌리세요.
 
+## ③ 합친 실행 (한 번에 돌리기, 패키지 게시)
+`Main_Audio.xaml` 하나로 접수 → 재처리 → ③ STT·GenAI → 적재·엑셀까지 한 번에 실행합니다.
+
+- ③의 운영 흐름(`stt/uipath/Main_Folder.xaml`)을 `Flow_SttGenAI.xaml`로 이 프로젝트에 넣고, `Main_Audio`의 "3. STT·GenAI 처리" 단계에서 부릅니다. 원래 ③ 프로젝트(`stt/uipath`)는 그대로 두어 따로 실행·시험할 수 있습니다.
+- `Flow_SttGenAI`는 ③ 폴더를 `baseDir\..\stt\uipath` 기준으로 씁니다: 입력 `calls\in`, 결과 `calls\out`, 프롬프트 `prompts\prompt_v1_2.txt`, 설정 `stt\config.json`(환경변수 `CLOVA_CONFIG`가 있으면 그 파일). `baseDir`는 다른 흐름과 같이 `CALLCENTER_BASE`, 없으면 현재 폴더입니다.
+- ③이 오류로 멈춰도 Performer는 계속 실행합니다(결과가 없는 건은 큐 자동 재시도).
+- 의존성에 `UiPath.IntegrationService.Activities`(GenAI Content Generation)를 추가했습니다. Content Generation의 연결(Connection)은 실행하는 사람의 Orchestrator 연결로 지정해야 합니다.
+
+### 사용자 지정 위치로 게시
+1. Studio 위쪽 **게시** → 게시 대상 **사용자 지정** → 위치에 폴더(예: `C:\callcenter-publish`)를 지정하고 게시합니다. 그 폴더에 `.nupkg`가 생깁니다.
+2. 게시한 패키지는 압축이 풀린 다른 폴더에서 실행되므로, 실행 PC에 환경변수 **`CALLCENTER_BASE`**를 이 프로젝트 폴더(예: `C:\...\rpa\uipath`)로 지정해야 합니다. 설정·엑셀 양식·`Runtime`·③ 폴더를 모두 이 경로 기준으로 찾습니다.
+3. 그 밖에 `CALLCENTER_API_URL`·`CALLCENTER_API_KEY`가 필요하고, 환경변수를 바꾼 뒤에는 UiPath Assistant(로봇)를 다시 시작해야 적용됩니다.
+
 ## 서버(백엔드) 연동 시험
 샘플 음성 3개와 결과 JSON 3개를 서버에 보내 정상·확인필요·실패 경로를 확인한다.
 

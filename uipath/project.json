@@ -4,17 +4,18 @@
   "description": "팀프로젝트",
   "main": "Main_Audio.xaml",
   "dependencies": {
-    "UiPath.Excel.Activities": "[3.3.1]",
-    "UiPath.Mail.Activities": "[2.5.10]",
-    "UiPath.System.Activities": "[25.10.5]",
-    "UiPath.Testing.Activities": "[25.10.0]",
-    "UiPath.UIAutomation.Activities": "[25.10.24]"
+    "UiPath.Excel.Activities": "[3.6.1]",
+    "UiPath.IntegrationService.Activities": "[1.36.0]",
+    "UiPath.Mail.Activities": "[2.12.10]",
+    "UiPath.System.Activities": "[26.10.0]",
+    "UiPath.Testing.Activities": "[25.10.3]",
+    "UiPath.UIAutomation.Activities": "[26.10.7]"
   },
   "webServices": [],
   "entitiesStores": [],
   "schemaVersion": "4.0",
   "studioVersion": "25.10.4.0",
-  "projectVersion": "1.0.1",
+  "projectVersion": "1.0.3",
   "runtimeOptions": {
     "autoDispose": false,
     "netFrameworkLazyLoading": false,
