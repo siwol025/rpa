@@ -990,6 +990,17 @@
             ],
             "title": "Agent Action"
           },
+          "customer_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Company"
+          },
           "customer_question": {
             "anyOf": [
               {

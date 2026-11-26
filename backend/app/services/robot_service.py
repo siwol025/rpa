@@ -25,6 +25,7 @@ from app.services.call_metadata import is_metadata_incomplete
 from app.services.state_machine import CallStateMachine, InvalidTransition
 
 RETRY_TARGET_LIMIT = 100  # 재처리 대상 조회 상한 (convention.md §4)
+_CLIENT_COMPANY_MAX = 100  # call_record.client_company 길이
 
 # 처리 결과가 저장된 상태. 이후 로봇의 재전송은 같은 내용일 때만 받는다.
 _RESULT_STATES = frozenset({CallStatus.STORED, CallStatus.NEEDS_REVIEW})
@@ -163,6 +164,10 @@ class RobotService:
         if duration is not None:
             # 컬럼은 정수 초. Python round()는 2.5→2라서 ③ to_backend.py와 같이 .5를 올린다.
             call.duration_sec = math.floor(duration + 0.5)
+        company = (body.customer_company or "").strip()
+        if call.client_company is None and 0 < len(company) <= _CLIENT_COMPANY_MAX:
+            # 파일명(등록 값)이나 웹 보정 값이 우선이다. 비어 있을 때만 GenAI 추출 값으로 채운다.
+            call.client_company = company
         # 전사는 transcript 테이블에 이미 있으므로 원본에서 뺀다 (본문 중복 저장 방지).
         analysis.raw_json = body.model_dump(mode="json", exclude={"transcript"})
         self._db.commit()

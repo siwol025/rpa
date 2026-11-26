@@ -2,7 +2,7 @@
  * 기준: 백엔드 backend/docs/api/convention.md v0.1 (API 규약), openapi.json, architecture.md §5·§7.
  * 목록·상세(GET /calls, GET /calls/{id}), 통계(GET /stats/summary, /trend, /breakdown), 업로드(POST /uploads),
  * 수정·검토 완료(PATCH), 삭제(DELETE), 재처리(POST retry), 음성(GET audio)은 openapi.json과 대조했다 (main e9490fc).
- * 엑셀(GET /reports/excel)은 아직 API가 없다.
+ * 엑셀(GET /reports/excel)은 파일(blob)로 받으므로 여기에 응답 타입이 없다 (api/stats.ts fetchExcel).
  */
 
 export const CATEGORIES = ['INQUIRY', 'COMPLAINT', 'SUGGESTION', 'EDUCATION', 'ETC'] as const
